@@ -1,0 +1,13 @@
+[application]
+name = "web_app"
+out_dir = "dist"
+
+[web.app]
+title = "Campaign Events"
+
+[web.watcher]
+reload_html = true
+watch_path = ["assets", "src"]
+
+[[web.proxy]]
+backend = "http://localhost:8000/api/"

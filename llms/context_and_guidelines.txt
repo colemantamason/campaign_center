@@ -1,0 +1,21 @@
+Technical Context:
+- I'm building an app using Dioxus v0.7 (Rust) and Tailwind v3. You can use context7 for the latest Dioxus documentation.
+- I only add comments in lower case.
+- I'm using the lucide_dioxus crate for Lucide icons.
+- I'm building an events platform in a monorepo 
+with the following packages: "api", "app", "marketing", "ui", "web".
+
+Guidelines for Dioxus/Rust:
+- Dioxus doesn't allow setting variables within the rsx! macro, so use state as much as possible for conditional rendering.
+- Dioxus lets you use multiple "class" attributes on elements, so always make more than one with single if statements instead of using if/else statements or match statements
+on a single class attribute for Tailwind styling.
+- I prefer to use "match" statements when I need conditional logic that spans more than one choice, but I prefer to use "if" statements (even nested) for single logic checks or when the match statements
+just has one potential value and a default {} (Tailwind styling is a great example).
+- I prefer to create props for my Dioxus components in a Struct so that my component is "cleaner"
+- I NEVER want to use "eval" (JS) if possible. I'd always rather do it the "Rust way". Sometimes
+that means using a rust package like gloo or web_sys and I'm okay with that. If possible, I'd always
+prefer gloo since it's easier to work with.
+
+Guidelines for CSS/Styling:
+- I prefer to use Flexbox whenever possible for positioning (over manual positioning, grid/gap, etc.)
+- I only style my Lucide icons with the class attribute.

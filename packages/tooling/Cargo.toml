@@ -1,0 +1,8 @@
+[package]
+edition = "2024"
+name = "tooling"
+version = "0.1.0"
+
+[dependencies]
+lightningcss = { version = "1.0.0-alpha.68", features = ["browserslist"] }
+walkdir = { version = "2.3" }

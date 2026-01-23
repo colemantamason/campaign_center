@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "packages/api",
+    "packages/mobile_app",
+    "packages/tooling",
+    "packages/ui",
+    "packages/web_app",
+    "packages/websites/events",
+    "packages/websites/external/stop_communism",
+    "packages/websites/marketing",
+]
+resolver = "2"
+
+[workspace.dependencies]
+api = { path = "packages/api" }
+dioxus = { version = "0.7.3" }
+events = { path = "packages/websites/events" }
+marketing = { path = "packages/websites/marketing" }
+mobile_app = { path = "packages/mobile_app" }
+stop_communism = { path = "packages/websites/external/stop_communism" }
+tooling = { path = "packages/tooling" }
+ui = { path = "packages/ui" }
+web_app = { path = "packages/web_app" }

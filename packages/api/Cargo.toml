@@ -1,0 +1,14 @@
+[package]
+edition = "2021"
+name = "api"
+version = "0.1.0"
+
+[dependencies]
+dioxus = { workspace = true }
+
+[features]
+events = []
+mobile_app = []
+server = ["dioxus/server"]
+shared = []
+web_app = []

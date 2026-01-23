@@ -1,0 +1,25 @@
+[package]
+edition = "2021"
+name = "web_app"
+version = "0.1.0"
+
+[dependencies]
+api = { workspace = true, features = ["shared", "web_app"] }
+dioxus = { workspace = true, features = ["fullstack", "router"] }
+lucide-dioxus = { version = "2.44.0", features = ["all-icons"] }
+ui = { workspace = true, features = ["shared", "web_app"] }
+
+[features]
+default = []
+server = ["ui/server"]
+web = ["ui/web"]
+
+# Web optimized for size
+[profile.web-release]
+codegen-units = 1
+debug = false
+incremental = false
+lto = true
+opt-level = "z"
+panic = "abort"
+strip = true

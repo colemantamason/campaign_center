@@ -1,0 +1,10 @@
+[application]
+name = "stop_communism"
+out_dir = "dist"
+
+[web.app]
+title = "Stop Communism PAC"
+
+[web.watcher]
+reload_html = true
+watch_path = ["assets", "src"]

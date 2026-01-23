@@ -1,0 +1,168 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			// External Website
+			{
+				"label": "Tailwind CLI - external",
+				"type": "shell",
+				"command": "npx tailwindcss -c scp.tailwind.config.js -i tailwind.css -o ../packages/websites/external/stop_communism/assets/style.css --watch",
+				"isBackground": true,
+				"options": {
+					"cwd": "${workspaceFolder}/tailwind"
+				},
+			},
+			{
+				"label": "DX Serve - external",
+				"type": "shell",
+				"command": "dx serve",
+				"isBackground": true,
+				"options": {
+					"cwd": "${workspaceFolder}/packages/websites/external/stop_communism"
+				},
+			},
+			{
+				"label": "Run External",
+				"dependsOn": [
+					"Tailwind CLI - external",
+					"DX Serve - external"
+				],
+			},
+			{
+				"label": "Create Tooling",
+				"type": "shell",
+				"command": "cargo build -p tooling --release",
+				"options": {
+					"cwd": "${workspaceFolder}"
+				},
+			},
+			{
+				"label": "Execute Tooling",
+				"type": "shell",
+				"command": "target/release/tooling packages/websites/external/stop_communism/assets/style.css",
+				"options": {
+					"cwd": "${workspaceFolder}"
+				},
+			},
+			{
+				"label": "Clean External Bundle",
+				"type": "shell",
+				"command": "rm -rf target",
+				"options": {
+					"cwd": "${workspaceFolder}"
+				},
+			},
+			{
+				"label": "DX Bundle",
+				"type": "shell",
+				"command": "dx build --web --ssg --release --debug-symbols=false",
+				"options": {
+					"cwd": "${workspaceFolder}/packages/websites/external/stop_communism"
+				},
+			},
+			{
+				"label": "Build External",
+				"dependsOrder": "sequence",
+				"dependsOn": [
+					"Create Tooling",
+					"Execute Tooling",
+					"Clean External Bundle",
+					"DX Bundle"
+				],
+			},
+			// Web App
+			{
+				"label": "Tailwind CLI - web_app",
+				"type": "shell",
+				"command": "npx tailwindcss -c web_app.tailwind.config.js -i tailwind.css -o ../packages/web_app/assets/style.css --watch",
+				"isBackground": true,
+				"options": {
+					"cwd": "${workspaceFolder}/tailwind"
+				},
+			},
+			{
+				"label": "DX Serve - web_app",
+				"type": "shell",
+				"command": "dx serve",
+				"isBackground": true,
+				"options": {
+					"cwd": "${workspaceFolder}/packages/web_app"
+				},
+			},
+			{
+				"label": "Run Web App",
+				"dependsOn": [
+					"Tailwind CLI - web_app",
+					"DX Serve - web_app"
+				],
+			},
+		]
+	},
+	"settings": {
+		"rust-analyzer.cargo.features": [
+			"server",
+			"web",
+			"events",
+			"marketing",
+			"mobile_app",
+			"shared",
+			"web_app",
+		],
+		"files.associations": {
+			"tailwind.css": "tailwindcss"
+		},
+		"tailwindCSS.experimental.classRegex": [
+			"class: \"(.*)\"",
+			"\\{(.*)\\}"
+		],
+		"tailwindCSS.includeLanguages": {
+			"rust": "html",
+		},
+		"tasksStatusbar.taskLabelFilter": "Run * |Build *",
+		"cSpell.words": [
+			"bindgen",
+			"browserslist",
+			"chrono",
+			"Clto",
+			"codegen",
+			"Datelike",
+			"dioxus",
+			"evenodd",
+			"fetchpriority",
+			"Flexbox",
+			"gloo",
+			"lightningcss",
+			"linecap",
+			"linejoin",
+			"llms",
+			"lucide",
+			"maxlength",
+			"mousemove",
+			"mouseup",
+			"onblur",
+			"onchange",
+			"onclick",
+			"onfocus",
+			"oninput",
+			"oninvalid",
+			"onmount",
+			"onmounted",
+			"onmousedown",
+			"onsubmit",
+			"rgba",
+			"rustflags",
+			"stopcommunism",
+			"STYLESHEET",
+			"Topbar",
+			"TTFB",
+			"walkdir",
+			"Zlocation",
+			"Zvirtual"
+		]
+	}
+}

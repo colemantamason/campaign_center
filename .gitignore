@@ -1,0 +1,11 @@
+.DS_Store
+
+**/target
+Cargo.lock
+
+node_modules
+package-lock.json
+
+llms.txt
+
+**/*.rs.bk

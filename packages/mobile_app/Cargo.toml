@@ -1,0 +1,4 @@
+[package]
+edition = "2021"
+name = "mobile_app"
+version = "0.1.0"
