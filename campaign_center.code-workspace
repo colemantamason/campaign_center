@@ -124,6 +124,13 @@
 			"rust": "html",
 		},
 		"tasksStatusbar.taskLabelFilter": "Run * |Build *",
+		"emeraldwalk.runonsave": {
+			"commands": [
+				{
+					"cmd": "cargo sort-derives --path ${file}"
+				}
+			]
+		},
 		"cSpell.words": [
 			"bindgen",
 			"browserslist",
@@ -132,6 +139,7 @@
 			"codegen",
 			"Datelike",
 			"dioxus",
+			"emeraldwalk",
 			"evenodd",
 			"fetchpriority",
 			"Flexbox",
@@ -155,6 +163,7 @@
 			"onmousedown",
 			"onsubmit",
 			"rgba",
+			"runonsave",
 			"rustflags",
 			"stopcommunism",
 			"STYLESHEET",

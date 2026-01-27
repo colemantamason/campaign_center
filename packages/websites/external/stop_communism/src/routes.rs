@@ -39,7 +39,7 @@ fn Layout() -> Element {
     }
 }
 
-#[derive(Routable, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Routable)]
 #[rustfmt::skip]
 #[allow(clippy::empty_line_after_outer_attr)]
 pub enum Routes {

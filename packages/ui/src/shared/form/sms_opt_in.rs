@@ -1,6 +1,7 @@
+use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::checkbox::Checkbox;
 use crate::shared::form::FormStatus;
-use crate::shared::input::{Input, InputType};
+use crate::shared::input::{Input, InputSize, InputType};
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
 use gloo::net::http::Request;
@@ -8,7 +9,7 @@ use lucide_dioxus::CircleCheck;
 #[cfg(feature = "web")]
 use web_sys::{FormData, RequestMode};
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct FormProps {
     org_name: &'static str,
     hidden_source: String,
@@ -18,19 +19,20 @@ pub struct FormProps {
 pub fn Form(props: FormProps) -> Element {
     let mut status = use_signal(|| FormStatus::Idle);
     let full_name_required = use_memo(move || true);
-    let full_name_value = use_signal(|| String::new());
+    let full_name_value = use_signal(|| "".to_string());
     let email_required = use_memo(move || true);
-    let email_value = use_signal(|| String::new());
+    let email_value = use_signal(|| "".to_string());
     let zip_code_required = use_memo(move || true);
-    let zip_code_value = use_signal(|| String::new());
+    let zip_code_value = use_signal(|| "".to_string());
     let opt_in_value = use_signal(|| false);
     let phone_required = use_memo(move || opt_in_value());
-    let phone_value = use_signal(|| String::new());
+    let phone_value = use_signal(|| "".to_string());
     let opt_in_required =
         use_memo(move || !phone_value().is_empty() && !phone_value().contains('_'));
+    let submit_disabled = use_memo(move || status() == FormStatus::Processing);
 
-    let onsubmit_handler = move |e: FormEvent| {
-        e.prevent_default();
+    let onsubmit_handler = move |event: FormEvent| {
+        event.prevent_default();
         let full_name = full_name_value();
         let email = email_value();
         let phone = phone_value();
@@ -40,7 +42,7 @@ pub fn Form(props: FormProps) -> Element {
 
         #[cfg(feature = "web")]
         spawn(async move {
-            status.set(FormStatus::Submitting);
+            status.set(FormStatus::Processing);
 
             let result = async {
                 let form_data = FormData::new().ok()?;
@@ -67,31 +69,35 @@ pub fn Form(props: FormProps) -> Element {
     };
 
     match status() {
-        FormStatus::Idle | FormStatus::Submitting => rsx! {
+        FormStatus::Idle | FormStatus::Processing => rsx! {
             form { class: "flex flex-col gap-6", onsubmit: onsubmit_handler,
                 Input {
-                    input_type: InputType::Text,
+                    r#type: InputType::Text,
+                    size: InputSize::Form,
                     id: "full_name".to_string(),
                     label: "Full Name".to_string(),
                     required: Some(full_name_required),
                     value: full_name_value,
                 }
                 Input {
-                    input_type: InputType::Email,
+                    r#type: InputType::Email,
+                    size: InputSize::Form,
                     id: "email_address".to_string(),
                     label: "Email Address".to_string(),
                     required: Some(email_required),
                     value: email_value,
                 }
                 Input {
-                    input_type: InputType::Phone,
+                    r#type: InputType::Phone,
+                    size: InputSize::Form,
                     id: "mobile_phone".to_string(),
                     label: "Mobile Phone".to_string(),
                     required: Some(phone_required),
                     value: phone_value,
                 }
                 Input {
-                    input_type: InputType::Zip,
+                    r#type: InputType::Zip,
+                    size: InputSize::Form,
                     id: "zip_code".to_string(),
                     label: "Zip Code".to_string(),
                     required: Some(zip_code_required),
@@ -114,14 +120,14 @@ pub fn Form(props: FormProps) -> Element {
                         }
                     }
                 }
-                button {
-                    r#type: "submit",
-                    class: "w-full bg-primary text-primary-foreground font-bold py-3 rounded hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed",
-                    disabled: status() == FormStatus::Submitting,
-                    if status() == FormStatus::Submitting {
-                        "SIGNING UP..."
-                    } else {
-                        "SIGN UP"
+                Button {
+                    r#type: ButtonType::Submit,
+                    size: ButtonSize::FormFull,
+                    variant: ButtonVariant::Primary,
+                    disabled: Some(submit_disabled),
+                    match status() {
+                        FormStatus::Idle | FormStatus::Success | FormStatus::Error => "SIGN UP",
+                        FormStatus::Processing => "SIGNING UP...",
                     }
                 }
             }
@@ -133,7 +139,12 @@ pub fn Form(props: FormProps) -> Element {
                 }
                 p { class: "text-2xl font-bold text-foreground", "Thank You!" }
                 p { class: "text-foreground",
-                    "You've successfully joined {props.org_name}. We'll keep you updated on how you can help make a difference."
+                    {
+                        format!(
+                            "You've successfully joined {}. We'll keep you updated on how you can help make a difference.",
+                            props.org_name,
+                        )
+                    }
                 }
             }
         },

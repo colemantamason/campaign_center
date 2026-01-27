@@ -1,0 +1,15 @@
+Technical Context: I'm building an app using Dioxus v0.7 (Rust) and Tailwind v3. You can use context7 for the latest Dioxus documentation.
+
+Guidelines for Dioxus/Rust:
+- Always look at how I structure / style components in my app and keep the coding style consistent in your changes.
+- Always look at the idiomatic styling and semantics of how I program in Rust/Dioxus and stick to those. Here's some examples:
+    - Always create my props (and types) outside of the component so that I can share types across files.
+    - Always set props as an Optional instead of setting a default value.
+    - Always use .to_string() over String::from()/new() unless we need to set specific capacity (String::with_capacity()).
+    - Always use Rust's exhaustive match over if/else when possible.
+    - Always avoid calling signal's as a function, and instead use functions like .cloned() and .set() on the signal.
+- I NEVER want to use "eval" (JS) if possible. I'd always rather do it with wasm (using packages like gloo, web_sys, etc. when necessary).
+
+Guidelines for CSS/Styling:
+- Always use flexbox when positioning elements. Keep other CSS as simple as possible (no cutting edge CSS).
+- I use lucide_dioxus in my app for icons. Always style my Lucide icons with only the class attribute using Tailwind (w-X, h-X, etc.).

@@ -2,7 +2,7 @@ use lightningcss::{
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet},
     targets::{Browsers, Targets},
 };
-use std::{env, fs, path::Path};
+use std::{env, error::Error, fs, path::Path, process::exit};
 use walkdir::WalkDir;
 
 pub enum CssSource<'a> {
@@ -10,7 +10,7 @@ pub enum CssSource<'a> {
     String(&'a str),
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Usage: {} <input_path_or_css_string> [output_path]",
             args[0]
         );
-        std::process::exit(1);
+        exit(1);
     }
 
     let input = &args[1];
@@ -41,10 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn process_css(
-    source: CssSource,
-    output_path: Option<&Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn process_css(source: CssSource, output_path: Option<&Path>) -> Result<(), Box<dyn Error>> {
     match source {
         CssSource::Path(path) => {
             if path.is_dir() {
@@ -68,8 +65,8 @@ pub fn process_css(
     }
 }
 
-fn process_directory(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    for entry in WalkDir::new(dir).into_iter().filter_map(|e| e.ok()) {
+fn process_directory(dir: &Path) -> Result<(), Box<dyn Error>> {
+    for entry in WalkDir::new(dir).into_iter().filter_map(|entry| entry.ok()) {
         let path = entry.path();
         if path.extension().map_or(false, |ext| ext == "css") {
             process_file(path)?;
@@ -78,14 +75,14 @@ fn process_directory(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn process_file(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn process_file(path: &Path) -> Result<(), Box<dyn Error>> {
     let content = fs::read_to_string(path)?;
     process_content(&content, path)
 }
 
-fn process_content(content: &str, output_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn process_content(content: &str, output_path: &Path) -> Result<(), Box<dyn Error>> {
     let mut stylesheet = StyleSheet::parse(content, ParserOptions::default())
-        .map_err(|e| format!("Failed to parse CSS: {}", e))?;
+        .map_err(|error| format!("Failed to parse CSS: {}", error))?;
 
     let targets = Targets {
         browsers: Browsers::from_browserslist([">= 0.01%", "not dead", "not op_mini all"])?,

@@ -31,11 +31,11 @@ pub enum EventScheduleFrequency {
     Monthly,
 }
 
-#[derive(Store, Clone, Default)]
+#[derive(Clone, Default, Store)]
 pub struct Event {
     pub id: i32,
     pub name: String,
-    pub event_type: EventType,
+    pub r#type: EventType,
     pub visibility: EventVisibility,
     pub description: String,
     pub attendee_message: Option<String>,
@@ -69,7 +69,7 @@ impl Event {
     pub fn new(
         id: i32,
         name: String,
-        event_type: EventType,
+        r#type: EventType,
         visibility: EventVisibility,
         description: String,
         attendee_message: Option<String>,
@@ -90,7 +90,7 @@ impl Event {
         Self {
             id,
             name,
-            event_type,
+            r#type,
             visibility,
             description,
             attendee_message,
@@ -116,7 +116,7 @@ pub type Events = HashMap<i32, Event>;
 pub fn get_mock_events() -> Events {
     let create_event = |id,
                         name,
-                        event_type,
+                        r#type,
                         visibility,
                         description,
                         attendee_message,
@@ -138,7 +138,7 @@ pub fn get_mock_events() -> Events {
             Event::new(
                 id,
                 name,
-                event_type,
+                r#type,
                 visibility,
                 description,
                 attendee_message,

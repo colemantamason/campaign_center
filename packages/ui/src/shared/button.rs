@@ -1,21 +1,23 @@
-use crate::shared::form::FormStatus;
 use dioxus::prelude::*;
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub enum ButtonType {
     Button,
+    Link,
     Submit,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub enum ButtonSize {
     Default,
     Full,
-    Fit,
     Icon,
+    Fit,
+    FormDefault,
+    FormFull,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub enum ButtonVariant {
     Primary,
     Secondary,
@@ -26,15 +28,13 @@ pub enum ButtonVariant {
     SidebarActive,
 }
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct ButtonProps {
-    #[props(default = ButtonType::Button)]
-    button_type: ButtonType,
+    r#type: ButtonType,
     size: ButtonSize,
     variant: ButtonVariant,
-    #[props(default = "".to_string(), into)]
-    class: String,
-    disabled: Option<Signal<FormStatus>>,
+    class: Option<String>,
+    disabled: Option<Memo<bool>>,
     onclick: Option<EventHandler<MouseEvent>>,
     to: Option<String>,
     children: Element,
@@ -42,14 +42,17 @@ pub struct ButtonProps {
 
 #[component]
 pub fn Button(props: ButtonProps) -> Element {
-    let common_classes =
-        "rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50";
+    let common_classes = "rounded-md disabled:pointer-events-none disabled:opacity-50";
 
     let size_classes = match props.size {
-        ButtonSize::Default => "inline-flex items-center justify-center px-4 py-2",
-        ButtonSize::Full => "w-full flex items-center gap-3 p-2",
-        ButtonSize::Fit => "p-0",
-        ButtonSize::Icon => "inline-flex items-center justify-center p-0.5",
+        ButtonSize::Default => {
+            "inline-flex items-center justify-center px-4 py-2 text-sm font-medium"
+        }
+        ButtonSize::Full => "w-full flex items-center gap-3 p-2 text-sm font-medium",
+        ButtonSize::Fit => "p-0 text-sm font-medium",
+        ButtonSize::Icon => "inline-flex items-center justify-center p-0.5 text-sm font-medium",
+        ButtonSize::FormDefault => "inline-flex items-center justify-center px-4 py-2 font-bold",
+        ButtonSize::FormFull => "w-full flex items-center justify-center p-3 font-bold",
     };
 
     let variant_classes = match props.variant {
@@ -66,27 +69,41 @@ pub fn Button(props: ButtonProps) -> Element {
 
     let combined_classes = format!(
         "{} {} {} {}",
-        common_classes, size_classes, variant_classes, props.class
+        common_classes,
+        size_classes,
+        variant_classes,
+        props.class.clone().unwrap_or_default()
     );
 
-    rsx! {
-        if let Some(to_path) = props.to {
-            Link { to: to_path, class: "{combined_classes}", {props.children} }
-        } else {
-            button {
-                r#type: match props.button_type {
-                    ButtonType::Button => "button",
-                    ButtonType::Submit => "submit",
-                },
-                class: "{combined_classes}",
-                disabled: if let Some(status_signal) = &props.disabled { status_signal() == FormStatus::Submitting } else { false },
-                onclick: move |evt| {
-                    if let Some(handler) = &props.onclick {
-                        handler.call(evt);
-                    }
-                },
-                {props.children}
-            }
+    match props.r#type {
+        ButtonType::Button | ButtonType::Submit => {
+            rsx!(
+                button {
+                    r#type: match props.r#type {
+                        ButtonType::Button => "button",
+                        ButtonType::Submit => "submit",
+                        _ => "",
+                    },
+                    class: "{combined_classes}",
+                    disabled: if let Some(disabled) = &props.disabled { disabled() } else { false },
+                    onclick: move |event| {
+                        if let Some(handler) = &props.onclick {
+                            handler.call(event);
+                        }
+                    },
+                    {props.children}
+                }
+
+            )
+        }
+        ButtonType::Link => {
+            rsx!(
+                Link {
+                    to: props.to.unwrap_or("#".to_string()),
+                    class: "{combined_classes}",
+                    {props.children}
+                }
+            )
         }
     }
 }

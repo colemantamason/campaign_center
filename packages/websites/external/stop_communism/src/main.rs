@@ -2,6 +2,7 @@ mod routes;
 
 use dioxus::prelude::*;
 use routes::Routes;
+use std::env::current_exe;
 
 // SSG launch configuration
 fn main() {
@@ -11,7 +12,7 @@ fn main() {
                 .incremental(
                     dioxus::server::IncrementalRendererConfig::new()
                         .static_dir(
-                            std::env::current_exe()
+                            current_exe()
                                 .unwrap()
                                 .parent()
                                 .unwrap()

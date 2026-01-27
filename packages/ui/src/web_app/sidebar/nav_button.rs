@@ -1,8 +1,8 @@
-use crate::shared::button::{Button, ButtonSize, ButtonVariant};
+use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::icon::{Icon, IconSize, IconVariant};
 use dioxus::prelude::*;
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct NavButtonProps {
     nav_route: String,
     current_route: String,
@@ -14,6 +14,7 @@ pub struct NavButtonProps {
 pub fn NavButton(props: NavButtonProps) -> Element {
     rsx! {
         Button {
+            r#type: ButtonType::Link,
             size: ButtonSize::Full,
             variant: {
                 if props.current_route.ends_with(&props.nav_route) {
@@ -34,7 +35,7 @@ pub fn NavButton(props: NavButtonProps) -> Element {
                 },
                 {props.icon}
             }
-            span { "{props.label}" }
+            span { {props.label} }
         }
     }
 }

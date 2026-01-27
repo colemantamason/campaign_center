@@ -1,18 +1,17 @@
 use dioxus::prelude::*;
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub enum AvatarVariant {
     Square,
     Round,
 }
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct AvatarProps {
     src: Option<String>,
     fallback: String,
     variant: AvatarVariant,
-    #[props(default = "".to_string(), into)]
-    class: String,
+    class: Option<String>,
 }
 
 #[component]
@@ -24,7 +23,12 @@ pub fn Avatar(props: AvatarProps) -> Element {
         AvatarVariant::Round => "rounded-full",
     };
 
-    let combined_classes = format!("{} {} {}", common_classes, variant_classes, props.class);
+    let combined_classes = format!(
+        "{} {} {}",
+        common_classes,
+        variant_classes,
+        props.class.clone().unwrap_or_default()
+    );
 
     rsx! {
         div { class: "{combined_classes}",

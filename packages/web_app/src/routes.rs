@@ -28,7 +28,7 @@ use notifications::Notifications;
 use page_not_found::PageNotFound;
 use settings::Settings;
 use team::Team;
-use ui::web_app::sidebar::{NavRoutes, RouteType, Sidebar};
+use ui::web_app::sidebar::{NavRoutes, RouteType, Sidebar, SidebarType};
 
 #[component]
 fn Layout() -> Element {
@@ -72,14 +72,14 @@ fn Layout() -> Element {
         div { class: "flex bg-background",
             if !router().full_route_string().starts_with(Routes::Account {}.to_string().as_str()) {
                 Sidebar {
+                    r#type: SidebarType::Main,
                     user_account,
-                    is_main_sidebar: true,
                     nav_routes: main_sidebar_routes,
                 }
             } else {
                 Sidebar {
+                    r#type: SidebarType::UserAccount,
                     user_account,
-                    is_user_account_sidebar: true,
                     nav_routes: account_sidebar_routes,
                 }
             }
@@ -88,7 +88,7 @@ fn Layout() -> Element {
     }
 }
 
-#[derive(Routable, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Routable)]
 #[rustfmt::skip]
 #[allow(clippy::empty_line_after_outer_attr)]
 pub enum Routes {

@@ -17,7 +17,7 @@ default = []
 server = ["ui/server"]
 web = ["ui/web"]
 
-# Web optimized for size
+# wasm optimizations
 [profile.web-release]
 codegen-units = 1
 debug = false

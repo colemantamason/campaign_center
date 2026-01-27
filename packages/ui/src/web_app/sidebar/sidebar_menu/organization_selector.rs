@@ -1,16 +1,17 @@
 mod organization_container;
 
-use crate::shared::button::{Button, ButtonSize, ButtonVariant};
+use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::divider::Divider;
 use crate::shared::icon::{Icon, IconSize, IconVariant};
-use crate::shared::input::{Input, InputType};
-use crate::web_app::confirmation_modal::ConfirmationModal;
+use crate::shared::input::{Input, InputSize, InputType};
+use crate::web_app::confirmation_modal::{ConfirmationModal, ConfirmationModalType};
 use api::web_app::{Organization, OrganizationStoreExt, Organizations};
 use dioxus::prelude::*;
 use lucide_dioxus::{Plus, X};
-use organization_container::OrganizationContainer;
+use organization_container::{OrganizationContainer, OrganizationContainerType};
+use std::cmp::Ordering;
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct OrganizationSelectorProps {
     active_organization_id: Store<i32>,
     organizations: Store<Organizations>,
@@ -20,7 +21,7 @@ pub struct OrganizationSelectorProps {
 
 #[component]
 pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
-    let search_text = use_signal(|| String::new());
+    let search_text = use_signal(|| "".to_string());
     let mut pending_organization_id = use_signal(|| None::<i32>);
     let show_confirmation_modal: Signal<bool> = use_signal(|| false);
 
@@ -30,7 +31,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
 
     rsx! {
         OrganizationContainer {
-            is_selector_container: true,
+            r#type: OrganizationContainerType::Selector,
             selector_name: Some(props.active_organization.name().into()),
             selector_avatar_url: Some(props.active_organization.avatar_url().into()),
             selector_member_count: Some(props.active_organization.member_count().into()),
@@ -44,6 +45,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                             "Switch Organizations"
                         }
                         Button {
+                            r#type: ButtonType::Button,
                             onclick: move |_| props.show_menu.set(false),
                             size: ButtonSize::Icon,
                             variant: ButtonVariant::Sidebar,
@@ -56,7 +58,8 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                     }
                     div { class: "px-2",
                         Input {
-                            input_type: InputType::Text,
+                            r#type: InputType::Text,
+                            size: InputSize::Default,
                             id: "organization-search".to_string(),
                             label: "Search...".to_string(),
                             value: search_text,
@@ -81,9 +84,9 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                                 let a_is_active = a.id == props.active_organization.read().id;
                                 let b_is_active = b.id == props.active_organization.read().id;
                                 if a_is_active && !b_is_active {
-                                    std::cmp::Ordering::Less
+                                    Ordering::Less
                                 } else if !a_is_active && b_is_active {
-                                    std::cmp::Ordering::Greater
+                                    Ordering::Greater
                                 } else {
                                     a.name.cmp(&b.name)
                                 }
@@ -98,14 +101,14 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                                     div { key: "{organization.id}", class: "w-full px-2",
                                         if organization.id == props.active_organization.read().id {
                                             OrganizationContainer {
-                                                is_active_container: true,
+                                                r#type: OrganizationContainerType::Active,
                                                 name: Some(organization.name.clone().into()),
                                                 avatar_url: organization.avatar_url.clone(),
                                                 member_count: Some(organization.member_count.into()),
                                             }
                                         } else {
                                             OrganizationContainer {
-                                                is_non_active_container: true,
+                                                r#type: OrganizationContainerType::NonActive,
                                                 organization_id: Some(organization.id.into()),
                                                 name: Some(organization.name.clone().into()),
                                                 avatar_url: organization.avatar_url.clone(),
@@ -124,6 +127,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                 Divider {}
                 div { class: "w-full px-2",
                     Button {
+                        r#type: ButtonType::Button,
                         size: ButtonSize::Full,
                         variant: ButtonVariant::Sidebar,
                         Icon {
@@ -138,6 +142,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
         }
         if show_confirmation_modal() {
             ConfirmationModal {
+                r#type: ConfirmationModalType::Default,
                 title: "Switch Organization".to_string(),
                 message: {
                     let pending_organization_name = props

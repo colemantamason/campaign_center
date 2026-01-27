@@ -1,12 +1,12 @@
-use crate::shared::button::{Button, ButtonSize, ButtonVariant};
+use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::divider::Divider;
 use crate::shared::icon::{Icon, IconSize, IconVariant};
 use crate::web_app::avatar::{Avatar, AvatarVariant};
-use crate::web_app::confirmation_modal::ConfirmationModal;
+use crate::web_app::confirmation_modal::{ConfirmationModal, ConfirmationModalType};
 use dioxus::prelude::*;
 use lucide_dioxus::{ChevronsUpDown, LogOut, Settings2, X};
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct UserAccountMenuProps {
     user_first_name: Store<String>,
     user_last_name: Store<String>,
@@ -22,12 +22,13 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
 
     rsx! {
         Button {
+            r#type: ButtonType::Button,
             size: ButtonSize::Full,
             variant: ButtonVariant::Sidebar,
             class: "group",
             onclick: move |_| props.show_menu.toggle(),
             Avatar {
-                src: props.user_avatar_url.read().clone(),
+                src: props.user_avatar_url.cloned(),
                 fallback: {
                     format!(
                         "{}{}",
@@ -39,10 +40,10 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
             }
             div { class: "flex flex-col flex-1 text-left gap-1",
                 span { class: "text-sm leading-none font-medium text-foreground group-hover:text-accent-foreground truncate",
-                    "{props.user_first_name} {props.user_last_name}"
+                    {format!("{} {}", props.user_first_name.cloned(), props.user_last_name.cloned())}
                 }
                 span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
-                    "{props.user_role}"
+                    {props.user_role.cloned()}
                 }
             }
             Icon {
@@ -59,6 +60,7 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                         "Your Account"
                     }
                     Button {
+                        r#type: ButtonType::Button,
                         size: ButtonSize::Icon,
                         variant: ButtonVariant::Sidebar,
                         onclick: move |_| props.show_menu.set(false),
@@ -71,6 +73,7 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                 }
                 div { class: "px-2 flex flex-col gap-1",
                     Button {
+                        r#type: ButtonType::Link,
                         size: ButtonSize::Full,
                         variant: ButtonVariant::Sidebar,
                         to: props.account_route,
@@ -82,6 +85,7 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                         span { "Account Settings" }
                     }
                     Button {
+                        r#type: ButtonType::Button,
                         size: ButtonSize::Full,
                         variant: ButtonVariant::Sidebar,
                         onclick: move |_| {
@@ -99,6 +103,7 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                 Divider {}
                 div { class: "flex justify-between px-2 py-1.5",
                     Button {
+                        r#type: ButtonType::Link,
                         size: ButtonSize::Fit,
                         variant: ButtonVariant::Link,
                         class: "text-xs font-medium text-muted-foreground",
@@ -113,11 +118,11 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
         }
         if show_confirmation_modal() {
             ConfirmationModal {
+                r#type: ConfirmationModalType::Danger,
                 title: "Log Out".to_string(),
                 message: "Are you sure you want to log out of your account?".to_string(),
                 confirm_text: "Log Out".to_string(),
                 cancel_text: "Cancel".to_string(),
-                is_danger: true,
                 show_modal: show_confirmation_modal,
             }
         }

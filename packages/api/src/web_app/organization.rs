@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use std::collections::HashMap;
 
-#[derive(Store, Clone, Default)]
+#[derive(Clone, Default, Store)]
 pub struct Organization {
     pub id: i32,
     pub name: String,

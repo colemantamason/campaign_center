@@ -851,10 +851,6 @@ video {
   white-space: nowrap;
 }
 
-.rounded {
-  border-radius: 0.25rem;
-}
-
 .rounded-full {
   border-radius: 9999px;
 }
@@ -939,6 +935,10 @@ video {
   padding: 0.5rem;
 }
 
+.p-3 {
+  padding: 0.75rem;
+}
+
 .p-6 {
   padding: 1.5rem;
 }
@@ -1014,6 +1014,11 @@ video {
 .text-4xl {
   font-size: 2.25rem;
   line-height: 2.5rem;
+}
+
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 
 .text-lg {
@@ -1157,10 +1162,6 @@ video {
   background-color: rgb(228 232 239 / 0.8);
 }
 
-.hover\:bg-opacity-90:hover {
-  --tw-bg-opacity: 0.9;
-}
-
 .hover\:text-accent-foreground:hover {
   --tw-text-opacity: 1;
   color: rgb(54 64 80 / var(--tw-text-opacity, 1));
@@ -1198,10 +1199,6 @@ video {
   pointer-events: none;
 }
 
-.disabled\:cursor-not-allowed:disabled {
-  cursor: not-allowed;
-}
-
 .disabled\:opacity-50:disabled {
   opacity: 0.5;
 }
@@ -1234,12 +1231,14 @@ video {
   line-height: 1.5rem;
 }
 
-.peer:-moz-placeholder-shown ~ .peer-placeholder-shown\:text-foreground\/75 {
-  color: rgb(29 41 61 / 0.75);
+.peer:-moz-placeholder-shown ~ .peer-placeholder-shown\:text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
-.peer:placeholder-shown ~ .peer-placeholder-shown\:text-foreground\/75 {
-  color: rgb(29 41 61 / 0.75);
+.peer:placeholder-shown ~ .peer-placeholder-shown\:text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .peer:focus ~ .peer-focus\:top-0 {
@@ -1249,6 +1248,11 @@ video {
 .peer:focus ~ .peer-focus\:text-sm {
   font-size: 0.875rem;
   line-height: 1.25rem;
+}
+
+.peer:focus ~ .peer-focus\:text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 .peer:focus ~ .peer-focus\:text-primary {

@@ -1,12 +1,12 @@
 use dioxus::prelude::*;
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub enum IconSize {
     Small,
     Medium,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub enum IconVariant {
     Primary,
     Muted,
@@ -15,12 +15,11 @@ pub enum IconVariant {
     Button,
 }
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct IconProps {
     size: IconSize,
     variant: IconVariant,
-    #[props(default = "".to_string(), into)]
-    class: String,
+    class: Option<String>,
     children: Element,
 }
 
@@ -43,7 +42,10 @@ pub fn Icon(props: IconProps) -> Element {
 
     let combined_classes = format!(
         "{} {} {} {}",
-        common_classes, size_classes, variant_classes, props.class
+        common_classes,
+        size_classes,
+        variant_classes,
+        props.class.clone().unwrap_or_default()
     );
 
     rsx! {

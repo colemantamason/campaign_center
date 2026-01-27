@@ -1,20 +1,22 @@
-use crate::shared::button::{Button, ButtonSize, ButtonVariant};
+use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::icon::{Icon, IconSize, IconVariant};
 use crate::web_app::avatar::{Avatar, AvatarVariant};
 use dioxus::prelude::*;
 use lucide_dioxus::{Check, ChevronsUpDown};
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
+pub enum OrganizationContainerType {
+    Selector,
+    Active,
+    NonActive,
+}
+
+#[derive(Clone, PartialEq, Props)]
 pub struct OrganizationContainerProps {
-    #[props(default = false)]
-    is_selector_container: bool,
+    r#type: OrganizationContainerType,
     selector_avatar_url: Option<Store<Option<String>>>,
     selector_name: Option<Store<String>>,
     selector_member_count: Option<Store<i32>>,
-    #[props(default = false)]
-    is_active_container: bool,
-    #[props(default = false)]
-    is_non_active_container: bool,
     organization_id: Option<i32>,
     avatar_url: Option<String>,
     name: Option<String>,
@@ -26,24 +28,25 @@ pub struct OrganizationContainerProps {
 
 #[component]
 pub fn OrganizationContainer(props: OrganizationContainerProps) -> Element {
-    rsx! {
-        if props.is_selector_container {
+    match props.r#type {
+        OrganizationContainerType::Selector => rsx! {
             Button {
+                r#type: ButtonType::Button,
                 onclick: move |_| props.show_menu.unwrap().toggle(),
                 size: ButtonSize::Full,
                 variant: ButtonVariant::Sidebar,
                 class: "group",
                 Avatar {
-                    src: props.selector_avatar_url.unwrap().read().clone(),
+                    src: props.selector_avatar_url.unwrap().cloned(),
                     fallback: props.selector_name.unwrap().read().chars().next().unwrap_or('?').to_string(),
                     variant: AvatarVariant::Square,
                 }
                 div { class: "flex flex-col flex-1 min-w-0 text-left gap-1",
                     span { class: "text-sm leading-none font-medium text-foreground group-hover:text-accent-foreground truncate",
-                        "{props.selector_name.unwrap().read().clone()}"
+                        {props.selector_name.unwrap().cloned()}
                     }
                     span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
-                        "{props.selector_member_count.unwrap().read().clone()} members"
+                        {format!("{} members", props.selector_member_count.unwrap().cloned())}
                     }
                 }
                 Icon {
@@ -53,25 +56,28 @@ pub fn OrganizationContainer(props: OrganizationContainerProps) -> Element {
                     ChevronsUpDown {}
                 }
             }
-        } else if props.is_active_container {
+        },
+        OrganizationContainerType::Active => rsx! {
             div { class: "flex items-center gap-3 w-full px-2 py-2 rounded-md bg-sidebar-accent cursor-default",
                 Avatar {
                     src: props.avatar_url,
-                    fallback: props.name.as_ref().and_then(|s| s.chars().next()).unwrap_or('?').to_string(),
+                    fallback: props.name.as_ref().and_then(|name| name.chars().next()).unwrap_or('?').to_string(),
                     variant: AvatarVariant::Square,
                 }
                 div { class: "flex flex-col flex-1 min-w-0 text-left gap-1",
                     span { class: "text-sm leading-none font-medium text-foreground truncate",
-                        "{props.name.as_ref().unwrap()}"
+                        {props.name.as_ref().cloned()}
                     }
                     span { class: "text-sm leading-none text-muted-foreground truncate",
-                        "{props.member_count.unwrap()} members"
+                        {format!("{} members", props.member_count.unwrap())}
                     }
                 }
                 Icon { size: IconSize::Medium, variant: IconVariant::Primary, Check {} }
             }
-        } else if props.is_non_active_container {
+        },
+        OrganizationContainerType::NonActive => rsx! {
             Button {
+                r#type: ButtonType::Button,
                 onclick: move |_| {
                     props.show_menu.unwrap().set(false);
                     props.pending_organization_id.unwrap().set(props.organization_id);
@@ -82,18 +88,18 @@ pub fn OrganizationContainer(props: OrganizationContainerProps) -> Element {
                 class: "group",
                 Avatar {
                     src: props.avatar_url,
-                    fallback: props.name.as_ref().and_then(|s| s.chars().next()).unwrap_or('?').to_string(),
+                    fallback: props.name.as_ref().and_then(|name| name.chars().next()).unwrap_or('?').to_string(),
                     variant: AvatarVariant::Square,
                 }
                 div { class: "flex flex-col flex-1 min-w-0 text-left gap-1",
                     span { class: "text-sm leading-none font-medium text-foreground group-hover:text-accent-foreground truncate",
-                        "{props.name.as_ref().unwrap()}"
+                        {props.name.as_ref().cloned()}
                     }
                     span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
-                        "{props.member_count.unwrap()} members"
+                        {format!("{} members", props.member_count.unwrap())}
                     }
                 }
             }
-        }
+        },
     }
 }

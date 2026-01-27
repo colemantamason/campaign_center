@@ -1,15 +1,20 @@
 use dioxus::prelude::*;
 
-use crate::shared::button::{Button, ButtonSize, ButtonVariant};
+use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
+pub enum ConfirmationModalType {
+    Default,
+    Danger,
+}
+
+#[derive(Clone, PartialEq, Props)]
 pub struct ConfirmationModalProps {
+    r#type: ConfirmationModalType,
     title: String,
     message: String,
     confirm_text: String,
     cancel_text: String,
-    #[props(default = false)]
-    is_danger: bool,
     show_modal: Signal<bool>,
     on_confirm: Option<EventHandler<()>>,
     on_cancel: Option<EventHandler<()>>,
@@ -28,31 +33,39 @@ pub fn ConfirmationModal(mut props: ConfirmationModalProps) -> Element {
             },
             div {
                 class: "bg-background border border-border rounded-lg shadow-lg p-6 w-full max-w-sm",
-                onclick: move |e| e.stop_propagation(),
-                h2 { class: "text-lg font-semibold text-foreground mb-2", "{props.title}" }
-                p { class: "text-sm text-muted-foreground mb-6", "{props.message}" }
+                onclick: move |event| event.stop_propagation(),
+                h2 { class: "text-lg font-semibold text-foreground mb-2", {props.title} }
+                p { class: "text-sm text-muted-foreground mb-6", {props.message} }
                 div { class: "flex justify-end gap-3",
                     Button {
+                        r#type: ButtonType::Button,
                         size: ButtonSize::Default,
-                        variant: if props.is_danger { ButtonVariant::Primary } else { ButtonVariant::Outline },
+                        variant: match props.r#type {
+                            ConfirmationModalType::Default => ButtonVariant::Primary,
+                            ConfirmationModalType::Danger => ButtonVariant::Outline,
+                        },
                         onclick: move |_| {
                             props.show_modal.set(false);
                             if let Some(on_cancel) = &props.on_cancel {
                                 on_cancel.call(());
                             }
                         },
-                        "{props.cancel_text}"
+                        {props.cancel_text}
                     }
                     Button {
+                        r#type: ButtonType::Button,
                         size: ButtonSize::Default,
-                        variant: if props.is_danger { ButtonVariant::Destructive } else { ButtonVariant::Primary },
+                        variant: match props.r#type {
+                            ConfirmationModalType::Default => ButtonVariant::Primary,
+                            ConfirmationModalType::Danger => ButtonVariant::Destructive,
+                        },
                         onclick: move |_| {
                             props.show_modal.set(false);
                             if let Some(on_confirm) = &props.on_confirm {
                                 on_confirm.call(());
                             }
                         },
-                        "{props.confirm_text}"
+                        {props.confirm_text}
                     }
                 }
             }

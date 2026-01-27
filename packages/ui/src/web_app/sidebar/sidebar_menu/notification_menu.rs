@@ -1,10 +1,10 @@
-use crate::shared::button::{Button, ButtonSize, ButtonVariant};
+use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::icon::{Icon, IconSize, IconVariant};
 use crate::web_app::notification_badge::NotificationBadge;
 use dioxus::prelude::*;
 use lucide_dioxus::{Bell, X};
 
-#[derive(Props, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Props)]
 pub struct NotificationMenuProps {
     notifications: Store<i32>,
     show_menu: Signal<bool>,
@@ -14,6 +14,7 @@ pub struct NotificationMenuProps {
 pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
     rsx! {
         Button {
+            r#type: ButtonType::Button,
             size: ButtonSize::Full,
             variant: ButtonVariant::Sidebar,
             class: if *props.notifications.read() > 0 { "group" } else { "" },
@@ -43,6 +44,7 @@ pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
                         "Notifications"
                     }
                     Button {
+                        r#type: ButtonType::Button,
                         onclick: move |_| props.show_menu.set(false),
                         size: ButtonSize::Icon,
                         variant: ButtonVariant::Sidebar,
@@ -52,7 +54,7 @@ pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
                             X {}
                         }
                     }
-                
+
                 }
                 div { class: "px-2 h-80 overflow-y-auto flex flex-col align-center",
                     span { class: "text-sm text-foreground cursor-default", "No new notifications." }
