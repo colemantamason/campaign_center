@@ -72,7 +72,11 @@ pub fn Button(props: ButtonProps) -> Element {
         common_classes,
         size_classes,
         variant_classes,
-        props.class.clone().unwrap_or_default()
+        if let Some(class) = props.class {
+            class
+        } else {
+            "".to_string()
+        }
     );
 
     match props.r#type {
@@ -85,9 +89,9 @@ pub fn Button(props: ButtonProps) -> Element {
                         _ => "",
                     },
                     class: "{combined_classes}",
-                    disabled: if let Some(disabled) = &props.disabled { disabled() } else { false },
+                    disabled: if let Some(disabled) = props.disabled { disabled() } else { false },
                     onclick: move |event| {
-                        if let Some(handler) = &props.onclick {
+                        if let Some(handler) = props.onclick {
                             handler.call(event);
                         }
                     },
@@ -99,7 +103,7 @@ pub fn Button(props: ButtonProps) -> Element {
         ButtonType::Link => {
             rsx!(
                 Link {
-                    to: props.to.unwrap_or("#".to_string()),
+                    to: if let Some(to) = props.to { to } else { "#".to_string() },
                     class: "{combined_classes}",
                     {props.children}
                 }

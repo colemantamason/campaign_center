@@ -55,7 +55,7 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
                             .target()
                             .and_then(|target| target.dyn_into::<Node>().ok())
                         {
-                            if let Some(container) = container_node.read().as_ref() {
+                            if let Some(container) = &container_node() {
                                 if !container.contains(Some(&target)) {
                                     show_menu.set(false);
                                 }
@@ -81,27 +81,65 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
                 }
             },
             match props.r#type {
-                SidebarMenuType::OrganizationSelector => rsx! {
-                    OrganizationSelector {
-                        active_organization_id: props.active_organization_id.unwrap(),
-                        organizations: props.organizations.unwrap(),
-                        active_organization: props.active_organization.unwrap(),
-                        show_menu,
+                SidebarMenuType::OrganizationSelector => {
+                    if let (
+                        Some(active_organization_id),
+                        Some(organizations),
+                        Some(active_organization),
+                    ) = (
+                        props.active_organization_id,
+                        props.organizations,
+                        props.active_organization,
+                    ) {
+                        rsx! {
+                            OrganizationSelector {
+                                active_organization_id,
+                                organizations,
+                                active_organization,
+                                show_menu,
+                            }
+                        }
+                    } else {
+                        rsx! {}
                     }
-                },
-                SidebarMenuType::NotificationMenu => rsx! {
-                    NotificationMenu { notifications: props.notifications.unwrap(), show_menu }
-                },
-                SidebarMenuType::UserAccountMenu => rsx! {
-                    UserAccountMenu {
-                        user_first_name: props.user_first_name.unwrap(),
-                        user_last_name: props.user_last_name.unwrap(),
-                        user_avatar_url: props.user_avatar_url.unwrap(),
-                        user_role: props.user_role.unwrap(),
-                        account_route: props.account_route.unwrap(),
-                        show_menu,
+                }
+                SidebarMenuType::NotificationMenu => {
+                    if let Some(notifications) = props.notifications {
+                        rsx! {
+                            NotificationMenu { notifications, show_menu }
+                        }
+                    } else {
+                        rsx! {}
                     }
-                },
+                }
+                SidebarMenuType::UserAccountMenu => {
+                    if let (
+                        Some(user_first_name),
+                        Some(user_last_name),
+                        Some(user_avatar_url),
+                        Some(user_role),
+                        Some(account_route),
+                    ) = (
+                        props.user_first_name,
+                        props.user_last_name,
+                        props.user_avatar_url,
+                        props.user_role,
+                        props.account_route,
+                    ) {
+                        rsx! {
+                            UserAccountMenu {
+                                user_first_name,
+                                user_last_name,
+                                user_avatar_url,
+                                user_role,
+                                account_route,
+                                show_menu,
+                            }
+                        }
+                    } else {
+                        rsx! {}
+                    }
+                }
             }
         }
     }

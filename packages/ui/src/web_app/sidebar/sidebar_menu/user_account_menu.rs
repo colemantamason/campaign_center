@@ -28,22 +28,30 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
             class: "group",
             onclick: move |_| props.show_menu.toggle(),
             Avatar {
-                src: props.user_avatar_url.cloned(),
+                src: (props.user_avatar_url)(),
                 fallback: {
                     format!(
                         "{}{}",
-                        props.user_first_name.read().chars().next().unwrap_or('?'),
-                        props.user_last_name.read().chars().next().unwrap_or('?'),
+                        if let Some(first_name) = (props.user_first_name)().chars().next() {
+                            first_name.to_string()
+                        } else {
+                            "?".to_string()
+                        },
+                        if let Some(last_name) = (props.user_last_name)().chars().next() {
+                            last_name.to_string()
+                        } else {
+                            "".to_string()
+                        },
                     )
                 },
                 variant: AvatarVariant::Round,
             }
             div { class: "flex flex-col flex-1 text-left gap-1",
                 span { class: "text-sm leading-none font-medium text-foreground group-hover:text-accent-foreground truncate",
-                    {format!("{} {}", props.user_first_name.cloned(), props.user_last_name.cloned())}
+                    {format!("{} {}", (props.user_first_name)(), (props.user_last_name)())}
                 }
                 span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
-                    {props.user_role.cloned()}
+                    {(props.user_role)()}
                 }
             }
             Icon {
@@ -53,7 +61,7 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                 ChevronsUpDown {}
             }
         }
-        if *props.show_menu.read() {
+        if (props.show_menu)() {
             div { class: "absolute left-full bottom-2 ml-2 w-60 bg-sidebar border border-border rounded-md shadow-lg z-50 py-2 flex flex-col gap-2",
                 div { class: "flex flex-row justify-between items-center px-2",
                     span { class: "text-sm font-medium text-foreground cursor-default",

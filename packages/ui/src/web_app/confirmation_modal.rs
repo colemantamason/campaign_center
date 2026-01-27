@@ -27,7 +27,7 @@ pub fn ConfirmationModal(mut props: ConfirmationModalProps) -> Element {
             class: "fixed inset-0 z-50 flex items-center justify-center bg-foreground/50",
             onclick: move |_| {
                 props.show_modal.set(false);
-                if let Some(on_cancel) = &props.on_cancel {
+                if let Some(on_cancel) = props.on_cancel {
                     on_cancel.call(());
                 }
             },
@@ -46,7 +46,7 @@ pub fn ConfirmationModal(mut props: ConfirmationModalProps) -> Element {
                         },
                         onclick: move |_| {
                             props.show_modal.set(false);
-                            if let Some(on_cancel) = &props.on_cancel {
+                            if let Some(on_cancel) = props.on_cancel {
                                 on_cancel.call(());
                             }
                         },
@@ -61,7 +61,7 @@ pub fn ConfirmationModal(mut props: ConfirmationModalProps) -> Element {
                         },
                         onclick: move |_| {
                             props.show_modal.set(false);
-                            if let Some(on_confirm) = &props.on_confirm {
+                            if let Some(on_confirm) = props.on_confirm {
                                 on_confirm.call(());
                             }
                         },

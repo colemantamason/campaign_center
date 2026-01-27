@@ -54,10 +54,16 @@ pub fn process_css(source: CssSource, output_path: Option<&Path>) -> Result<(), 
             let out = output_path.ok_or("Output path required for string source")?;
             let mut final_out = out.to_path_buf();
 
-            if final_out.extension().map_or(true, |ext| ext != "css") {
-                let mut new_name = final_out.file_name().unwrap_or_default().to_os_string();
-                new_name.push(".css");
-                final_out.set_file_name(new_name);
+            if final_out
+                .extension()
+                .map_or(true, |extension| extension != "css")
+            {
+                if let Some(mut new_name) = final_out.file_name().map(|name| name.to_os_string()) {
+                    new_name.push(".css");
+                    final_out.set_file_name(new_name);
+                } else {
+                    final_out.set_file_name("output.css");
+                }
             }
 
             process_content(content, &final_out)
@@ -68,7 +74,10 @@ pub fn process_css(source: CssSource, output_path: Option<&Path>) -> Result<(), 
 fn process_directory(dir: &Path) -> Result<(), Box<dyn Error>> {
     for entry in WalkDir::new(dir).into_iter().filter_map(|entry| entry.ok()) {
         let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "css") {
+        if path
+            .extension()
+            .map_or(false, |extension| extension == "css")
+        {
             process_file(path)?;
         }
     }

@@ -54,7 +54,7 @@ pub fn Input(props: InputProps) -> Element {
 
     use_effect(move || {
         #[cfg(feature = "web")]
-        if let Some(ref input) = *input_element.read() {
+        if let Some(ref input) = input_element() {
             match props.r#type {
                 InputType::Text | InputType::Email => unmasked_use_effect_hook(
                     input,
@@ -105,18 +105,14 @@ pub fn Input(props: InputProps) -> Element {
                 id: props.id.clone(),
                 name: props.id.clone(),
                 placeholder: " ",
-                required: if let Some(required) = props.required { *required.read() } else { false },
+                required: if let Some(required) = props.required { required() } else { false },
                 pattern: match props.r#type {
                     InputType::Phone | InputType::Zip => {
-                        if *masked_pattern.read() != "" {
-                            Some(masked_pattern.cloned())
-                        } else {
-                            None
-                        }
+                        if masked_pattern() != "" { Some(masked_pattern()) } else { None }
                     }
                     _ => None,
                 },
-                value: props.value.cloned(),
+                value: (props.value)(),
                 onmounted: move |element| {
                     #[cfg(feature = "web")]
                     {
@@ -129,7 +125,7 @@ pub fn Input(props: InputProps) -> Element {
                     match props.r#type {
                         InputType::Phone | InputType::Zip => {
                             #[cfg(feature = "web")]
-                            if let Some(ref input) = *input_element.read() {
+                            if let Some(ref input) = input_element() {
                                 masked_onfocus_handler(input, props.r#type, props.value, empty_mask);
                             }
                         }
@@ -153,7 +149,7 @@ pub fn Input(props: InputProps) -> Element {
                         }
                         InputType::Phone | InputType::Zip => {
                             #[cfg(feature = "web")]
-                            if let Some(ref input) = *input_element.read() {
+                            if let Some(ref input) = input_element() {
                                 masked_oninput_handler(
                                     event,
                                     input,

@@ -27,7 +27,11 @@ pub fn Avatar(props: AvatarProps) -> Element {
         "{} {} {}",
         common_classes,
         variant_classes,
-        props.class.clone().unwrap_or_default()
+        if let Some(class) = props.class {
+            class
+        } else {
+            "".to_string()
+        }
     );
 
     rsx! {

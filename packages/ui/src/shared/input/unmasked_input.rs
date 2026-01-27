@@ -11,17 +11,15 @@ pub fn unmasked_use_effect_hook(
     value: Signal<String>,
     required: Option<Memo<bool>>,
 ) {
-    if value.read().trim().is_empty() {
-        if required
-            .as_ref()
-            .map(|required| *required.read())
-            .unwrap_or(false)
-        {
-            let message = match r#type {
-                InputType::Email => "Please enter a valid email address".to_string(),
-                _ => format!("Please enter a valid {}", label.to_lowercase()),
-            };
-            input.set_custom_validity(&message);
+    if value().trim().is_empty() {
+        if let Some(required) = required {
+            if required() {
+                let message = match r#type {
+                    InputType::Email => "Please enter a valid email address".to_string(),
+                    _ => format!("Please enter a valid {}", label.to_lowercase()),
+                };
+                input.set_custom_validity(&message);
+            }
         } else {
             input.set_custom_validity("");
         }

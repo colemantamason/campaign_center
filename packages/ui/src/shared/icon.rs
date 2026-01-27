@@ -45,7 +45,11 @@ pub fn Icon(props: IconProps) -> Element {
         common_classes,
         size_classes,
         variant_classes,
-        props.class.clone().unwrap_or_default()
+        if let Some(class) = props.class {
+            class
+        } else {
+            "".to_string()
+        }
     );
 
     rsx! {

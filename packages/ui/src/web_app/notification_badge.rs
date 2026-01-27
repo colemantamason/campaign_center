@@ -14,7 +14,11 @@ pub fn NotificationBadge(props: NotificationBadgeProps) -> Element {
     let combined_classes = format!(
         "{} {}",
         common_classes,
-        props.class.clone().unwrap_or_default()
+        if let Some(class) = props.class {
+            class
+        } else {
+            "".to_string()
+        }
     );
 
     rsx! {

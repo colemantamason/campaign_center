@@ -22,15 +22,11 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
 
     use_effect(move || {
         #[cfg(feature = "web")]
-        if let Some(ref checkbox) = *checkbox_element.read() {
-            if props
-                .required
-                .as_ref()
-                .map(|required| *required.read())
-                .unwrap_or(false)
-                && !*props.value.read()
-            {
-                checkbox.set_custom_validity("Please select this checkbox");
+        if let Some(ref checkbox) = checkbox_element() {
+            if let Some(required) = props.required {
+                if required() && !(props.value)() {
+                    checkbox.set_custom_validity("Please select this checkbox");
+                }
             } else {
                 checkbox.set_custom_validity("");
             }
@@ -44,8 +40,8 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
                 r#type: "checkbox",
                 id: props.id.clone(),
                 name: props.id.clone(),
-                required: if let Some(required) = props.required { *required.read() } else { false },
-                value: props.value.read().to_string(),
+                required: if let Some(required) = props.required { required() } else { false },
+                value: (props.value)().to_string(),
                 onmounted: move |element| {
                     #[cfg(feature = "web")]
                     {
@@ -58,7 +54,7 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
                     props.value.toggle();
                 },
             }
-            if *props.value.read() {
+            if (props.value)() {
                 div { class: "relative flex justify-center items-center w-6 h-6",
                     Square { class: "absolute w-6 h-6 fill-primary" }
                     Check { class: "relative z-0 w-4 h-4 text-primary-foreground stroke-[3px]" }

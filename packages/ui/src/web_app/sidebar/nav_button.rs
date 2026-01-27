@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 
 #[derive(Clone, PartialEq, Props)]
 pub struct NavButtonProps {
-    nav_route: String,
+    nav_route: Option<String>,
     current_route: String,
     label: String,
     icon: Element,
@@ -17,8 +17,13 @@ pub fn NavButton(props: NavButtonProps) -> Element {
             r#type: ButtonType::Link,
             size: ButtonSize::Full,
             variant: {
-                if props.current_route.ends_with(&props.nav_route) {
-                    ButtonVariant::SidebarActive
+                if let Some(route) = &props.nav_route {
+                    if props.current_route.ends_with(route) {
+                        ButtonVariant::SidebarActive
+
+                    } else {
+                        ButtonVariant::Sidebar
+                    }
                 } else {
                     ButtonVariant::Sidebar
                 }
@@ -27,8 +32,12 @@ pub fn NavButton(props: NavButtonProps) -> Element {
             Icon {
                 size: IconSize::Medium,
                 variant: {
-                    if props.current_route.ends_with(&props.nav_route) {
-                        IconVariant::SidebarActive
+                    if let Some(route) = &props.nav_route {
+                        if props.current_route.ends_with(route) {
+                            IconVariant::SidebarActive
+                        } else {
+                            IconVariant::Sidebar
+                        }
                     } else {
                         IconVariant::Sidebar
                     }

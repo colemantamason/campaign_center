@@ -38,32 +38,30 @@ pub fn masked_use_effect_hook(
     mut masked_pattern: Signal<&'static str>,
     empty_mask: &'static str,
 ) {
-    if value.read().is_empty() || value.read().as_str() == empty_mask {
-        if required
-            .as_ref()
-            .map(|required| *required.read())
-            .unwrap_or(false)
-        {
-            masked_pattern.set(match r#type {
-                InputType::Phone => "\\(\\d{3}\\) \\d{3}-\\d{4}",
-                InputType::Zip => "\\d{5}",
-                _ => "",
-            });
-            let message = match r#type {
-                InputType::Phone => "Please enter a valid phone number",
-                InputType::Zip => "Please enter a valid zip code",
-                _ => "",
-            };
-            input.set_custom_validity(message);
-        } else {
-            masked_pattern.set(match r#type {
-                InputType::Phone => "\\(\\d{3}\\) \\d{3}-\\d{4}|\\(___\\) ___-____",
-                InputType::Zip => "\\d{5}|_____",
-                _ => "",
-            });
-            input.set_custom_validity("");
+    if value().is_empty() || value().as_str() == empty_mask {
+        if let Some(required) = required {
+            if required() {
+                masked_pattern.set(match r#type {
+                    InputType::Phone => "\\(\\d{3}\\) \\d{3}-\\d{4}",
+                    InputType::Zip => "\\d{5}",
+                    _ => "",
+                });
+                let message = match r#type {
+                    InputType::Phone => "Please enter a valid phone number",
+                    InputType::Zip => "Please enter a valid zip code",
+                    _ => "",
+                };
+                input.set_custom_validity(message);
+            } else {
+                masked_pattern.set(match r#type {
+                    InputType::Phone => "\\(\\d{3}\\) \\d{3}-\\d{4}|\\(___\\) ___-____",
+                    InputType::Zip => "\\d{5}|_____",
+                    _ => "",
+                });
+                input.set_custom_validity("");
+            }
         }
-    } else if value.read().contains('_') {
+    } else if value().contains('_') {
         let message = match r#type {
             InputType::Phone => "Please enter a valid phone number",
             InputType::Zip => "Please enter a valid zip code",
@@ -82,7 +80,7 @@ pub fn masked_onfocus_handler(
     mut value: Signal<String>,
     empty_mask: &'static str,
 ) {
-    if value.read().is_empty() || value.read().as_str() == empty_mask {
+    if value().is_empty() || value().as_str() == empty_mask {
         value.set(empty_mask.to_string());
         let cursor_pos = match r#type {
             InputType::Phone => 1,
@@ -98,7 +96,7 @@ pub fn masked_onfocus_handler(
 }
 #[cfg(feature = "web")]
 pub fn masked_onblur_handler(mut value: Signal<String>, empty_mask: &'static str) {
-    if value.read().contains('_') || value.read().as_str() == empty_mask {
+    if value().contains('_') || value().as_str() == empty_mask {
         value.set("".to_string());
     }
 }
@@ -114,7 +112,11 @@ pub fn masked_oninput_handler(
     let digits_before_cursor = input
         .value()
         .chars()
-        .take(input.selection_start().ok().flatten().unwrap_or(0) as usize)
+        .take(if let Some(pos) = input.selection_start().ok().flatten() {
+            pos as usize
+        } else {
+            0
+        })
         .filter(|char| char.is_numeric())
         .count();
 
@@ -126,11 +128,11 @@ pub fn masked_oninput_handler(
     let old_val = value.peek().to_string();
     let old_digits_len = old_val.chars().filter(|char| char.is_numeric()).count();
 
-    let is_delete = event
-        .as_web_event()
-        .dyn_ref::<InputEvent>()
-        .map(|input_event| input_event.input_type().contains("delete"))
-        .unwrap_or(false);
+    let is_delete = if let Some(input_event) = event.as_web_event().dyn_ref::<InputEvent>() {
+        input_event.input_type().contains("delete")
+    } else {
+        false
+    };
 
     if is_delete && digits.len() == old_digits_len && !digits.is_empty() {
         if digits_before_cursor > 0 && digits_before_cursor <= digits.len() {
@@ -146,22 +148,38 @@ pub fn masked_oninput_handler(
             let mut result = String::with_capacity(14);
             result.push('(');
             for _ in 0..3 {
-                result.push(chars.next().unwrap_or('_'));
+                result.push(if let Some(character) = chars.next() {
+                    character
+                } else {
+                    '_'
+                });
             }
             result.push_str(") ");
             for _ in 0..3 {
-                result.push(chars.next().unwrap_or('_'));
+                result.push(if let Some(character) = chars.next() {
+                    character
+                } else {
+                    '_'
+                });
             }
             result.push('-');
             for _ in 0..4 {
-                result.push(chars.next().unwrap_or('_'));
+                result.push(if let Some(character) = chars.next() {
+                    character
+                } else {
+                    '_'
+                });
             }
             result
         }
         InputType::Zip => {
             let mut result = String::with_capacity(5);
             for _ in 0..5 {
-                result.push(chars.next().unwrap_or('_'));
+                result.push(if let Some(character) = chars.next() {
+                    character
+                } else {
+                    '_'
+                });
             }
             result
         }
