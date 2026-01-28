@@ -7,12 +7,17 @@ use wasm_bindgen::JsCast;
 #[cfg(feature = "web")]
 use web_sys::HtmlInputElement;
 
+pub type Id = String;
+pub type Required = Memo<bool>;
+pub type Value = Signal<bool>;
+pub type Label = String;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct CheckboxProps {
-    id: String,
-    required: Option<Memo<bool>>,
-    value: Signal<bool>,
-    label: String,
+    id: Id,
+    required: Option<Required>,
+    value: Value,
+    label: Label,
 }
 
 #[component]
@@ -36,12 +41,12 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
     rsx! {
         div { class: "relative flex items-center cursor-pointer",
             input {
-                class: "absolute left-0 w-6 h-6 opacity-0 z-10 cursor-pointer",
                 r#type: "checkbox",
                 id: props.id.clone(),
                 name: props.id.clone(),
                 required: if let Some(required) = props.required { required() } else { false },
                 value: (props.value)().to_string(),
+                class: "absolute left-0 w-6 h-6 opacity-0 z-10 cursor-pointer",
                 onmounted: move |element| {
                     #[cfg(feature = "web")]
                     {
@@ -63,8 +68,8 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
                 Square { class: "w-6 h-6 text-border" }
             }
             label {
-                class: "text-primary text-sm pl-2 cursor-pointer",
                 r#for: props.id,
+                class: "text-primary text-sm pl-2 cursor-pointer",
                 {props.label}
             }
         }

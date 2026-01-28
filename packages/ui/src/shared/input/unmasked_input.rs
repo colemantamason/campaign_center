@@ -1,4 +1,5 @@
-use crate::shared::input::InputType;
+#[cfg(feature = "web")]
+use crate::shared::input::{InputType, Required, Value};
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
 use web_sys::HtmlInputElement;
@@ -7,19 +8,17 @@ use web_sys::HtmlInputElement;
 pub fn unmasked_use_effect_hook(
     input: &HtmlInputElement,
     r#type: InputType,
-    label: &str,
-    value: Signal<String>,
-    required: Option<Memo<bool>>,
+    required: Required,
+    value: Value,
+    label: String,
 ) {
     if value().trim().is_empty() {
-        if let Some(required) = required {
-            if required() {
-                let message = match r#type {
-                    InputType::Email => "Please enter a valid email address".to_string(),
-                    _ => format!("Please enter a valid {}", label.to_lowercase()),
-                };
-                input.set_custom_validity(&message);
-            }
+        if required() {
+            let message = match r#type {
+                InputType::Email => "Please enter a valid email address".to_string(),
+                _ => format!("Please enter a valid {}", label.to_lowercase()),
+            };
+            input.set_custom_validity(&message);
         } else {
             input.set_custom_validity("");
         }
@@ -35,6 +34,6 @@ pub fn unmasked_use_effect_hook(
 }
 
 #[cfg(feature = "web")]
-pub fn unmasked_oninput_handler(event: Event<FormData>, mut value: Signal<String>) {
+pub fn unmasked_oninput_handler(event: Event<FormData>, mut value: Value) {
     value.set(event.value());
 }

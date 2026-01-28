@@ -11,12 +11,17 @@ use lucide_dioxus::{Plus, X};
 use organization_container::{OrganizationContainer, OrganizationContainerType};
 use std::cmp::Ordering;
 
+pub type ActiveOrganizationId = Store<i32>;
+pub type ActiveOrganization = Store<Organization>;
+pub type OrganizationsStore = Store<Organizations>;
+pub type ShowMenu = Signal<bool>;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct OrganizationSelectorProps {
-    active_organization_id: Store<i32>,
-    organizations: Store<Organizations>,
-    active_organization: Store<Organization>,
-    show_menu: Signal<bool>,
+    active_organization_id: ActiveOrganizationId,
+    active_organization: ActiveOrganization,
+    organizations: OrganizationsStore,
+    show_menu: ShowMenu,
 }
 
 #[component]
@@ -60,10 +65,11 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                     div { class: "px-2",
                         Input {
                             r#type: InputType::Text,
-                            size: InputSize::Default,
                             id: "organization-search".to_string(),
-                            label: "Search...".to_string(),
                             value: search_text,
+                            label: "Search...".to_string(),
+                            size: InputSize::Default,
+
                         }
                     }
                 }
@@ -109,11 +115,11 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                                         } else {
                                             OrganizationContainer {
                                                 r#type: OrganizationContainerType::NonActive,
-                                                organization_id: Some(organization.id.into()),
                                                 name: Some(organization.name.clone().into()),
                                                 avatar_url: organization.avatar_url.clone(),
                                                 member_count: Some(organization.member_count.into()),
                                                 show_menu: Some(props.show_menu.into()),
+                                                organization_id: Some(organization.id.into()),
                                                 pending_organization_id: Some(pending_organization_id.into()),
                                                 show_confirmation_modal: Some(show_confirmation_modal.into()),
                                             }

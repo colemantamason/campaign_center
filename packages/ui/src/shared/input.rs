@@ -30,27 +30,27 @@ pub enum InputSize {
     Form,
 }
 
+pub type Id = String;
+pub type Required = Memo<bool>;
+pub type Value = Signal<String>;
+pub type Label = String;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct InputProps {
     r#type: InputType,
+    id: Id,
+    required: Option<Required>,
+    value: Value,
+    label: Label,
     size: InputSize,
-    id: String,
-    label: String,
-    required: Option<Memo<bool>>,
-    value: Signal<String>,
 }
 
 #[component]
 pub fn Input(props: InputProps) -> Element {
-    let label = props.label.clone();
-    let masked_pattern = use_signal(|| "");
-
     #[cfg(feature = "web")]
     let mut input_element: Signal<Option<HtmlInputElement>> = use_signal(|| None);
-    #[cfg(feature = "web")]
-    let empty_mask = get_empty_mask(props.r#type);
-    #[cfg(feature = "web")]
-    let max_len = get_max_len(props.r#type);
+    let use_effect_label = props.label.clone();
+    let masked_pattern = use_signal(|| "".to_string());
 
     use_effect(move || {
         #[cfg(feature = "web")]
@@ -59,17 +59,25 @@ pub fn Input(props: InputProps) -> Element {
                 InputType::Text | InputType::Email => unmasked_use_effect_hook(
                     input,
                     props.r#type,
-                    &label,
+                    if let Some(required) = props.required {
+                        required
+                    } else {
+                        use_memo(|| false)
+                    },
                     props.value,
-                    props.required,
+                    use_effect_label.clone(),
                 ),
                 InputType::Phone | InputType::Zip => masked_use_effect_hook(
                     input,
                     props.r#type,
+                    if let Some(required) = props.required {
+                        required
+                    } else {
+                        use_memo(|| false)
+                    },
                     props.value,
-                    props.required,
                     masked_pattern,
-                    empty_mask,
+                    get_empty_mask(props.r#type),
                 ),
             };
         }
@@ -95,7 +103,6 @@ pub fn Input(props: InputProps) -> Element {
     rsx! {
         div { class: "relative",
             input {
-                class: "{combined_input_classes}",
                 r#type: match props.r#type {
                     InputType::Text => "text",
                     InputType::Email => "email",
@@ -105,14 +112,15 @@ pub fn Input(props: InputProps) -> Element {
                 id: props.id.clone(),
                 name: props.id.clone(),
                 placeholder: " ",
-                required: if let Some(required) = props.required { required() } else { false },
                 pattern: match props.r#type {
                     InputType::Phone | InputType::Zip => {
                         if masked_pattern() != "" { Some(masked_pattern()) } else { None }
                     }
                     _ => None,
                 },
+                required: if let Some(required) = props.required { required() } else { false },
                 value: (props.value)(),
+                class: "{combined_input_classes}",
                 onmounted: move |element| {
                     #[cfg(feature = "web")]
                     {
@@ -126,7 +134,12 @@ pub fn Input(props: InputProps) -> Element {
                         InputType::Phone | InputType::Zip => {
                             #[cfg(feature = "web")]
                             if let Some(ref input) = input_element() {
-                                masked_onfocus_handler(input, props.r#type, props.value, empty_mask);
+                                masked_onfocus_handler(
+                                    input,
+                                    props.r#type,
+                                    props.value,
+                                    get_empty_mask(props.r#type),
+                                );
                             }
                         }
                         _ => {}
@@ -136,7 +149,7 @@ pub fn Input(props: InputProps) -> Element {
                     match props.r#type {
                         InputType::Phone | InputType::Zip => {
                             #[cfg(feature = "web")]
-                            masked_onblur_handler(props.value, empty_mask);
+                            masked_onblur_handler(props.value, get_empty_mask(props.r#type));
                         }
                         _ => {}
                     }
@@ -155,14 +168,14 @@ pub fn Input(props: InputProps) -> Element {
                                     input,
                                     props.r#type,
                                     props.value,
-                                    max_len,
+                                    get_max_len(props.r#type),
                                 );
                             }
                         }
                     }
                 },
             }
-            label { class: "{combined_label_classes}", r#for: props.id, {props.label} }
+            label { r#for: props.id, class: "{combined_label_classes}", {props.label} }
         }
     }
 }

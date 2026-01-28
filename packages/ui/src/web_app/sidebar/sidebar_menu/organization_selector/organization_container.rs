@@ -11,19 +11,30 @@ pub enum OrganizationContainerType {
     NonActive,
 }
 
+pub type SelectorAvatarUrl = Store<Option<String>>;
+pub type SelectorName = Store<String>;
+pub type SelectorMemberCount = Store<i32>;
+pub type Name = String;
+pub type AvatarUrl = String;
+pub type MemberCount = i32;
+pub type ShowMenu = Signal<bool>;
+pub type OrganizationId = i32;
+pub type PendingOrganizationId = Signal<Option<i32>>;
+pub type ShowConfirmationModal = Signal<bool>;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct OrganizationContainerProps {
     r#type: OrganizationContainerType,
-    selector_avatar_url: Option<Store<Option<String>>>,
-    selector_name: Option<Store<String>>,
-    selector_member_count: Option<Store<i32>>,
-    organization_id: Option<i32>,
-    avatar_url: Option<String>,
-    name: Option<String>,
-    member_count: Option<i32>,
-    show_menu: Option<Signal<bool>>,
-    pending_organization_id: Option<Signal<Option<i32>>>,
-    show_confirmation_modal: Option<Signal<bool>>,
+    selector_avatar_url: Option<SelectorAvatarUrl>,
+    selector_name: Option<SelectorName>,
+    selector_member_count: Option<SelectorMemberCount>,
+    name: Option<Name>,
+    avatar_url: Option<AvatarUrl>,
+    member_count: Option<MemberCount>,
+    show_menu: Option<ShowMenu>,
+    organization_id: Option<OrganizationId>,
+    pending_organization_id: Option<PendingOrganizationId>,
+    show_confirmation_modal: Option<ShowConfirmationModal>,
 }
 
 #[component]

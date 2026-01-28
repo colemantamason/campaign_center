@@ -15,11 +15,13 @@ pub enum IconVariant {
     Button,
 }
 
+pub type Class = String;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct IconProps {
     size: IconSize,
     variant: IconVariant,
-    class: Option<String>,
+    class: Option<Class>,
     children: Element,
 }
 

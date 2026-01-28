@@ -1,9 +1,12 @@
 use dioxus::prelude::*;
 
+pub type Count = i32;
+pub type Class = String;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct NotificationBadgeProps {
-    count: i32,
-    class: Option<String>,
+    count: Count,
+    class: Option<Class>,
 }
 
 #[component]

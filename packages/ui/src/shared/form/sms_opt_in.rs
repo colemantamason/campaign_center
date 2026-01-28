@@ -9,10 +9,13 @@ use lucide_dioxus::CircleCheck;
 #[cfg(feature = "web")]
 use web_sys::{FormData, RequestMode};
 
+pub type OrganizationName = String;
+pub type HiddenSource = String;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct FormProps {
-    org_name: &'static str,
-    hidden_source: String,
+    organization_name: OrganizationName,
+    hidden_source: HiddenSource,
 }
 
 #[component]
@@ -73,42 +76,42 @@ pub fn Form(props: FormProps) -> Element {
             form { class: "flex flex-col gap-6", onsubmit: onsubmit_handler,
                 Input {
                     r#type: InputType::Text,
-                    size: InputSize::Form,
                     id: "full_name".to_string(),
-                    label: "Full Name".to_string(),
                     required: Some(full_name_required),
                     value: full_name_value,
+                    label: "Full Name".to_string(),
+                    size: InputSize::Form,
                 }
                 Input {
                     r#type: InputType::Email,
-                    size: InputSize::Form,
                     id: "email_address".to_string(),
-                    label: "Email Address".to_string(),
                     required: Some(email_required),
                     value: email_value,
+                    label: "Email Address".to_string(),
+                    size: InputSize::Form,
                 }
                 Input {
                     r#type: InputType::Phone,
-                    size: InputSize::Form,
                     id: "mobile_phone".to_string(),
-                    label: "Mobile Phone".to_string(),
                     required: Some(phone_required),
                     value: phone_value,
+                    label: "Mobile Phone".to_string(),
+                    size: InputSize::Form,
                 }
                 Input {
                     r#type: InputType::Zip,
-                    size: InputSize::Form,
                     id: "zip_code".to_string(),
-                    label: "Zip Code".to_string(),
                     required: Some(zip_code_required),
                     value: zip_code_value,
+                    label: "Zip Code".to_string(),
+                    size: InputSize::Form,
                 }
                 div { class: "flex flex-col gap-2",
                     Checkbox {
                         id: "opt_in".to_string(),
-                        label: "Opt-in to receive text messages".to_string(),
                         required: Some(opt_in_required),
                         value: opt_in_value,
+                        label: "Opt-in to receive text messages".to_string(),
                     }
                     div {
                         p { class: "text-xs text-primary/75 leading-tight",
@@ -122,9 +125,9 @@ pub fn Form(props: FormProps) -> Element {
                 }
                 Button {
                     r#type: ButtonType::Submit,
+                    disabled: Some(submit_disabled),
                     size: ButtonSize::FormFull,
                     variant: ButtonVariant::Primary,
-                    disabled: Some(submit_disabled),
                     match status() {
                         FormStatus::Idle | FormStatus::Success | FormStatus::Error => "SIGN UP",
                         FormStatus::Processing => "SIGNING UP...",
@@ -142,7 +145,7 @@ pub fn Form(props: FormProps) -> Element {
                     {
                         format!(
                             "You've successfully joined {}. We'll keep you updated on how you can help make a difference.",
-                            props.org_name,
+                            props.organization_name,
                         )
                     }
                 }

@@ -32,8 +32,8 @@ pub fn Home() -> Element {
                         }
                     }
                     Form {
-                        org_name: "Stop Communism PAC",
-                        hidden_source: "website",
+                        organization_name: "Stop Communism PAC".to_string(),
+                        hidden_source: "website".to_string(),
                     }
                 }
                 section { class: "relative w-full flex flex-col justify-center py-24 max-w-6xl",

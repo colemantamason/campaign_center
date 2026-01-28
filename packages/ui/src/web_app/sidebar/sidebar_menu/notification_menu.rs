@@ -4,10 +4,13 @@ use crate::web_app::notification_badge::NotificationBadge;
 use dioxus::prelude::*;
 use lucide_dioxus::{Bell, X};
 
+pub type Notifications = Store<i32>;
+pub type ShowMenu = Signal<bool>;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct NotificationMenuProps {
-    notifications: Store<i32>,
-    show_menu: Signal<bool>,
+    notifications: Notifications,
+    show_menu: ShowMenu,
 }
 
 #[component]
@@ -15,10 +18,10 @@ pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
     rsx! {
         Button {
             r#type: ButtonType::Button,
+            onclick: move |_| props.show_menu.toggle(),
             size: ButtonSize::Full,
             variant: ButtonVariant::Sidebar,
             class: if (props.notifications)() > 0 { "group" } else { "" },
-            onclick: move |_| props.show_menu.toggle(),
             Icon { size: IconSize::Medium, variant: IconVariant::Sidebar, Bell {} }
             span { "Notifications" }
             if (props.notifications)() > 0 {

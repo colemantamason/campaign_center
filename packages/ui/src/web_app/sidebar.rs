@@ -40,12 +40,13 @@ pub enum RouteType {
     DeviceSessions,
 }
 
+pub type UserAccountStore = Store<UserAccount>;
 pub type NavRoutes = HashMap<RouteType, String>;
 
 #[derive(Clone, PartialEq, Props)]
 pub struct SidebarProps {
     r#type: SidebarType,
-    user_account: Store<UserAccount>,
+    user_account: UserAccountStore,
     nav_routes: NavRoutes,
 }
 
@@ -67,8 +68,8 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                                 SidebarMenu {
                                     r#type: SidebarMenuType::OrganizationSelector,
                                     active_organization_id: Some(props.user_account.active_organization_id().into()),
-                                    organizations: Some(props.user_account.organizations().into()),
                                     active_organization: Some(active_organization.into()),
+                                    organizations: Some(props.user_account.organizations().into()),
                                 }
                             }
                             Divider {}
@@ -83,9 +84,9 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                             div { class: "px-4",
                                 Button {
                                     r#type: ButtonType::Link,
+                                    to: if let Some(route) = props.nav_routes.get(&RouteType::Dashboard) { route.clone() },
                                     size: ButtonSize::Full,
                                     variant: ButtonVariant::Sidebar,
-                                    to: if let Some(route) = props.nav_routes.get(&RouteType::Dashboard) { route.clone() },
                                     Icon { size: IconSize::Medium, variant: IconVariant::Sidebar, ChevronLeft {} }
                                     span { "Back" }
                                 }
@@ -99,104 +100,104 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                         SidebarType::Main => rsx! {
                             NavLabel { label: "Main Menu".to_string() }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Dashboard) { route.clone() },
-                                current_route: &current_route,
-                                label: "Dashboard".to_string(),
                                 icon: rsx! {
                                     LayoutGrid {}
                                 },
+                                label: "Dashboard".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Events) { route.clone() },
-                                current_route: &current_route,
-                                label: "Events".to_string(),
                                 icon: rsx! {
                                     Calendar {}
                                 },
+                                label: "Events".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Actions) { route.clone() },
-                                current_route: &current_route,
-                                label: "Actions".to_string(),
                                 icon: rsx! {
                                     Megaphone {}
                                 },
+                                label: "Actions".to_string(),
                             }
                             NavLabel { label: "Tools".to_string() }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Groups) { route.clone() },
-                                current_route: &current_route,
-                                label: "Groups".to_string(),
                                 icon: rsx! {
                                     ContactRound {}
                                 },
+                                label: "Groups".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Analytics) { route.clone() },
-                                current_route: &current_route,
-                                label: "Analytics".to_string(),
                                 icon: rsx! {
                                     ChartColumn {}
                                 },
+                                label: "Analytics".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Exports) { route.clone() },
-                                current_route: &current_route,
-                                label: "Exports".to_string(),
                                 icon: rsx! {
                                     FileOutput {}
                                 },
+                                label: "Exports".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Team) { route.clone() },
-                                current_route: &current_route,
-                                label: "Team".to_string(),
                                 icon: rsx! {
                                     UsersRound {}
                                 },
+                                label: "Team".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Settings) { route.clone() },
-                                current_route: &current_route,
-                                label: "Settings".to_string(),
                                 icon: rsx! {
                                     Settings {}
                                 },
+                                label: "Settings".to_string(),
                             }
                         },
                         SidebarType::UserAccount => rsx! {
                             NavLabel { label: "Account Settings".to_string() }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Account) { route.clone() },
-                                current_route: &current_route,
-                                label: "Account".to_string(),
                                 icon: rsx! {
                                     User {}
                                 },
+                                label: "Account".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::OrganizationManagement) { route.clone() },
-                                current_route: &current_route,
-                                label: "Organizations".to_string(),
                                 icon: rsx! {
                                     Building {}
                                 },
+                                label: "Organizations".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::NotificationPreferences) { route.clone() },
-                                current_route: &current_route,
-                                label: "Notifications".to_string(),
                                 icon: rsx! {
                                     Bell {}
                                 },
+                                label: "Notifications".to_string(),
                             }
                             NavButton {
+                                current_route: current_route.clone(),
                                 nav_route: if let Some(route) = props.nav_routes.get(&RouteType::DeviceSessions) { route.clone() },
-                                current_route: &current_route,
-                                label: "Devices".to_string(),
                                 icon: rsx! {
                                     MonitorSmartphone {}
                                 },
+                                label: "Devices".to_string(),
                             }
                         },
                     }
@@ -207,9 +208,9 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                             div { class: "px-4",
                                 Button {
                                     r#type: ButtonType::Link,
+                                    to: if let Some(route) = props.nav_routes.get(&RouteType::Support) { route.clone() },
                                     size: ButtonSize::Full,
                                     variant: ButtonVariant::Sidebar,
-                                    to: if let Some(route) = props.nav_routes.get(&RouteType::Support) { route.clone() },
                                     Icon { size: IconSize::Medium, variant: IconVariant::Sidebar, CircleQuestionMark {} }
                                     span { "Support" }
                                 }

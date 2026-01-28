@@ -26,8 +26,8 @@ fn Layout() -> Element {
                         }
                     }
                     div { class: "flex gap-4",
-                        Link { class: "hover:underline", to: Routes::Privacy {}, "Privacy Policy" }
-                        Link { class: "hover:underline", to: Routes::Terms {}, "Terms of Service" }
+                        Link { to: Routes::Privacy {}, class: "hover:underline", "Privacy Policy" }
+                        Link { to: Routes::Terms {}, class: "hover:underline", "Terms of Service" }
                     }
                     div { class: "text-xs opacity-75 max-w-lg text-center border-background border p-2",
                         p { "Paid for by Stop Communism PAC." }

@@ -6,12 +6,16 @@ pub enum AvatarVariant {
     Round,
 }
 
+pub type Source = String;
+pub type Fallback = String;
+pub type Class = String;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct AvatarProps {
-    src: Option<String>,
-    fallback: String,
+    src: Option<Source>,
+    fallback: Fallback,
     variant: AvatarVariant,
-    class: Option<String>,
+    class: Option<Class>,
 }
 
 #[component]

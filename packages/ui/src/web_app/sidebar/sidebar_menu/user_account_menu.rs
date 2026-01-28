@@ -6,14 +6,21 @@ use crate::web_app::confirmation_modal::{ConfirmationModal, ConfirmationModalTyp
 use dioxus::prelude::*;
 use lucide_dioxus::{ChevronsUpDown, LogOut, Settings2, X};
 
+pub type UserFirstName = Store<String>;
+pub type UserLastName = Store<String>;
+pub type UserAvatarUrl = Store<Option<String>>;
+pub type UserRole = Store<String>;
+pub type AccountRoute = String;
+pub type ShowMenu = Signal<bool>;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct UserAccountMenuProps {
-    user_first_name: Store<String>,
-    user_last_name: Store<String>,
-    user_avatar_url: Store<Option<String>>,
-    user_role: Store<String>,
-    account_route: String,
-    show_menu: Signal<bool>,
+    user_first_name: UserFirstName,
+    user_last_name: UserLastName,
+    user_avatar_url: UserAvatarUrl,
+    user_role: UserRole,
+    account_route: AccountRoute,
+    show_menu: ShowMenu,
 }
 
 #[component]
@@ -23,10 +30,10 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
     rsx! {
         Button {
             r#type: ButtonType::Button,
+            onclick: move |_| props.show_menu.toggle(),
             size: ButtonSize::Full,
             variant: ButtonVariant::Sidebar,
             class: "group",
-            onclick: move |_| props.show_menu.toggle(),
             Avatar {
                 src: (props.user_avatar_url)(),
                 fallback: {
@@ -69,9 +76,9 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                     }
                     Button {
                         r#type: ButtonType::Button,
+                        onclick: move |_| props.show_menu.set(false),
                         size: ButtonSize::Icon,
                         variant: ButtonVariant::Sidebar,
-                        onclick: move |_| props.show_menu.set(false),
                         Icon {
                             size: IconSize::Small,
                             variant: IconVariant::Button,
@@ -82,9 +89,9 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                 div { class: "px-2 flex flex-col gap-1",
                     Button {
                         r#type: ButtonType::Link,
+                        to: props.account_route,
                         size: ButtonSize::Full,
                         variant: ButtonVariant::Sidebar,
-                        to: props.account_route,
                         Icon {
                             size: IconSize::Medium,
                             variant: IconVariant::Sidebar,
@@ -94,12 +101,12 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                     }
                     Button {
                         r#type: ButtonType::Button,
-                        size: ButtonSize::Full,
-                        variant: ButtonVariant::Sidebar,
                         onclick: move |_| {
                             props.show_menu.set(false);
                             show_confirmation_modal.set(true);
                         },
+                        size: ButtonSize::Full,
+                        variant: ButtonVariant::Sidebar,
                         Icon {
                             size: IconSize::Medium,
                             variant: IconVariant::Sidebar,
@@ -112,10 +119,10 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                 div { class: "flex justify-between px-2 py-1.5",
                     Button {
                         r#type: ButtonType::Link,
+                        to: "#",
                         size: ButtonSize::Fit,
                         variant: ButtonVariant::Link,
                         class: "text-xs font-medium text-muted-foreground",
-                        to: "#",
                         span { "Terms & Conditions" }
                     }
                     span { class: "text-xs font-medium text-muted-foreground cursor-default",

@@ -23,18 +23,28 @@ pub enum SidebarMenuType {
     UserAccountMenu,
 }
 
+pub type UserFirstName = Store<String>;
+pub type UserLastName = Store<String>;
+pub type UserAvatarUrl = Store<Option<String>>;
+pub type ActiveOrganizationId = Store<i32>;
+pub type ActiveOrganization = Store<Organization>;
+pub type UserRole = Store<String>;
+pub type OrganizationsStore = Store<Organizations>;
+pub type NotificationsCount = Store<i32>;
+pub type AccountRoute = String;
+
 #[derive(Clone, PartialEq, Props)]
 pub struct SidebarMenuProps {
     r#type: SidebarMenuType,
-    active_organization_id: Option<Store<i32>>,
-    organizations: Option<Store<Organizations>>,
-    notifications: Option<Store<i32>>,
-    user_first_name: Option<Store<String>>,
-    user_last_name: Option<Store<String>>,
-    user_avatar_url: Option<Store<Option<String>>>,
-    user_role: Option<Store<String>>,
-    account_route: Option<String>,
-    active_organization: Option<Store<Organization>>,
+    user_first_name: Option<UserFirstName>,
+    user_last_name: Option<UserLastName>,
+    user_avatar_url: Option<UserAvatarUrl>,
+    active_organization_id: Option<ActiveOrganizationId>,
+    active_organization: Option<ActiveOrganization>,
+    user_role: Option<UserRole>,
+    organizations: Option<OrganizationsStore>,
+    notifications: Option<NotificationsCount>,
+    account_route: Option<AccountRoute>,
 }
 
 #[component]
@@ -84,18 +94,18 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
                 SidebarMenuType::OrganizationSelector => {
                     if let (
                         Some(active_organization_id),
-                        Some(organizations),
                         Some(active_organization),
+                        Some(organizations),
                     ) = (
                         props.active_organization_id,
-                        props.organizations,
                         props.active_organization,
+                        props.organizations,
                     ) {
                         rsx! {
                             OrganizationSelector {
                                 active_organization_id,
-                                organizations,
                                 active_organization,
+                                organizations,
                                 show_menu,
                             }
                         }
