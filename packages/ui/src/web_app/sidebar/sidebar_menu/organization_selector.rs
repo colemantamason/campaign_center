@@ -3,7 +3,7 @@ mod organization_container;
 use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::divider::Divider;
 use crate::shared::icon::{Icon, IconSize, IconVariant};
-use crate::shared::input::{Input, InputSize, InputType};
+use crate::shared::input::{Input, InputSize, InputType, InputVariant};
 use crate::web_app::confirmation_modal::{ConfirmationModal, ConfirmationModalType};
 use api::web_app::{Organization, OrganizationStoreExt, Organizations};
 use dioxus::prelude::*;
@@ -69,7 +69,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                             value: search_text,
                             label: "Search...".to_string(),
                             size: InputSize::Default,
-
+                            variant: InputVariant::Sidebar,
                         }
                     }
                 }

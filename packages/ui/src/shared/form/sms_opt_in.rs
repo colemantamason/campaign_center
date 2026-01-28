@@ -1,7 +1,7 @@
 use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::checkbox::Checkbox;
 use crate::shared::form::FormStatus;
-use crate::shared::input::{Input, InputSize, InputType};
+use crate::shared::input::{Input, InputSize, InputType, InputVariant};
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
 use gloo::net::http::Request;
@@ -81,6 +81,7 @@ pub fn Form(props: FormProps) -> Element {
                     value: full_name_value,
                     label: "Full Name".to_string(),
                     size: InputSize::Form,
+                    variant: InputVariant::Default,
                 }
                 Input {
                     r#type: InputType::Email,
@@ -89,6 +90,7 @@ pub fn Form(props: FormProps) -> Element {
                     value: email_value,
                     label: "Email Address".to_string(),
                     size: InputSize::Form,
+                    variant: InputVariant::Default,
                 }
                 Input {
                     r#type: InputType::Phone,
@@ -97,6 +99,7 @@ pub fn Form(props: FormProps) -> Element {
                     value: phone_value,
                     label: "Mobile Phone".to_string(),
                     size: InputSize::Form,
+                    variant: InputVariant::Default,
                 }
                 Input {
                     r#type: InputType::Zip,
@@ -105,6 +108,7 @@ pub fn Form(props: FormProps) -> Element {
                     value: zip_code_value,
                     label: "Zip Code".to_string(),
                     size: InputSize::Form,
+                    variant: InputVariant::Default,
                 }
                 div { class: "flex flex-col gap-2",
                     Checkbox {

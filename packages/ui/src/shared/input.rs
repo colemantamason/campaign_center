@@ -30,6 +30,12 @@ pub enum InputSize {
     Form,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum InputVariant {
+    Default,
+    Sidebar,
+}
+
 pub type Id = String;
 pub type Required = Memo<bool>;
 pub type Value = Signal<String>;
@@ -43,6 +49,7 @@ pub struct InputProps {
     value: Value,
     label: Label,
     size: InputSize,
+    variant: InputVariant,
 }
 
 #[component]
@@ -83,22 +90,38 @@ pub fn Input(props: InputProps) -> Element {
         }
     });
 
-    let input_common_classes = "peer w-full rounded-md border border-border bg-background text-foreground placeholder-opacity-0 hover:border-foreground focus:hover:border-opacity-0 focus:border-opacity-0 focus:outline focus:outline-primary focus:outline-2 focus:outline-offset-0";
+    let input_common_classes = "peer w-full rounded-md border border-border text-foreground placeholder-opacity-0 hover:border-foreground focus:hover:border-opacity-0 focus:border-opacity-0 focus:outline focus:outline-primary focus:outline-2 focus:outline-offset-0";
 
     let input_size_classes = match props.size {
         InputSize::Default => "px-2 py-2 text-sm",
         InputSize::Form => "px-2 py-3 text-base",
     };
 
-    let label_common_classes = "pointer-events-none absolute left-2 px-2 transition-all duration-150 -translate-y-1/2 bg-background text-foreground/75 top-0 peer-focus:top-0 peer-focus-shown:bg-background peer-focus:text-primary";
+    let input_variant_classes = match props.variant {
+        InputVariant::Default => "bg-background",
+        InputVariant::Sidebar => "bg-sidebar",
+    };
+
+    let label_common_classes = "pointer-events-none absolute left-2 px-2 transition-all duration-150 -translate-y-1/2 text-foreground/75 top-0 peer-focus:top-0 peer-focus:text-primary";
 
     let label_size_classes = match props.size {
         InputSize::Default => "text-xs peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-focus:text-xs",
         InputSize::Form => "text-sm peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:text-sm",
     };
 
-    let combined_input_classes = format!("{} {}", input_common_classes, input_size_classes);
-    let combined_label_classes = format!("{} {}", label_common_classes, label_size_classes);
+    let label_variant_classes = match props.variant {
+        InputVariant::Default => "bg-background peer-focus-shown:bg-background",
+        InputVariant::Sidebar => "bg-sidebar peer-focus-shown:bg-sidebar",
+    };
+
+    let combined_input_classes = format!(
+        "{} {} {}",
+        input_common_classes, input_size_classes, input_variant_classes
+    );
+    let combined_label_classes = format!(
+        "{} {} {}",
+        label_common_classes, label_size_classes, label_variant_classes
+    );
 
     rsx! {
         div { class: "relative",
