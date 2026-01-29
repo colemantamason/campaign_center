@@ -5,7 +5,8 @@ mod sidebar_menu;
 use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::divider::Divider;
 use crate::shared::icon::{Icon, IconSize, IconVariant};
-use api::web_app::{OrganizationStoreExt, UserAccount, UserAccountStoreExt};
+use crate::web_app::UserAccountContext;
+use api::web_app::{OrganizationStoreExt, PermissionType, UserAccountStoreExt};
 use dioxus::prelude::*;
 use lucide_dioxus::{
     Bell, Building, Calendar, ChartColumn, ChevronLeft, CircleQuestionMark, ContactRound,
@@ -40,26 +41,36 @@ pub enum RouteType {
     DeviceSessions,
 }
 
-pub type UserAccountStore = Store<UserAccount>;
 pub type NavRoutes = HashMap<RouteType, String>;
 
 #[derive(Clone, PartialEq, Props)]
 pub struct SidebarProps {
     r#type: SidebarType,
-    user_account: UserAccountStore,
     nav_routes: NavRoutes,
 }
 
 #[component]
 pub fn Sidebar(props: SidebarProps) -> Element {
+    let user_account = use_context::<UserAccountContext>().user_account;
+
     let current_route = router().full_route_string();
 
+    let active_organization = if let Some(current_organization) = user_account
+        .organizations()
+        .get(user_account.active_organization_id().cloned())
+    {
+        Some(current_organization)
+    } else if let Some(first_organization) = user_account.organizations().values().next() {
+        user_account
+            .active_organization_id()
+            .set(*first_organization.id().read());
+        Some(first_organization)
+    } else {
+        None
+    };
+
     rsx! {
-        if let Some(active_organization) = props
-            .user_account
-            .organizations()
-            .get((props.user_account.active_organization_id())())
-        {
+        if let Some(active_organization) = active_organization {
             aside { class: "w-60 bg-sidebar flex flex-col h-screen border-r border-border",
                 div { class: "relative flex flex-col pt-2 gap-2 pb-1",
                     match props.r#type {
@@ -67,16 +78,16 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                             div { class: "px-4",
                                 SidebarMenu {
                                     r#type: SidebarMenuType::OrganizationSelector,
-                                    active_organization_id: Some(props.user_account.active_organization_id().into()),
+                                    active_organization_id: Some(user_account.active_organization_id().into()),
                                     active_organization: Some(active_organization.into()),
-                                    organizations: Some(props.user_account.organizations().into()),
+                                    organizations: Some(user_account.organizations().into()),
                                 }
                             }
                             Divider {}
                             div { class: "px-4",
                                 SidebarMenu {
                                     r#type: SidebarMenuType::NotificationMenu,
-                                    notifications: Some(props.user_account.notifications().into()),
+                                    notifications: Some(user_account.notifications().into()),
                                 }
                             }
                         },
@@ -107,21 +118,29 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                                 },
                                 label: "Dashboard".to_string(),
                             }
-                            NavButton {
-                                current_route: current_route.clone(),
-                                nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Events) { route.clone() },
-                                icon: rsx! {
-                                    Calendar {}
-                                },
-                                label: "Events".to_string(),
-                            }
-                            NavButton {
-                                current_route: current_route.clone(),
-                                nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Actions) { route.clone() },
-                                icon: rsx! {
-                                    Megaphone {}
-                                },
-                                label: "Actions".to_string(),
+                            if let Some(permission) = active_organization
+                                .permissions()
+                                .read()
+                                .get(&PermissionType::Events)
+                            {
+                                if *permission {
+                                    NavButton {
+                                        current_route: current_route.clone(),
+                                        nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Events) { route.clone() },
+                                        icon: rsx! {
+                                            Calendar {}
+                                        },
+                                        label: "Events".to_string(),
+                                    }
+                                    NavButton {
+                                        current_route: current_route.clone(),
+                                        nav_route: if let Some(route) = props.nav_routes.get(&RouteType::Actions) { route.clone() },
+                                        icon: rsx! {
+                                            Megaphone {}
+                                        },
+                                        label: "Actions".to_string(),
+                                    }
+                                }
                             }
                             NavLabel { label: "Tools".to_string() }
                             NavButton {
@@ -219,9 +238,9 @@ pub fn Sidebar(props: SidebarProps) -> Element {
                             div { class: "px-4",
                                 SidebarMenu {
                                     r#type: SidebarMenuType::UserAccountMenu,
-                                    user_first_name: Some(props.user_account.first_name().into()),
-                                    user_last_name: Some(props.user_account.last_name().into()),
-                                    user_avatar_url: Some(props.user_account.avatar_url().into()),
+                                    user_first_name: Some(user_account.first_name().into()),
+                                    user_last_name: Some(user_account.last_name().into()),
+                                    user_avatar_url: Some(user_account.avatar_url().into()),
                                     user_role: Some(active_organization.user_role().into()),
                                     account_route: if let Some(route) = props.nav_routes.get(&RouteType::Account) { route.clone() },
                                 }

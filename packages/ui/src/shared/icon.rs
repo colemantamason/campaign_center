@@ -4,6 +4,7 @@ use dioxus::prelude::*;
 pub enum IconSize {
     Small,
     Medium,
+    Large,
 }
 
 #[derive(Clone, PartialEq)]
@@ -15,13 +16,11 @@ pub enum IconVariant {
     Button,
 }
 
-pub type Class = String;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct IconProps {
     size: IconSize,
     variant: IconVariant,
-    class: Option<Class>,
+    class: Option<String>,
     children: Element,
 }
 
@@ -32,6 +31,7 @@ pub fn Icon(props: IconProps) -> Element {
     let size_classes = match props.size {
         IconSize::Small => "w-4 h-4",
         IconSize::Medium => "w-5 h-5",
+        IconSize::Large => "w-7 h-7",
     };
 
     let variant_classes = match props.variant {

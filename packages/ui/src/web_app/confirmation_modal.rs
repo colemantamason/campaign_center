@@ -7,24 +7,16 @@ pub enum ConfirmationModalType {
     Danger,
 }
 
-pub type Title = String;
-pub type Message = String;
-pub type ConfirmText = String;
-pub type CancelText = String;
-pub type ShowModal = Signal<bool>;
-pub type OnConfirm = EventHandler<()>;
-pub type OnCancel = EventHandler<()>;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct ConfirmationModalProps {
     r#type: ConfirmationModalType,
-    title: Title,
-    message: Message,
-    confirm_text: ConfirmText,
-    cancel_text: CancelText,
-    on_confirm: Option<OnConfirm>,
-    on_cancel: Option<OnCancel>,
-    show_modal: ShowModal,
+    title: String,
+    message: String,
+    confirm_text: String,
+    cancel_text: String,
+    on_confirm: Option<EventHandler<()>>,
+    on_cancel: Option<EventHandler<()>>,
+    show_modal: Signal<bool>,
 }
 
 #[component]

@@ -1,6 +1,13 @@
 use dioxus::prelude::*;
 use std::collections::HashMap;
 
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub enum PermissionType {
+    Events,
+}
+
+pub type Permissions = HashMap<PermissionType, bool>;
+
 #[derive(Clone, Default, Store)]
 pub struct Organization {
     pub id: i32,
@@ -8,6 +15,7 @@ pub struct Organization {
     pub avatar_url: Option<String>,
     pub member_count: i32,
     pub user_role: String,
+    pub permissions: Permissions,
 }
 
 impl Organization {
@@ -17,6 +25,7 @@ impl Organization {
         avatar_url: Option<String>,
         member_count: i32,
         user_role: String,
+        permissions: Permissions,
     ) -> Self {
         Self {
             id,
@@ -24,6 +33,7 @@ impl Organization {
             avatar_url,
             member_count,
             user_role,
+            permissions,
         }
     }
 }
@@ -31,10 +41,10 @@ impl Organization {
 pub type Organizations = HashMap<i32, Organization>;
 
 pub fn get_mock_organizations() -> Organizations {
-    let create_organization = |id, name, avatar_url, member_count, user_role| {
+    let create_organization = |id, name, avatar_url, member_count, user_role, permissions| {
         (
             id,
-            Organization::new(id, name, avatar_url, member_count, user_role),
+            Organization::new(id, name, avatar_url, member_count, user_role, permissions),
         )
     };
 
@@ -48,6 +58,7 @@ pub fn get_mock_organizations() -> Organizations {
             ),
             12,
             "Admin".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
         create_organization(
             1,
@@ -55,6 +66,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             5,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, false)]),
         ),
         create_organization(
             2,
@@ -62,6 +74,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             8,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
         create_organization(
             3,
@@ -69,6 +82,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             150,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
         create_organization(
             4,
@@ -76,6 +90,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             3,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
         create_organization(
             5,
@@ -83,6 +98,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             42,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
         create_organization(
             6,
@@ -90,6 +106,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             1,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
         create_organization(
             7,
@@ -97,6 +114,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             10,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
         create_organization(
             8,
@@ -104,6 +122,7 @@ pub fn get_mock_organizations() -> Organizations {
             None,
             7,
             "Member".to_string(),
+            Permissions::from([(PermissionType::Events, true)]),
         ),
     ])
 }

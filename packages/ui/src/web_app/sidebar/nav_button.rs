@@ -2,17 +2,12 @@ use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::icon::{Icon, IconSize, IconVariant};
 use dioxus::prelude::*;
 
-pub type CurrentRoute = String;
-pub type NavRoute = String;
-pub type IconElement = Element;
-pub type Label = String;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct NavButtonProps {
-    current_route: CurrentRoute,
-    nav_route: Option<NavRoute>,
-    icon: IconElement,
-    label: Label,
+    current_route: String,
+    nav_route: Option<String>,
+    icon: Element,
+    label: String,
 }
 
 #[component]

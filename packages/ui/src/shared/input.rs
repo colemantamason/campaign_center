@@ -1,4 +1,4 @@
-mod masked_input;
+pub mod masked_input;
 mod unmasked_input;
 
 use dioxus::prelude::*;
@@ -36,18 +36,13 @@ pub enum InputVariant {
     Sidebar,
 }
 
-pub type Id = String;
-pub type Required = Memo<bool>;
-pub type Value = Signal<String>;
-pub type Label = String;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct InputProps {
     r#type: InputType,
-    id: Id,
-    required: Option<Required>,
-    value: Value,
-    label: Label,
+    id: String,
+    required: Option<Memo<bool>>,
+    value: Signal<String>,
+    label: String,
     size: InputSize,
     variant: InputVariant,
 }
@@ -61,7 +56,7 @@ pub fn Input(props: InputProps) -> Element {
 
     use_effect(move || {
         #[cfg(feature = "web")]
-        if let Some(ref input) = input_element() {
+        if let Some(ref input) = *input_element.read() {
             match props.r#type {
                 InputType::Text | InputType::Email => unmasked_use_effect_hook(
                     input,
@@ -102,6 +97,11 @@ pub fn Input(props: InputProps) -> Element {
         InputVariant::Sidebar => "bg-sidebar",
     };
 
+    let input_combined_classes = format!(
+        "{} {} {}",
+        input_common_classes, input_size_classes, input_variant_classes
+    );
+
     let label_common_classes = "pointer-events-none absolute left-2 px-2 transition-all duration-150 -translate-y-1/2 text-foreground/75 top-0 peer-focus:top-0 peer-focus:text-primary";
 
     let label_size_classes = match props.size {
@@ -114,11 +114,7 @@ pub fn Input(props: InputProps) -> Element {
         InputVariant::Sidebar => "bg-sidebar peer-focus-shown:bg-sidebar",
     };
 
-    let combined_input_classes = format!(
-        "{} {} {}",
-        input_common_classes, input_size_classes, input_variant_classes
-    );
-    let combined_label_classes = format!(
+    let label_combined_classes = format!(
         "{} {} {}",
         label_common_classes, label_size_classes, label_variant_classes
     );
@@ -137,13 +133,17 @@ pub fn Input(props: InputProps) -> Element {
                 placeholder: " ",
                 pattern: match props.r#type {
                     InputType::Phone | InputType::Zip => {
-                        if masked_pattern() != "" { Some(masked_pattern()) } else { None }
+                        if *masked_pattern.read() != "" {
+                            Some(masked_pattern.cloned())
+                        } else {
+                            None
+                        }
                     }
                     _ => None,
                 },
-                required: if let Some(required) = props.required { required() } else { false },
-                value: (props.value)(),
-                class: "{combined_input_classes}",
+                required: if let Some(required) = props.required { *required.read() } else { false },
+                value: props.value,
+                class: "{input_combined_classes}",
                 onmounted: move |element| {
                     #[cfg(feature = "web")]
                     {
@@ -156,7 +156,7 @@ pub fn Input(props: InputProps) -> Element {
                     match props.r#type {
                         InputType::Phone | InputType::Zip => {
                             #[cfg(feature = "web")]
-                            if let Some(ref input) = input_element() {
+                            if let Some(ref input) = *input_element.read() {
                                 masked_onfocus_handler(
                                     input,
                                     props.r#type,
@@ -185,7 +185,7 @@ pub fn Input(props: InputProps) -> Element {
                         }
                         InputType::Phone | InputType::Zip => {
                             #[cfg(feature = "web")]
-                            if let Some(ref input) = input_element() {
+                            if let Some(ref input) = *input_element.read() {
                                 masked_oninput_handler(
                                     event,
                                     input,
@@ -198,7 +198,7 @@ pub fn Input(props: InputProps) -> Element {
                     }
                 },
             }
-            label { r#for: props.id, class: "{combined_label_classes}", {props.label} }
+            label { r#for: props.id, class: "{label_combined_classes}", {props.label} }
         }
     }
 }

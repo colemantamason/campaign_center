@@ -1,5 +1,4 @@
-#[cfg(feature = "web")]
-use crate::shared::input::{InputType, Required, Value};
+use crate::shared::input::InputType;
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
 use dioxus::web::WebEventExt;
@@ -12,11 +11,7 @@ use web_sys::HtmlInputElement;
 #[cfg(feature = "web")]
 use web_sys::InputEvent;
 
-type MaskedPattern = Signal<String>;
-type EmptyMask = String;
-
-#[cfg(feature = "web")]
-pub fn get_empty_mask(r#type: InputType) -> EmptyMask {
+pub fn get_empty_mask(r#type: InputType) -> String {
     match r#type {
         InputType::Phone => "(___) ___-____".to_string(),
         InputType::Zip => "_____".to_string(),
@@ -24,7 +19,6 @@ pub fn get_empty_mask(r#type: InputType) -> EmptyMask {
     }
 }
 
-#[cfg(feature = "web")]
 pub fn get_max_len(r#type: InputType) -> usize {
     match r#type {
         InputType::Phone => 10,
@@ -37,13 +31,13 @@ pub fn get_max_len(r#type: InputType) -> usize {
 pub fn masked_use_effect_hook(
     input: &HtmlInputElement,
     r#type: InputType,
-    required: Required,
-    value: Value,
-    mut masked_pattern: MaskedPattern,
-    empty_mask: EmptyMask,
+    required: Memo<bool>,
+    value: Signal<String>,
+    mut masked_pattern: Signal<String>,
+    empty_mask: String,
 ) {
-    if value().is_empty() || value() == empty_mask {
-        if required() {
+    if *value.read() == "".to_string() || *value.read() == empty_mask {
+        if *required.read() {
             masked_pattern.set(match r#type {
                 InputType::Phone => "\\(\\d{3}\\) \\d{3}-\\d{4}".to_string(),
                 InputType::Zip => "\\d{5}".to_string(),
@@ -63,7 +57,7 @@ pub fn masked_use_effect_hook(
             });
             input.set_custom_validity("");
         }
-    } else if value().contains('_') {
+    } else if value.read().contains('_') {
         let message = match r#type {
             InputType::Phone => "Please enter a valid phone number",
             InputType::Zip => "Please enter a valid zip code",
@@ -79,10 +73,10 @@ pub fn masked_use_effect_hook(
 pub fn masked_onfocus_handler(
     input: &HtmlInputElement,
     r#type: InputType,
-    mut value: Value,
-    empty_mask: EmptyMask,
+    mut value: Signal<String>,
+    empty_mask: String,
 ) {
-    if value().is_empty() || value() == empty_mask {
+    if *value.read() == "".to_string() || *value.read() == empty_mask {
         value.set(empty_mask.to_string());
         let cursor_pos = match r#type {
             InputType::Phone => 1,
@@ -97,8 +91,8 @@ pub fn masked_onfocus_handler(
     }
 }
 #[cfg(feature = "web")]
-pub fn masked_onblur_handler(mut value: Value, empty_mask: EmptyMask) {
-    if value().contains('_') || value() == empty_mask {
+pub fn masked_onblur_handler(mut value: Signal<String>, empty_mask: String) {
+    if value.read().contains('_') || *value.read() == empty_mask {
         value.set("".to_string());
     }
 }
@@ -108,7 +102,7 @@ pub fn masked_oninput_handler(
     event: Event<FormData>,
     input: &HtmlInputElement,
     r#type: InputType,
-    mut value: Value,
+    mut value: Signal<String>,
     max_len: usize,
 ) {
     let digits_before_cursor = input

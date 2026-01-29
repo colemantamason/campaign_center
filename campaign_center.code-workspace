@@ -104,15 +104,17 @@
 		]
 	},
 	"settings": {
-		"rust-analyzer.cargo.features": [
-			"server",
-			"web",
-			"events",
-			"marketing",
-			"mobile_app",
-			"shared",
-			"web_app",
-		],
+		// "rust-analyzer.cargo.features": [
+		// 	"server",
+		// 	"web",
+		// 	"events",
+		// 	"marketing",
+		// 	"mobile_app",
+		// 	"shared",
+		// 	"web_app",
+		// ],
+		"rust-analyzer.cargo.features": "all",
+		"rust-analyzer.check.features": "all",
 		"files.associations": {
 			"tailwind.css": "tailwindcss"
 		},

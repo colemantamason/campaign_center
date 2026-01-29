@@ -4,13 +4,10 @@ use crate::web_app::notification_badge::NotificationBadge;
 use dioxus::prelude::*;
 use lucide_dioxus::{Bell, X};
 
-pub type Notifications = Store<i32>;
-pub type ShowMenu = Signal<bool>;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct NotificationMenuProps {
-    notifications: Notifications,
-    show_menu: ShowMenu,
+    notifications: Store<i32>,
+    show_menu: Signal<bool>,
 }
 
 #[component]
@@ -21,17 +18,17 @@ pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
             onclick: move |_| props.show_menu.toggle(),
             size: ButtonSize::Full,
             variant: ButtonVariant::Sidebar,
-            class: if (props.notifications)() > 0 { "group" } else { "" },
+            class: if *props.notifications.read() > 0 { "group" } else { "" },
             Icon { size: IconSize::Medium, variant: IconVariant::Sidebar, Bell {} }
             span { "Notifications" }
-            if (props.notifications)() > 0 {
+            if *props.notifications.read() > 0 {
                 div { class: "flex flex-1 justify-end",
-                    if (props.notifications)() <= 99 {
+                    if *props.notifications.read() <= 99 {
                         NotificationBadge {
-                            count: (props.notifications)(),
+                            count: *props.notifications.read(),
                             class: "group-hover:bg-accent-foreground",
                         }
-                    } else if (props.notifications)() > 99 {
+                    } else if *props.notifications.read() > 99 {
                         NotificationBadge {
                             count: 99,
                             class: "group-hover:bg-accent-foreground",
@@ -40,8 +37,8 @@ pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
                 }
             }
         }
-        if (props.show_menu)() {
-            div { class: "absolute left-full top-2 ml-2 w-80 bg-sidebar border border-border rounded-md shadow-lg z-50 py-2 flex flex-col gap-2",
+        if *props.show_menu.read() {
+            div { class: "absolute left-full top-2 ml-2 w-80 bg-sidebar border border-border rounded-md shadow-lg z-40 py-2 flex flex-col gap-2",
                 div { class: "flex flex-row justify-between items-center px-2",
                     span { class: "text-sm font-medium text-foreground cursor-default",
                         "Notifications"

@@ -6,21 +6,14 @@ use crate::web_app::confirmation_modal::{ConfirmationModal, ConfirmationModalTyp
 use dioxus::prelude::*;
 use lucide_dioxus::{ChevronsUpDown, LogOut, Settings2, X};
 
-pub type UserFirstName = Store<String>;
-pub type UserLastName = Store<String>;
-pub type UserAvatarUrl = Store<Option<String>>;
-pub type UserRole = Store<String>;
-pub type AccountRoute = String;
-pub type ShowMenu = Signal<bool>;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct UserAccountMenuProps {
-    user_first_name: UserFirstName,
-    user_last_name: UserLastName,
-    user_avatar_url: UserAvatarUrl,
-    user_role: UserRole,
-    account_route: AccountRoute,
-    show_menu: ShowMenu,
+    user_first_name: Store<String>,
+    user_last_name: Store<String>,
+    user_avatar_url: Store<Option<String>>,
+    user_role: Store<String>,
+    account_route: String,
+    show_menu: Signal<bool>,
 }
 
 #[component]
@@ -35,16 +28,16 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
             variant: ButtonVariant::Sidebar,
             class: "group",
             Avatar {
-                src: (props.user_avatar_url)(),
+                src: props.user_avatar_url.cloned(),
                 fallback: {
                     format!(
                         "{}{}",
-                        if let Some(first_name) = (props.user_first_name)().chars().next() {
+                        if let Some(first_name) = props.user_first_name.cloned().chars().next() {
                             first_name.to_string()
                         } else {
                             "?".to_string()
                         },
-                        if let Some(last_name) = (props.user_last_name)().chars().next() {
+                        if let Some(last_name) = props.user_last_name.cloned().chars().next() {
                             last_name.to_string()
                         } else {
                             "".to_string()
@@ -55,10 +48,10 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
             }
             div { class: "flex flex-col flex-1 text-left gap-1",
                 span { class: "text-sm leading-none font-medium text-foreground group-hover:text-accent-foreground truncate",
-                    {format!("{} {}", (props.user_first_name)(), (props.user_last_name)())}
+                    {format!("{} {}", props.user_first_name.cloned(), props.user_last_name.cloned())}
                 }
                 span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
-                    {(props.user_role)()}
+                    {props.user_role.cloned()}
                 }
             }
             Icon {
@@ -68,8 +61,8 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                 ChevronsUpDown {}
             }
         }
-        if (props.show_menu)() {
-            div { class: "absolute left-full bottom-2 ml-2 w-60 bg-sidebar border border-border rounded-md shadow-lg z-50 py-2 flex flex-col gap-2",
+        if *props.show_menu.read() {
+            div { class: "absolute left-full bottom-2 ml-2 w-60 bg-sidebar border border-border rounded-md shadow-lg z-40 py-2 flex flex-col gap-2",
                 div { class: "flex flex-row justify-between items-center px-2",
                     span { class: "text-sm font-medium text-foreground cursor-default",
                         "Your Account"
@@ -131,7 +124,7 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                 }
             }
         }
-        if show_confirmation_modal() {
+        if *show_confirmation_modal.read() {
             ConfirmationModal {
                 r#type: ConfirmationModalType::Danger,
                 title: "Log Out".to_string(),

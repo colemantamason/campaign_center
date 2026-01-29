@@ -7,8 +7,9 @@ Guidelines for Dioxus/Rust:
     - Always set props as an Optional instead of setting a default value.
     - Always use .to_string() over String::from()/new() unless we need to set specific capacity (String::with_capacity()).
     - Always use Rust's exhaustive match over if/else when possible.
-    - Always call signals and stores as a function when reading them.
+    - Always try to access stores and signals using .read() and .write() so that we work with references as much as possible.
     - Always try to avoid .unwrap() and instead use let-else where possible.
+    - Always use i32 (unless impossible) when working with numbers.
 - I NEVER want to use "eval" (JS) if possible. I'd always rather do it with wasm (using packages like gloo, web_sys, etc. when necessary).
 
 Guidelines for CSS/Styling:

@@ -23,28 +23,18 @@ pub enum SidebarMenuType {
     UserAccountMenu,
 }
 
-pub type UserFirstName = Store<String>;
-pub type UserLastName = Store<String>;
-pub type UserAvatarUrl = Store<Option<String>>;
-pub type ActiveOrganizationId = Store<i32>;
-pub type ActiveOrganization = Store<Organization>;
-pub type UserRole = Store<String>;
-pub type OrganizationsStore = Store<Organizations>;
-pub type NotificationsCount = Store<i32>;
-pub type AccountRoute = String;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct SidebarMenuProps {
     r#type: SidebarMenuType,
-    user_first_name: Option<UserFirstName>,
-    user_last_name: Option<UserLastName>,
-    user_avatar_url: Option<UserAvatarUrl>,
-    active_organization_id: Option<ActiveOrganizationId>,
-    active_organization: Option<ActiveOrganization>,
-    user_role: Option<UserRole>,
-    organizations: Option<OrganizationsStore>,
-    notifications: Option<NotificationsCount>,
-    account_route: Option<AccountRoute>,
+    user_first_name: Option<Store<String>>,
+    user_last_name: Option<Store<String>>,
+    user_avatar_url: Option<Store<Option<String>>>,
+    active_organization_id: Option<Store<i32>>,
+    active_organization: Option<Store<Organization>>,
+    user_role: Option<Store<String>>,
+    organizations: Option<Store<Organizations>>,
+    notifications: Option<Store<i32>>,
+    account_route: Option<String>,
 }
 
 #[component]
@@ -57,7 +47,7 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
 
     use_effect(move || {
         #[cfg(feature = "web")]
-        if show_menu() {
+        if *show_menu.read() {
             if let Some(window) = window() {
                 if let Some(document) = window.document() {
                     let listener = EventListener::new(&document, "click", move |event| {
@@ -65,7 +55,7 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
                             .target()
                             .and_then(|target| target.dyn_into::<Node>().ok())
                         {
-                            if let Some(container) = &container_node() {
+                            if let Some(container) = &*container_node.read() {
                                 if !container.contains(Some(&target)) {
                                     show_menu.set(false);
                                 }

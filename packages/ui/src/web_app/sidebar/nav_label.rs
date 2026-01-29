@@ -1,10 +1,8 @@
 use dioxus::prelude::*;
 
-pub type Label = String;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct NavLabelProps {
-    label: Label,
+    label: String,
 }
 
 #[component]

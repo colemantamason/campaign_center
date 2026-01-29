@@ -28,11 +28,16 @@ use notifications::Notifications;
 use page_not_found::PageNotFound;
 use settings::Settings;
 use team::Team;
-use ui::web_app::sidebar::{NavRoutes, RouteType, Sidebar, SidebarType};
+use ui::web_app::{
+    sidebar::{NavRoutes, RouteType, Sidebar, SidebarType},
+    UserAccountContext,
+};
 
 #[component]
 fn Layout() -> Element {
     let user_account = use_store(|| get_mock_user_account());
+
+    use_context_provider(|| UserAccountContext { user_account });
 
     let main_sidebar_routes = NavRoutes::from([
         (
@@ -52,6 +57,7 @@ fn Layout() -> Element {
     ]);
 
     let account_sidebar_routes = NavRoutes::from([
+        (RouteType::Dashboard, Routes::Dashboard {}.to_string()),
         (RouteType::Account, Routes::Account {}.to_string()),
         (
             RouteType::OrganizationManagement,
@@ -65,21 +71,18 @@ fn Layout() -> Element {
             RouteType::DeviceSessions,
             Routes::DeviceSessions {}.to_string(),
         ),
-        (RouteType::Dashboard, Routes::Dashboard {}.to_string()),
     ]);
 
     rsx! {
         div { class: "flex bg-background",
-            if !router().full_route_string().starts_with(Routes::Account {}.to_string().as_str()) {
+            if !router().full_route_string().starts_with(&Routes::Account {}.to_string()) {
                 Sidebar {
                     r#type: SidebarType::Main,
-                    user_account,
                     nav_routes: main_sidebar_routes,
                 }
             } else {
                 Sidebar {
                     r#type: SidebarType::UserAccount,
-                    user_account,
                     nav_routes: account_sidebar_routes,
                 }
             }

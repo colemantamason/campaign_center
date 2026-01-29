@@ -11,30 +11,19 @@ pub enum OrganizationContainerType {
     NonActive,
 }
 
-pub type SelectorAvatarUrl = Store<Option<String>>;
-pub type SelectorName = Store<String>;
-pub type SelectorMemberCount = Store<i32>;
-pub type Name = String;
-pub type AvatarUrl = String;
-pub type MemberCount = i32;
-pub type ShowMenu = Signal<bool>;
-pub type OrganizationId = i32;
-pub type PendingOrganizationId = Signal<Option<i32>>;
-pub type ShowConfirmationModal = Signal<bool>;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct OrganizationContainerProps {
     r#type: OrganizationContainerType,
-    selector_avatar_url: Option<SelectorAvatarUrl>,
-    selector_name: Option<SelectorName>,
-    selector_member_count: Option<SelectorMemberCount>,
-    name: Option<Name>,
-    avatar_url: Option<AvatarUrl>,
-    member_count: Option<MemberCount>,
-    show_menu: Option<ShowMenu>,
-    organization_id: Option<OrganizationId>,
-    pending_organization_id: Option<PendingOrganizationId>,
-    show_confirmation_modal: Option<ShowConfirmationModal>,
+    selector_avatar_url: Option<Store<Option<String>>>,
+    selector_name: Option<Store<String>>,
+    selector_member_count: Option<Store<i32>>,
+    name: Option<String>,
+    avatar_url: Option<String>,
+    member_count: Option<i32>,
+    show_menu: Option<Signal<bool>>,
+    organization_id: Option<i32>,
+    pending_organization_id: Option<Signal<Option<i32>>>,
+    show_confirmation_modal: Option<Signal<bool>>,
 }
 
 #[component]
@@ -52,8 +41,8 @@ pub fn OrganizationContainer(props: OrganizationContainerProps) -> Element {
                 variant: ButtonVariant::Sidebar,
                 class: "group",
                 Avatar {
-                    src: if let Some(selector_avatar_url) = props.selector_avatar_url { (selector_avatar_url)() } else { None },
-                    fallback: if let Some(name) = props.selector_name { if let Some(character) = name().chars().next() {
+                    src: if let Some(selector_avatar_url) = props.selector_avatar_url { selector_avatar_url.cloned() } else { None },
+                    fallback: if let Some(name) = props.selector_name { if let Some(character) = name.read().chars().next() {
                         character.to_string()
                     } else {
                         "?".to_string()
@@ -63,12 +52,12 @@ pub fn OrganizationContainer(props: OrganizationContainerProps) -> Element {
                 div { class: "flex flex-col flex-1 min-w-0 text-left gap-1",
                     span { class: "text-sm leading-none font-medium text-foreground group-hover:text-accent-foreground truncate",
                         if let Some(selector_name) = props.selector_name {
-                            {selector_name()}
+                            {selector_name.cloned()}
                         }
                     }
                     span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
                         if let Some(selector_member_count) = props.selector_member_count {
-                            {format!("{} members", selector_member_count())}
+                            {format!("{} members", selector_member_count.read())}
                         }
                     }
                 }

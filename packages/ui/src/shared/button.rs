@@ -28,20 +28,15 @@ pub enum ButtonVariant {
     SidebarActive,
 }
 
-pub type Disabled = Memo<bool>;
-pub type OnClick = EventHandler<MouseEvent>;
-pub type To = String;
-pub type Class = String;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct ButtonProps {
     r#type: ButtonType,
-    disabled: Option<Disabled>,
-    onclick: Option<OnClick>,
-    to: Option<To>,
+    disabled: Option<Memo<bool>>,
+    onclick: Option<EventHandler<MouseEvent>>,
+    to: Option<String>,
     size: ButtonSize,
     variant: ButtonVariant,
-    class: Option<Class>,
+    class: Option<String>,
     children: Element,
 }
 
@@ -93,7 +88,7 @@ pub fn Button(props: ButtonProps) -> Element {
                         ButtonType::Submit => "submit",
                         _ => "",
                     },
-                    disabled: if let Some(disabled) = props.disabled { disabled() } else { false },
+                    disabled: if let Some(disabled) = props.disabled { *disabled.read() } else { false },
                     onclick: move |event| {
                         if let Some(handler) = props.onclick {
                             handler.call(event);
@@ -102,7 +97,6 @@ pub fn Button(props: ButtonProps) -> Element {
                     class: "{combined_classes}",
                     {props.children}
                 }
-
             )
         }
         ButtonType::Link => {

@@ -1,6 +1,7 @@
 use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::checkbox::Checkbox;
 use crate::shared::form::FormStatus;
+use crate::shared::input::masked_input::get_empty_mask;
 use crate::shared::input::{Input, InputSize, InputType, InputVariant};
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
@@ -9,13 +10,10 @@ use lucide_dioxus::CircleCheck;
 #[cfg(feature = "web")]
 use web_sys::{FormData, RequestMode};
 
-pub type OrganizationName = String;
-pub type HiddenSource = String;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct FormProps {
-    organization_name: OrganizationName,
-    hidden_source: HiddenSource,
+    organization_name: String,
+    hidden_source: String,
 }
 
 #[component]
@@ -31,22 +29,30 @@ pub fn Form(props: FormProps) -> Element {
     let phone_required = use_memo(move || opt_in_value());
     let phone_value = use_signal(|| "".to_string());
     let opt_in_required =
-        use_memo(move || !phone_value().is_empty() && !phone_value().contains('_'));
-    let submit_disabled = use_memo(move || status() == FormStatus::Processing);
+        use_memo(move || !phone_value.read().is_empty() && !phone_value.read().contains('_'));
+    let submit_disabled = use_memo(move || *status.read() == FormStatus::Processing);
 
     let onsubmit_handler = move |event: FormEvent| {
         event.prevent_default();
-        let full_name = full_name_value();
-        let email = email_value();
-        let phone = phone_value();
-        let zip = zip_code_value();
-        let opt_in = opt_in_value();
+        status.set(FormStatus::Processing);
+
+        let full_name = full_name_value.cloned();
+        let email = email_value.cloned();
+        let phone = if *phone_value.read() != get_empty_mask(InputType::Phone) {
+            phone_value.cloned()
+        } else {
+            "".to_string()
+        };
+        let zip = if *zip_code_value.read() != get_empty_mask(InputType::Zip) {
+            zip_code_value.cloned()
+        } else {
+            "".to_string()
+        };
+        let opt_in = opt_in_value.cloned();
         let hidden_source = props.hidden_source.clone();
 
         #[cfg(feature = "web")]
         spawn(async move {
-            status.set(FormStatus::Processing);
-
             let result = async {
                 let form_data = FormData::new().ok()?;
                 form_data.append_with_str("full_name", &full_name).ok()?;
@@ -71,7 +77,7 @@ pub fn Form(props: FormProps) -> Element {
         });
     };
 
-    match status() {
+    match status.cloned() {
         FormStatus::Idle | FormStatus::Processing => rsx! {
             form { class: "flex flex-col gap-6", onsubmit: onsubmit_handler,
                 Input {
@@ -132,7 +138,7 @@ pub fn Form(props: FormProps) -> Element {
                     disabled: Some(submit_disabled),
                     size: ButtonSize::FormFull,
                     variant: ButtonVariant::Primary,
-                    match status() {
+                    match *status.read() {
                         FormStatus::Idle | FormStatus::Success | FormStatus::Error => "SIGN UP",
                         FormStatus::Processing => "SIGNING UP...",
                     }

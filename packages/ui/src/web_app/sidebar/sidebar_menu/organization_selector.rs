@@ -11,17 +11,12 @@ use lucide_dioxus::{Plus, X};
 use organization_container::{OrganizationContainer, OrganizationContainerType};
 use std::cmp::Ordering;
 
-pub type ActiveOrganizationId = Store<i32>;
-pub type ActiveOrganization = Store<Organization>;
-pub type OrganizationsStore = Store<Organizations>;
-pub type ShowMenu = Signal<bool>;
-
 #[derive(Clone, PartialEq, Props)]
 pub struct OrganizationSelectorProps {
-    active_organization_id: ActiveOrganizationId,
-    active_organization: ActiveOrganization,
-    organizations: OrganizationsStore,
-    show_menu: ShowMenu,
+    active_organization_id: Store<i32>,
+    active_organization: Store<Organization>,
+    organizations: Store<Organizations>,
+    show_menu: Signal<bool>,
 }
 
 #[component]
@@ -43,8 +38,8 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
             selector_member_count: Some(props.active_organization.member_count().into()),
             show_menu: Some(props.show_menu.into()),
         }
-        if (props.show_menu)() {
-            div { class: "absolute left-full top-2 ml-2 w-60 z-50 bg-sidebar border border-border rounded-md shadow-lg py-2 gap-2 flex flex-col",
+        if *props.show_menu.read() {
+            div { class: "absolute left-full top-2 ml-2 w-60 z-40 bg-sidebar border border-border rounded-md shadow-lg py-2 gap-2 flex flex-col",
                 div { class: "flex flex-col gap-3",
                     div { class: "flex flex-row justify-between items-center px-2",
                         span { class: "text-sm font-medium text-foreground cursor-default",
@@ -76,9 +71,10 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                 Divider {}
                 div { class: "flex flex-col gap-1 max-h-64 overflow-y-auto",
                     {
-                        let search = search_text().to_lowercase();
-                        let mut visible_organizations: Vec<Organization> = (props
-                            .organizations)()
+                        let search = search_text.read().to_lowercase();
+                        let mut visible_organizations: Vec<Organization> = props
+                            .organizations
+                            .read()
                             .values()
                             .filter(|organization| {
                                 organization.name.to_lowercase().contains(&search)
@@ -87,8 +83,8 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                             .collect();
                         visible_organizations
                             .sort_by(|a, b| {
-                                let a_is_active = a.id == (props.active_organization)().id;
-                                let b_is_active = b.id == (props.active_organization)().id;
+                                let a_is_active = a.id == props.active_organization.read().id;
+                                let b_is_active = b.id == props.active_organization.read().id;
                                 if a_is_active && !b_is_active {
                                     Ordering::Less
                                 } else if !a_is_active && b_is_active {
@@ -105,7 +101,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                             rsx! {
                                 for organization in visible_organizations {
                                     div { key: "{organization.id}", class: "w-full px-2",
-                                        if organization.id == (props.active_organization)().id {
+                                        if organization.id == props.active_organization.read().id {
                                             OrganizationContainer {
                                                 r#type: OrganizationContainerType::Active,
                                                 name: Some(organization.name.clone().into()),
@@ -146,7 +142,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                 }
             }
         }
-        if show_confirmation_modal() {
+        if *show_confirmation_modal.read() {
             ConfirmationModal {
                 r#type: ConfirmationModalType::Default,
                 title: "Switch Organization".to_string(),
@@ -154,7 +150,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                     if let Some(pending_organization) = props
                         .organizations
                         .get(
-                            if let Some(pending_organization_id) = pending_organization_id() {
+                            if let Some(pending_organization_id) = *pending_organization_id.read() {
                                 pending_organization_id
                             } else {
                                 -1
@@ -163,7 +159,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                     {
                         format!(
                             "Are you sure you want to switch to {}?",
-                            pending_organization.name().to_string(),
+                            *pending_organization.name().read(),
                         )
                     } else {
                         "There was an error trying to switch organizations. Please refresh the page and try again."
@@ -175,7 +171,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                 show_modal: show_confirmation_modal,
                 on_confirm: move |_| {
                     handle_organization_switch(
-                        if let Some(pending_organization_id) = pending_organization_id() {
+                        if let Some(pending_organization_id) = *pending_organization_id.read() {
                             pending_organization_id
                         } else {
                             -1

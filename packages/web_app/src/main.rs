@@ -1,7 +1,8 @@
-mod routes;
+pub mod routes;
 
 use dioxus::prelude::*;
 use routes::Routes;
+use ui::web_app::toast::ToastProvider;
 
 fn main() {
     dioxus::launch(App);
@@ -15,6 +16,6 @@ fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: STYLESHEET }
-        Router::<Routes> {}
+        ToastProvider { Router::<Routes> {} }
     }
 }
