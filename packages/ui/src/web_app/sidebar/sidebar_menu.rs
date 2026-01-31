@@ -40,6 +40,7 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
     #[cfg(feature = "web")]
     let mut click_outside_listener = use_signal(|| None::<EventListener>);
 
+    // handle clicking outside of the menu to close it
     use_effect(move || {
         #[cfg(feature = "web")]
         if *show_menu.read() {
@@ -67,6 +68,7 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
 
     rsx! {
         div {
+            // attach the container node for click outside detection
             onmounted: move |element| {
                 #[cfg(feature = "web")]
                 {

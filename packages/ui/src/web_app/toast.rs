@@ -32,6 +32,7 @@ pub struct ToastContext {
 
 impl ToastContext {
     pub fn create(&mut self, title: String, message: String, toast_variant: ToastVariant) -> () {
+        // generate a new id for the toast
         let id = if self.toasts.read().is_empty() {
             0
         } else {
@@ -42,6 +43,7 @@ impl ToastContext {
             }
         };
 
+        // create the toast data
         let toast = ToastData {
             id,
             title,
@@ -49,6 +51,7 @@ impl ToastContext {
             variant: toast_variant,
         };
 
+        // insert the toast into the toasts map
         self.toasts.write().insert(id, toast);
     }
 }
@@ -63,6 +66,7 @@ pub fn ToastProvider(props: ToastProviderProps) -> Element {
     use_context_provider(|| ToastContext {
         toasts: Signal::new(Toasts::new()),
     });
+
     let toast_context = use_context::<ToastContext>();
 
     rsx! {
@@ -91,6 +95,7 @@ fn Toast(props: ToastProps) -> Element {
     let mut toasts = props.toasts;
     let duration = 5000;
 
+    // remove the toast after the duration
     use_effect(move || {
         spawn(async move {
             #[cfg(feature = "web")]

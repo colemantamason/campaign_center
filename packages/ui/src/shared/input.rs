@@ -55,6 +55,7 @@ pub fn Input(props: InputProps) -> Element {
     let masked_pattern = use_signal(|| "".to_string());
 
     use_effect(move || {
+        // set up appropriate use_effect hooks based on input type
         #[cfg(feature = "web")]
         if let Some(ref input) = *input_element.read() {
             match props.r#type {
@@ -144,6 +145,7 @@ pub fn Input(props: InputProps) -> Element {
                 required: if let Some(required) = props.required { *required.read() } else { false },
                 value: props.value,
                 class: "{input_combined_classes}",
+                // get the underlying HtmlInputElement on mount
                 onmounted: move |element| {
                     #[cfg(feature = "web")]
                     {
@@ -152,6 +154,7 @@ pub fn Input(props: InputProps) -> Element {
                         input_element.set(input);
                     }
                 },
+                // if masked input, handle focus event
                 onfocus: move |_| {
                     match props.r#type {
                         InputType::Phone | InputType::Zip => {
@@ -168,6 +171,7 @@ pub fn Input(props: InputProps) -> Element {
                         _ => {}
                     }
                 },
+                // if masked input, handle blur event
                 onblur: move |_| {
                     match props.r#type {
                         InputType::Phone | InputType::Zip => {
@@ -177,6 +181,7 @@ pub fn Input(props: InputProps) -> Element {
                         _ => {}
                     }
                 },
+                // handle input event
                 oninput: move |event| {
                     match props.r#type {
                         InputType::Email | InputType::Text => {

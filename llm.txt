@@ -10,7 +10,8 @@ Guidelines for Dioxus/Rust:
     - Always try to access stores and signals using .read() and .write() so that we work with references as much as possible.
     - Always try to avoid .unwrap() and instead use let-else where possible.
     - Always use i32 (unless impossible) when working with numbers.
-- I NEVER want to use "eval" (JS) if possible. I'd always rather do it with wasm (using packages like gloo, web_sys, etc. when necessary).
+- Never use "eval" (JS) if possible. I'd always rather do it with wasm (using packages like gloo, web_sys, etc. when necessary).
+- Always ignore my TODO comments unless I specify otherwise.
 
 Guidelines for CSS/Styling:
 - Always use flexbox when positioning elements. Keep other CSS as simple as possible (no cutting edge CSS).

@@ -21,6 +21,7 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
     let mut checkbox_element: Signal<Option<HtmlInputElement>> = use_signal(|| None);
 
     use_effect(move || {
+        // add custom validity message if required and not checked
         #[cfg(feature = "web")]
         if let Some(ref checkbox) = *checkbox_element.read() {
             if let Some(required) = props.required {
@@ -44,6 +45,7 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
                 required: if let Some(required) = props.required { *required.read() } else { false },
                 value: (*props.value.read()).to_string(),
                 class: "absolute left-0 w-6 h-6 opacity-0 z-10 cursor-pointer",
+                // get the underlying HtmlInputElement on mount
                 onmounted: move |element| {
                     #[cfg(feature = "web")]
                     {
@@ -52,6 +54,7 @@ pub fn Checkbox(mut props: CheckboxProps) -> Element {
                         checkbox_element.set(checkbox);
                     }
                 },
+                // toggle the signal value when the user clicks the checkbox
                 onchange: move |_| {
                     props.value.toggle();
                 },

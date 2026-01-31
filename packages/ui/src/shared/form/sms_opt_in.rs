@@ -33,6 +33,7 @@ pub fn Form(props: FormProps) -> Element {
         use_memo(move || !phone_value.read().is_empty() && !phone_value.read().contains('_'));
     let submit_disabled = use_memo(move || *status.read() == FormStatus::Processing);
 
+    // handle form submission
     let onsubmit_handler = move |event: FormEvent| {
         event.prevent_default();
         status.set(FormStatus::Processing);
@@ -52,6 +53,7 @@ pub fn Form(props: FormProps) -> Element {
         let opt_in = opt_in_value.cloned();
         let hidden_source = props.hidden_source.clone();
 
+        // submit the form data
         #[cfg(feature = "web")]
         spawn(async move {
             let result = async {

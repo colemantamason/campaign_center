@@ -28,12 +28,14 @@ pub struct OrganizationSelectorProps {
 pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
     let user_account = use_context::<UserAccountContext>().user_account;
     let search_text = use_signal(|| "".to_string());
-    let mut pending_organization_membership_id = use_signal(|| None::<i32>);
+    let mut selected_organization_membership_id = use_signal(|| None::<i32>);
     let show_confirmation_modal = use_signal(|| false);
 
-    let handle_organization_switch = move |id: i32| match id {
-        -1 => return,
-        _ => user_account
+    let handle_organization_switch = move |id: Option<i32>| match id {
+        // invalid id, do nothing
+        None => return,
+        // valid id, switch organization
+        Some(id) => user_account
             .active_organization_membership_id()
             .set(Some(id)),
     };
@@ -80,6 +82,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                     Divider {}
                     div { class: "flex flex-col gap-1 max-h-64 overflow-y-auto",
                         {
+                            // filter organizations based on search text
                             let search = search_text.read().to_lowercase();
                             let mut visible_organizations: Vec<Organization> = user_account
                                 .organization_memberships()
@@ -125,7 +128,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                                                     member_count: Some(organization.member_count.into()),
                                                     show_menu: Some(props.show_menu.into()),
                                                     organization_id: Some(organization.id.into()),
-                                                    pending_organization_membership_id: Some(pending_organization_membership_id.into()),
+                                                    selected_organization_membership_id: Some(selected_organization_membership_id.into()),
                                                     show_confirmation_modal: Some(show_confirmation_modal.into()),
                                                 }
                                             }
@@ -135,6 +138,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                             }
                         }
                     }
+                    // TODO: implement organization creation flow or remove this button
                     Divider {}
                     div { class: "w-full px-2",
                         Button {
@@ -156,13 +160,14 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                     r#type: ConfirmationModalType::Default,
                     title: "Switch Organization".to_string(),
                     message: {
-                        if let Some(pending_organization_membership) = user_account
+                        if let Some(selected_organization_membership) = user_account
                             .organization_memberships()
                             .get(
-                                if let Some(pending_organization_membership_id) = *pending_organization_membership_id
+                                // unwrap the selected organization membership id or use -1 as a fallback if somehow missing
+                                if let Some(selected_organization_membership_id) = *selected_organization_membership_id
                                     .read()
                                 {
-                                    pending_organization_membership_id
+                                    selected_organization_membership_id
                                 } else {
                                     -1
                                 },
@@ -170,7 +175,7 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                         {
                             format!(
                                 "Are you sure you want to switch to {}?",
-                                *pending_organization_membership.organization().name().read(),
+                                *selected_organization_membership.organization().name().read(),
                             )
                         } else {
                             "There was an error trying to switch organizations. Please refresh the page and try again."
@@ -182,18 +187,18 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                     show_modal: show_confirmation_modal,
                     on_confirm: move |_| {
                         handle_organization_switch(
-                            if let Some(pending_organization_membership_id) = *pending_organization_membership_id
+                            if let Some(selected_organization_membership_id) = *selected_organization_membership_id
                                 .read()
                             {
-                                pending_organization_membership_id
+                                Some(selected_organization_membership_id)
                             } else {
-                                -1
+                                None
                             },
                         );
-                        pending_organization_membership_id.set(None);
+                        selected_organization_membership_id.set(None);
                     },
                     on_cancel: move |_| {
-                        pending_organization_membership_id.set(None);
+                        selected_organization_membership_id.set(None);
                     },
                 }
             }

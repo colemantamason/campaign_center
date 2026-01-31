@@ -13,6 +13,7 @@ pub fn unmasked_use_effect_hook(
     label: String,
 ) {
     if value.read().trim().is_empty() {
+        // if required, set validity message
         if *required.read() {
             let message = match r#type {
                 InputType::Email => "Please enter a valid email address".to_string(),
@@ -20,11 +21,14 @@ pub fn unmasked_use_effect_hook(
             };
             input.set_custom_validity(&message);
         } else {
+            // if not required, clear validity message
             input.set_custom_validity("");
         }
     } else {
+        // if not empty, clear validity message
         input.set_custom_validity("");
         match r#type {
+            // if email, check validity and set message if invalid
             InputType::Email if !input.check_validity() => {
                 input.set_custom_validity("Please enter a valid email address");
             }
@@ -35,5 +39,6 @@ pub fn unmasked_use_effect_hook(
 
 #[cfg(feature = "web")]
 pub fn unmasked_oninput_handler(event: Event<FormData>, mut value: Signal<String>) {
+    // update value
     value.set(event.value());
 }

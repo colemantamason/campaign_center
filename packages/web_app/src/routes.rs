@@ -54,6 +54,7 @@ fn Layout() -> Element {
     let mut account_settings_routes = NavRoutes::new();
     let dashboard_route = Routes::Dashboard {}.to_string();
 
+    // populate the routes based on the sidebar type and user permissions
     if is_main_sidebar {
         main_menu_routes.push(NavRoute {
             route: Routes::Dashboard {}.to_string(),
@@ -163,7 +164,7 @@ fn Layout() -> Element {
     rsx! {
         ToastProvider {
             div { class: "flex bg-background",
-                // only render the sidebar if there's an active organization
+                // only render the sidebar if there's an active organization membership
                 if let Some(active_organization_membership) = user_account_context
                     .get_active_organization_membership_id()
                     .and_then(|id| {
