@@ -1,5 +1,4 @@
-use crate::{gate::Gate, routes::Routes};
-use api::web_app::PermissionType;
+use crate::gate::Gate;
 use dioxus::prelude::*;
 
 #[component]

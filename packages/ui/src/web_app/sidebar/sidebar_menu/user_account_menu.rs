@@ -1,10 +1,12 @@
-use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
-use crate::shared::divider::Divider;
-use crate::shared::icon::{Icon, IconSize, IconVariant};
-use crate::web_app::confirmation_modal::{ConfirmationModal, ConfirmationModalType};
-use crate::web_app::sidebar::NavRoutes;
+use crate::shared::{
+    button::{Button, ButtonSize, ButtonType, ButtonVariant},
+    divider::Divider,
+    icon::{Icon, IconSize, IconVariant},
+};
 use crate::web_app::{
     avatar::{Avatar, AvatarVariant},
+    confirmation_modal::{ConfirmationModal, ConfirmationModalType},
+    sidebar::NavRoutes,
     UserAccountContext,
 };
 use api::web_app::{UserAccountStoreExt, UserRoleType};

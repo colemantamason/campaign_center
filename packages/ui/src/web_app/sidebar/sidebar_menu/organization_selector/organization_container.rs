@@ -1,5 +1,7 @@
-use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
-use crate::shared::icon::{Icon, IconSize, IconVariant};
+use crate::shared::{
+    button::{Button, ButtonSize, ButtonType, ButtonVariant},
+    icon::{Icon, IconSize, IconVariant},
+};
 use crate::web_app::avatar::{Avatar, AvatarVariant};
 use dioxus::prelude::*;
 use lucide_dioxus::{Check, ChevronsUpDown};

@@ -1,8 +1,9 @@
-use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
-use crate::shared::checkbox::Checkbox;
-use crate::shared::form::FormStatus;
-use crate::shared::input::masked_input::get_empty_mask;
-use crate::shared::input::{Input, InputSize, InputType, InputVariant};
+use crate::shared::{
+    button::{Button, ButtonSize, ButtonType, ButtonVariant},
+    checkbox::Checkbox,
+    form::FormStatus,
+    input::{masked_input::get_empty_mask, Input, InputSize, InputType, InputVariant},
+};
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
 use gloo::net::http::Request;

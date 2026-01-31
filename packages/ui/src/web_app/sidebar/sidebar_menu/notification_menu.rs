@@ -1,7 +1,8 @@
-use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
-use crate::shared::icon::{Icon, IconSize, IconVariant};
-use crate::web_app::notification_badge::NotificationBadge;
-use crate::web_app::UserAccountContext;
+use crate::shared::{
+    button::{Button, ButtonSize, ButtonType, ButtonVariant},
+    icon::{Icon, IconSize, IconVariant},
+};
+use crate::web_app::{notification_badge::NotificationBadge, UserAccountContext};
 use api::web_app::UserAccountStoreExt;
 use dioxus::prelude::*;
 use lucide_dioxus::{Bell, X};

@@ -2,9 +2,11 @@ mod nav_button;
 mod nav_label;
 mod sidebar_menu;
 
-use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
-use crate::shared::divider::Divider;
-use crate::shared::icon::{Icon, IconSize, IconVariant};
+use crate::shared::{
+    button::{Button, ButtonSize, ButtonType, ButtonVariant},
+    divider::Divider,
+    icon::{Icon, IconSize, IconVariant},
+};
 use api::web_app::{OrganizationMembership, OrganizationMembershipStoreExt};
 use dioxus::prelude::*;
 use lucide_dioxus::{ChevronLeft, CircleQuestionMark};

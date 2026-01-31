@@ -25,7 +25,7 @@ use groups::Groups;
 use login::Login;
 use lucide_dioxus::{
     Bell, Building, Calendar, ChartColumn, ContactRound, FileOutput, LayoutGrid, Megaphone,
-    MonitorSmartphone, Settings as SettingsIcon, Settings2, User, UsersRound,
+    MonitorSmartphone, Settings as Settings1, Settings2, User, UsersRound,
 };
 use page_not_found::PageNotFound;
 use settings::Settings;
@@ -114,7 +114,7 @@ fn Layout() -> Element {
             NavRoute {
                 route: Routes::Settings {}.to_string(),
                 icon: rsx! {
-                    SettingsIcon {}
+                    Settings1 {}
                 },
                 label: "Settings".to_string(),
             },

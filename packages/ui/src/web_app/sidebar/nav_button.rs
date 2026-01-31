@@ -1,5 +1,7 @@
-use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
-use crate::shared::icon::{Icon, IconSize, IconVariant};
+use crate::shared::{
+    button::{Button, ButtonSize, ButtonType, ButtonVariant},
+    icon::{Icon, IconSize, IconVariant},
+};
 use dioxus::prelude::*;
 
 #[derive(Clone, PartialEq, Props)]
