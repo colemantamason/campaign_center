@@ -1,23 +1,26 @@
 use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::divider::Divider;
 use crate::shared::icon::{Icon, IconSize, IconVariant};
-use crate::web_app::avatar::{Avatar, AvatarVariant};
 use crate::web_app::confirmation_modal::{ConfirmationModal, ConfirmationModalType};
+use crate::web_app::sidebar::NavRoutes;
+use crate::web_app::{
+    avatar::{Avatar, AvatarVariant},
+    UserAccountContext,
+};
+use api::web_app::{UserAccountStoreExt, UserRoleType};
 use dioxus::prelude::*;
-use lucide_dioxus::{ChevronsUpDown, LogOut, Settings2, X};
+use lucide_dioxus::{ChevronsUpDown, LogOut, X};
 
 #[derive(Clone, PartialEq, Props)]
 pub struct UserAccountMenuProps {
-    user_first_name: Store<String>,
-    user_last_name: Store<String>,
-    user_avatar_url: Store<Option<String>>,
-    user_role: Store<String>,
-    account_route: String,
+    user_role: Option<Store<UserRoleType>>,
+    account_menu_routes: Option<NavRoutes>,
     show_menu: Signal<bool>,
 }
 
 #[component]
 pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
+    let user_account = use_context::<UserAccountContext>().user_account;
     let mut show_confirmation_modal: Signal<bool> = use_signal(|| false);
 
     rsx! {
@@ -28,16 +31,16 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
             variant: ButtonVariant::Sidebar,
             class: "group",
             Avatar {
-                src: props.user_avatar_url.cloned(),
+                src: user_account.avatar_url().cloned(),
                 fallback: {
                     format!(
                         "{}{}",
-                        if let Some(first_name) = props.user_first_name.cloned().chars().next() {
+                        if let Some(first_name) = user_account.first_name().cloned().chars().next() {
                             first_name.to_string()
                         } else {
                             "?".to_string()
                         },
-                        if let Some(last_name) = props.user_last_name.cloned().chars().next() {
+                        if let Some(last_name) = user_account.last_name().cloned().chars().next() {
                             last_name.to_string()
                         } else {
                             "".to_string()
@@ -48,10 +51,18 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
             }
             div { class: "flex flex-col flex-1 text-left gap-1",
                 span { class: "text-sm leading-none font-medium text-foreground group-hover:text-accent-foreground truncate",
-                    {format!("{} {}", props.user_first_name.cloned(), props.user_last_name.cloned())}
+                    {
+                        format!(
+                            "{} {}",
+                            user_account.first_name().cloned(),
+                            user_account.last_name().cloned(),
+                        )
+                    }
                 }
-                span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
-                    {props.user_role.cloned()}
+                if let Some(user_role) = &props.user_role {
+                    span { class: "text-sm leading-none text-muted-foreground group-hover:text-accent-foreground truncate",
+                        {user_role.to_string()}
+                    }
                 }
             }
             Icon {
@@ -80,17 +91,21 @@ pub fn UserAccountMenu(mut props: UserAccountMenuProps) -> Element {
                     }
                 }
                 div { class: "px-2 flex flex-col gap-1",
-                    Button {
-                        r#type: ButtonType::Link,
-                        to: props.account_route,
-                        size: ButtonSize::Full,
-                        variant: ButtonVariant::Sidebar,
-                        Icon {
-                            size: IconSize::Medium,
-                            variant: IconVariant::Sidebar,
-                            Settings2 {}
+                    if let Some(routes) = props.account_menu_routes {
+                        for nav_route in routes {
+                            Button {
+                                r#type: ButtonType::Link,
+                                to: Some(nav_route.route),
+                                size: ButtonSize::Full,
+                                variant: ButtonVariant::Sidebar,
+                                Icon {
+                                    size: IconSize::Medium,
+                                    variant: IconVariant::Sidebar,
+                                    {nav_route.icon}
+                                }
+                                span { {nav_route.label} }
+                            }
                         }
-                        span { "Account Settings" }
                     }
                     Button {
                         r#type: ButtonType::Button,

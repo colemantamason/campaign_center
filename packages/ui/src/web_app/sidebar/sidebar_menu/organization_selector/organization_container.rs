@@ -22,7 +22,7 @@ pub struct OrganizationContainerProps {
     member_count: Option<i32>,
     show_menu: Option<Signal<bool>>,
     organization_id: Option<i32>,
-    pending_organization_id: Option<Signal<Option<i32>>>,
+    pending_organization_membership_id: Option<Signal<Option<i32>>>,
     show_confirmation_modal: Option<Signal<bool>>,
 }
 
@@ -106,8 +106,10 @@ pub fn OrganizationContainer(props: OrganizationContainerProps) -> Element {
                     if let Some(mut show_menu) = props.show_menu {
                         show_menu.set(false);
                     }
-                    if let Some(mut pending_organization_id) = props.pending_organization_id {
-                        pending_organization_id.set(props.organization_id);
+                    if let Some(mut pending_organization_membership_id) = props
+                        .pending_organization_membership_id
+                    {
+                        pending_organization_membership_id.set(props.organization_id);
                     }
                     if let Some(mut show_confirmation_modal) = props.show_confirmation_modal {
                         show_confirmation_modal.set(true);

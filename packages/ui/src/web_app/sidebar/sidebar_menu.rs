@@ -2,7 +2,8 @@ mod notification_menu;
 mod organization_selector;
 mod user_account_menu;
 
-use api::web_app::{Organization, Organizations};
+use crate::web_app::sidebar::NavRoutes;
+use api::web_app::{Organization, UserRoleType};
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
 use dioxus::web::WebEventExt;
@@ -26,15 +27,9 @@ pub enum SidebarMenuType {
 #[derive(Clone, PartialEq, Props)]
 pub struct SidebarMenuProps {
     r#type: SidebarMenuType,
-    user_first_name: Option<Store<String>>,
-    user_last_name: Option<Store<String>>,
-    user_avatar_url: Option<Store<Option<String>>>,
-    active_organization_id: Option<Store<i32>>,
     active_organization: Option<Store<Organization>>,
-    user_role: Option<Store<String>>,
-    organizations: Option<Store<Organizations>>,
-    notifications: Option<Store<i32>>,
-    account_route: Option<String>,
+    user_role: Option<Store<UserRoleType>>,
+    account_menu_routes: Option<NavRoutes>,
 }
 
 #[component]
@@ -82,62 +77,22 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
             },
             match props.r#type {
                 SidebarMenuType::OrganizationSelector => {
-                    if let (
-                        Some(active_organization_id),
-                        Some(active_organization),
-                        Some(organizations),
-                    ) = (
-                        props.active_organization_id,
-                        props.active_organization,
-                        props.organizations,
-                    ) {
-                        rsx! {
-                            OrganizationSelector {
-                                active_organization_id,
-                                active_organization,
-                                organizations,
-                                show_menu,
-                            }
-                        }
-                    } else {
-                        rsx! {}
+                    rsx! {
+                        OrganizationSelector { active_organization: props.active_organization, show_menu }
                     }
                 }
                 SidebarMenuType::NotificationMenu => {
-                    if let Some(notifications) = props.notifications {
-                        rsx! {
-                            NotificationMenu { notifications, show_menu }
-                        }
-                    } else {
-                        rsx! {}
+                    rsx! {
+                        NotificationMenu { show_menu }
                     }
                 }
                 SidebarMenuType::UserAccountMenu => {
-                    if let (
-                        Some(user_first_name),
-                        Some(user_last_name),
-                        Some(user_avatar_url),
-                        Some(user_role),
-                        Some(account_route),
-                    ) = (
-                        props.user_first_name,
-                        props.user_last_name,
-                        props.user_avatar_url,
-                        props.user_role,
-                        props.account_route,
-                    ) {
-                        rsx! {
-                            UserAccountMenu {
-                                user_first_name,
-                                user_last_name,
-                                user_avatar_url,
-                                user_role,
-                                account_route,
-                                show_menu,
-                            }
+                    rsx! {
+                        UserAccountMenu {
+                            user_role: props.user_role,
+                            account_menu_routes: props.account_menu_routes,
+                            show_menu,
                         }
-                    } else {
-                        rsx! {}
                     }
                 }
             }

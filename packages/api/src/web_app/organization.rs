@@ -1,5 +1,42 @@
 use dioxus::prelude::*;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter, Result as FmtResult},
+};
+
+#[derive(Clone, Store)]
+pub struct Organization {
+    pub id: i32,
+    pub name: String,
+    pub avatar_url: Option<String>,
+    pub member_count: i32,
+}
+
+impl Organization {
+    pub fn new(id: i32, name: String, avatar_url: Option<String>, member_count: i32) -> Self {
+        Self {
+            id,
+            name,
+            avatar_url,
+            member_count,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum UserRoleType {
+    Admin,
+    Member,
+}
+
+impl Display for UserRoleType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match self {
+            UserRoleType::Admin => write!(f, "Admin"),
+            UserRoleType::Member => write!(f, "Member"),
+        }
+    }
+}
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub enum PermissionType {
@@ -8,48 +45,49 @@ pub enum PermissionType {
 
 pub type Permissions = HashMap<PermissionType, bool>;
 
-#[derive(Clone, Default, Store)]
-pub struct Organization {
-    pub id: i32,
-    pub name: String,
-    pub avatar_url: Option<String>,
-    pub member_count: i32,
-    pub user_role: String,
+#[derive(Clone, Store)]
+pub struct OrganizationMembership {
+    pub organization_id: i32,
+    pub organization: Organization,
+    pub user_role: UserRoleType,
     pub permissions: Permissions,
 }
 
-impl Organization {
+impl OrganizationMembership {
     pub fn new(
-        id: i32,
+        organization_id: i32,
         name: String,
         avatar_url: Option<String>,
         member_count: i32,
-        user_role: String,
+        user_role: UserRoleType,
         permissions: Permissions,
     ) -> Self {
         Self {
-            id,
-            name,
-            avatar_url,
-            member_count,
+            organization_id,
+            organization: Organization::new(organization_id, name, avatar_url, member_count),
             user_role,
             permissions,
         }
     }
 }
 
-pub type Organizations = HashMap<i32, Organization>;
+pub type OrganizationMemberships = HashMap<i32, OrganizationMembership>;
 
-pub fn get_mock_organizations() -> Organizations {
-    let create_organization = |id, name, avatar_url, member_count, user_role, permissions| {
+pub fn get_mock_organization_memberships() -> OrganizationMemberships {
+    let create_organization_membership = |id,
+                                          name,
+                                          avatar_url,
+                                          member_count,
+                                          user_role,
+                                          permissions| {
         (
             id,
-            Organization::new(id, name, avatar_url, member_count, user_role, permissions),
+            OrganizationMembership::new(id, name, avatar_url, member_count, user_role, permissions),
         )
     };
 
-    Organizations::from([
-        create_organization(
+    OrganizationMemberships::from([
+        create_organization_membership(
             0,
             "Test Organization".to_string(),
             Some(
@@ -57,71 +95,71 @@ pub fn get_mock_organizations() -> Organizations {
                     .to_string(),
             ),
             12,
-            "Admin".to_string(),
+            UserRoleType::Admin,
             Permissions::from([(PermissionType::Events, true)]),
         ),
-        create_organization(
+        create_organization_membership(
             1,
             "Test Organization 2".to_string(),
             None,
             5,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, false)]),
         ),
-        create_organization(
+        create_organization_membership(
             2,
             "Test Organization 3".to_string(),
             None,
             8,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, true)]),
         ),
-        create_organization(
+        create_organization_membership(
             3,
             "Test Organization 4".to_string(),
             None,
             150,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, true)]),
         ),
-        create_organization(
+        create_organization_membership(
             4,
             "Test Organization 50".to_string(),
             None,
             3,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, true)]),
         ),
-        create_organization(
+        create_organization_membership(
             5,
             "Test Organization 51".to_string(),
             None,
             42,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, true)]),
         ),
-        create_organization(
+        create_organization_membership(
             6,
             "Test Organization 51".to_string(),
             None,
             1,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, true)]),
         ),
-        create_organization(
+        create_organization_membership(
             7,
             "Test Organization 8".to_string(),
             None,
             10,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, true)]),
         ),
-        create_organization(
+        create_organization_membership(
             8,
             "Test Organization 9".to_string(),
             None,
             7,
-            "Member".to_string(),
+            UserRoleType::Member,
             Permissions::from([(PermissionType::Events, true)]),
         ),
     ])

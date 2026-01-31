@@ -1,34 +1,43 @@
 use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
 use crate::shared::icon::{Icon, IconSize, IconVariant};
 use crate::web_app::notification_badge::NotificationBadge;
+use crate::web_app::UserAccountContext;
+use api::web_app::UserAccountStoreExt;
 use dioxus::prelude::*;
 use lucide_dioxus::{Bell, X};
 
 #[derive(Clone, PartialEq, Props)]
 pub struct NotificationMenuProps {
-    notifications: Store<i32>,
     show_menu: Signal<bool>,
 }
 
 #[component]
 pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
+    let user_account = use_context::<UserAccountContext>().user_account;
+    let unread_count = user_account
+        .notifications()
+        .read()
+        .values()
+        .filter(|notification| !notification.read)
+        .count() as i32;
+
     rsx! {
         Button {
             r#type: ButtonType::Button,
             onclick: move |_| props.show_menu.toggle(),
             size: ButtonSize::Full,
             variant: ButtonVariant::Sidebar,
-            class: if *props.notifications.read() > 0 { "group" } else { "" },
+            class: if unread_count > 0 { "group" } else { "" },
             Icon { size: IconSize::Medium, variant: IconVariant::Sidebar, Bell {} }
             span { "Notifications" }
-            if *props.notifications.read() > 0 {
+            if unread_count > 0 {
                 div { class: "flex flex-1 justify-end",
-                    if *props.notifications.read() <= 99 {
+                    if unread_count <= 99 {
                         NotificationBadge {
-                            count: *props.notifications.read(),
+                            count: unread_count,
                             class: "group-hover:bg-accent-foreground",
                         }
-                    } else if *props.notifications.read() > 99 {
+                    } else if unread_count > 99 {
                         NotificationBadge {
                             count: 99,
                             class: "group-hover:bg-accent-foreground",
@@ -54,7 +63,7 @@ pub fn NotificationMenu(mut props: NotificationMenuProps) -> Element {
                             X {}
                         }
                     }
-
+                
                 }
                 div { class: "px-2 h-80 overflow-y-auto flex flex-col align-center",
                     span { class: "text-sm text-foreground cursor-default", "No new notifications." }
