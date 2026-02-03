@@ -1,20 +1,17 @@
 # Campaign Center - Development Roadmap
 
-> **Last Updated**: February 2026  
-> **Target MVP Launch**: Q2 2026  
-> **Full Platform Launch**: Q4 2026
+> **Last Updated**: February 2026
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Phase 0: Foundation](#phase-0-foundation-current)
-3. [Phase 1: Events MVP](#phase-1-events-mvp)
-4. [Phase 2: Growth Features](#phase-2-growth-features)
+2. [Phase 0: Foundation](#phase-0-foundation)
+3. [Phase 1: Events Platform](#phase-1-events-platform)
+4. [Phase 2: Infrastructure & Optimization](#phase-2-infrastructure--optimization)
 5. [Phase 3: Campaign Platform](#phase-3-campaign-platform)
-6. [Phase 4: Advanced Features](#phase-4-advanced-features)
-7. [Ongoing: Infrastructure & Operations](#ongoing-infrastructure--operations)
+6. [Phase 4: Website Builder](#phase-4-website-builder)
 
 ---
 
@@ -22,461 +19,354 @@
 
 ### Strategic Approach
 
-1. **Launch Events MVP** under separate branding (e.g., "RallyUp" or similar)
-2. **Build infrastructure** alongside events (auth, payments, emails, etc.)
-3. **Add campaign features** progressively
-4. **Merge platforms** once feature parity achieved
+1. **Build Events Platform** - Complete the full Events feature set (events, actions, groups, analytics) before public launch
+2. **Optimize & Harden** - After launch, focus on infrastructure, performance, and security before adding new features
+3. **Expand to Campaign Tools** - Add voter data, fieldwork, and outreach tools progressively
+4. **Apply Lessons Learned** - Port optimization patterns to new features as they're built
 
-### Timeline Summary
+### Phase Order
 
-```
-2026 Q1      Q2        Q3        Q4        2027 Q1
-  │          │         │         │          │
-  ├──────────┼─────────┼─────────┼──────────┤
-  │ Phase 0  │Phase 1  │ Phase 2 │ Phase 3  │ Phase 4
-  │Foundation│Events   │ Growth  │ Campaign │ Advanced
-  │          │MVP      │Features │ Platform │ Features
-  │          │         │         │          │
-  └──────────┴─────────┴─────────┴──────────┘
-             ▲                   ▲
-             │                   │
-        Events MVP          Full Platform
-         Launch              Launch
-```
+Phases are listed in priority order. Each phase should be fully complete before moving to the next.
 
 ---
 
-## Phase 0: Foundation (Current)
+## Phase 0: Foundation
 
-**Duration**: Now - End of Q1 2026  
 **Status**: 🟡 In Progress
 
-### Objectives
+### Completed
 
 - [x] Project scaffolding (packages, feature flags)
 - [x] Basic web app structure (routes, sidebar, layout)
-- [x] Shared UI component library (button, input, etc.)
+- [x] Shared UI component library
 - [x] Mock data and permission system
-- [ ] Backend infrastructure setup
-- [ ] Database schema and migrations
-- [ ] Authentication system
-- [ ] Development environment automation
+- [x] Hot reload configuration
 
-### 0.1 Backend Infrastructure
+### Remaining
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Set up Diesel with PostgreSQL | ⬜ Not Started | P0 |
-| Create initial migrations (users, orgs, sessions) | ⬜ Not Started | P0 |
-| Implement session management with Redis | ⬜ Not Started | P0 |
-| Create database connection pooling | ⬜ Not Started | P0 |
-| Set up environment configuration | ⬜ Not Started | P0 |
-
-### 0.2 Authentication System
-
-| Task | Status | Priority |
-|------|--------|----------|
-| User registration flow | ⬜ Not Started | P0 |
-| Login/logout flows | ⬜ Not Started | P0 |
-| Password hashing (Argon2) | ⬜ Not Started | P0 |
-| Session creation/validation | ⬜ Not Started | P0 |
-| Password reset flow | ⬜ Not Started | P1 |
-| Email verification | ⬜ Not Started | P1 |
-
-### 0.3 Organization Foundation
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Create organization flow | ⬜ Not Started | P0 |
-| Organization settings page | ⬜ Not Started | P1 |
-| Team member invitation flow | ⬜ Not Started | P1 |
-| Role-based permissions | ⬜ Not Started | P0 |
-
-### 0.4 Development Environment
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Docker Compose for local dev | ⬜ Not Started | P0 |
-| Database seeding scripts | ⬜ Not Started | P1 |
-| Hot reload configuration | ✅ Done | P0 |
-| CI/CD pipeline (GitHub Actions) | ⬜ Not Started | P2 |
+- [ ] Backend infrastructure (Diesel + PostgreSQL, Redis sessions, connection pooling)
+- [ ] Authentication system (registration, login/logout, password management)
+- [ ] Organization management (creation, settings, team, permissions)
+- [ ] Development environment (Docker Compose, seeding, CI/CD)
 
 ### Deliverables
 
-- [ ] Working authentication (register, login, logout)
-- [ ] Create organization and invite team members
-- [ ] Permission-based route protection (real, not mock)
-- [ ] Local development with Docker
+- Working authentication
+- Organization and team management
+- Permission-based route protection (real, not mock)
+- Local development environment with Docker
 
 ---
 
-## Phase 1: Events MVP
+## Phase 1: Events Platform
 
-**Duration**: Q2 2026  
 **Status**: ⬜ Not Started
 
-### Objectives
+This is the initial product launch. All features in this phase are part of the "Events" subscription plan. Nothing ships until everything is complete.
 
-- Core event CRUD functionality
-- Public event discovery
-- RSVP and attendee management
-- Email notifications
+### Event Management
+
+- Event CRUD (create, edit, duplicate, cancel, publish/draft)
+- Attendee management (list, add, status, check-in, export, waitlist)
+- Recurring events and volunteer shifts
 - Co-hosting with other organizations
-- Basic payment/ticketing
+- Post-event surveys
 
-### 1.1 Event Management (Web App)
+### Action Pages
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Create event form (all fields) | ⬜ Not Started | P0 |
-| Event list view with filters | ⬜ Not Started | P0 |
-| Event detail/edit view | ⬜ Not Started | P0 |
-| Event duplication | ⬜ Not Started | P2 |
-| Event cancellation flow | ⬜ Not Started | P1 |
-| Draft/publish workflow | ⬜ Not Started | P0 |
-| Cover image upload | ⬜ Not Started | P1 |
+- Petition pages
+- Signup forms
+- Email-your-rep actions
+- Action tracking and analytics
 
-### 1.2 Attendee Management (Web App)
+### Event & Action Discovery Website
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Attendee list view | ⬜ Not Started | P0 |
-| Manual attendee add | ⬜ Not Started | P1 |
-| Attendee status management | ⬜ Not Started | P0 |
-| Check-in functionality | ⬜ Not Started | P1 |
-| Export attendee list (CSV) | ⬜ Not Started | P1 |
-| Waitlist management | ⬜ Not Started | P2 |
+- Public event search and discovery
+- Event detail pages with RSVP
+- Organization profiles
+- Embeddable event widgets
 
-### 1.3 Event Discovery (Events Website)
+### Groups
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Homepage with featured events | ⬜ Not Started | P0 |
-| Event search (location, date, type) | ⬜ Not Started | P0 |
-| Event detail page | ⬜ Not Started | P0 |
-| RSVP form | ⬜ Not Started | P0 |
-| Organization profile page | ⬜ Not Started | P1 |
-| Event embed widget | ⬜ Not Started | P2 |
-| Share functionality | ⬜ Not Started | P1 |
+- Contact group management
+- Dynamic group rules
+- Group-based messaging
 
-### 1.4 Email Notifications
+### Notifications
 
-| Task | Status | Priority |
-|------|--------|----------|
-| AWS SES integration | ⬜ Not Started | P0 |
-| RSVP confirmation email | ⬜ Not Started | P0 |
-| Event reminder emails (24h, 1h) | ⬜ Not Started | P0 |
-| Event update emails | ⬜ Not Started | P1 |
-| Event cancellation email | ⬜ Not Started | P1 |
-| Email template system | ⬜ Not Started | P0 |
+- Email notifications (AWS SES) - confirmations, reminders, updates, cancellations
+- SMS notifications (Twilio) - opt-in/opt-out, reminders, templates
 
-### 1.5 Co-hosting
+### Payments
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Invite co-host organization | ⬜ Not Started | P1 |
-| Accept/reject co-host invitation | ⬜ Not Started | P1 |
-| Co-host permission management | ⬜ Not Started | P1 |
-| Shared attendee access | ⬜ Not Started | P1 |
-| Co-host branding on event page | ⬜ Not Started | P2 |
+- Stripe Connect integration
+- Ticketing (free and paid events, ticket types)
+- Checkout, refunds, and payouts
 
-### 1.6 Ticketing & Payments
+### Analytics
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Stripe integration (Connect) | ⬜ Not Started | P0 |
-| Free vs. paid event toggle | ⬜ Not Started | P0 |
-| Ticket types (general, VIP, etc.) | ⬜ Not Started | P1 |
-| Checkout flow | ⬜ Not Started | P0 |
-| Refund processing | ⬜ Not Started | P1 |
-| Payout to organizations | ⬜ Not Started | P1 |
+- Event performance metrics
+- Attendee analytics
+- Organization dashboard
+- Exportable reports
 
-### 1.7 Marketing Website
+### Support System
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Landing page | ⬜ Not Started | P0 |
-| Features page | ⬜ Not Started | P1 |
-| Pricing page | ⬜ Not Started | P0 |
-| Contact form | ⬜ Not Started | P2 |
-| Blog (static initially) | ⬜ Not Started | P2 |
+- Help center with articles
+- Knowledge base / FAQ
+- Chat widget and agent inbox
+
+### Marketing Website
+
+- Landing page
+- Features and pricing pages
+- Contact form
+- Blog
 
 ### Deliverables
 
-- [ ] Fully functional event creation and management
-- [ ] Public event discovery website
-- [ ] RSVP and ticketing system
-- [ ] Email notification system
-- [ ] Co-hosting capability
-- [ ] Marketing website
-- [ ] Ready for limited public launch
+- Complete event creation and management system
+- Public event discovery website
+- Action pages (petitions, signups)
+- Groups and contact organization
+- Full notification system (email + SMS)
+- Ticketing and payment processing
+- Analytics dashboard
+- Support website with help center
+- Marketing website
+- **Ready for public launch**
 
 ---
 
-## Phase 2: Growth Features
+## Phase 2: Infrastructure & Optimization
 
-**Duration**: Q3 2026  
 **Status**: ⬜ Not Started
 
-### Objectives
+After the Events Platform launches, this phase focuses on making the system production-ready at scale. Lessons learned here will inform how new features are built.
 
-- SMS notifications (Twilio)
-- Support system (help center + chat)
-- Analytics dashboard
-- Action pages (petitions, signups)
-- Groups for organizing contacts
-- Enhanced event features
+### Performance Optimization
 
-### 2.1 SMS Notifications
+- **Database Optimization**
+  - Query analysis and optimization (EXPLAIN ANALYZE, slow query logging)
+  - Index tuning and query plan optimization
+  - Connection pool tuning and monitoring
+  - Read replica configuration for analytics queries
+- **Caching Strategy**
+  - Redis caching layer for frequently accessed data
+  - Cache invalidation patterns and TTL policies
+  - Session and rate limit data in Redis
+  - Static asset caching headers
+- **Application Performance**
+  - Response time profiling and optimization
+  - Memory usage analysis and reduction
+  - Async task queuing for email/SMS
+  - Database query batching and N+1 elimination
+- **CDN & Asset Delivery**
+  - CDN setup for static assets
+  - Image optimization and responsive delivery
+  - Gzip/Brotli compression
+  - Edge caching for public pages
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Twilio integration | ⬜ Not Started | P0 |
-| SMS opt-in flow | ⬜ Not Started | P0 |
-| Event reminder SMS | ⬜ Not Started | P0 |
-| Opt-out handling | ⬜ Not Started | P0 |
-| SMS templates | ⬜ Not Started | P1 |
+### Deployment & DevOps
 
-### 2.2 Support System
+- **Automation**
+  - VPS provisioning automation (Infrastructure as Code)
+  - Docker deployment scripts and container orchestration
+  - SSL certificate automation (Let's Encrypt)
+  - Database backup automation and restore testing
+- **Environments**
+  - Staging environment matching production
+  - Blue-green or rolling deployments
+  - Database migration strategy for zero-downtime deploys
+  - Feature flags for gradual rollouts
+- **Observability**
+  - Centralized logging and log aggregation
+  - Application performance monitoring (APM)
+  - Error tracking and alerting
+  - Uptime monitoring and status page
+  - Custom dashboards for key metrics
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Help center (articles) | ⬜ Not Started | P1 |
-| Article editor | ⬜ Not Started | P1 |
-| Chat widget | ⬜ Not Started | P2 |
-| Agent inbox | ⬜ Not Started | P2 |
-| FAQ/knowledge base | ⬜ Not Started | P1 |
+### Security Hardening
 
-### 2.3 Analytics
+- **Application Security**
+  - Security headers (CSP, HSTS, X-Frame-Options, etc.)
+  - Rate limiting and DDoS protection
+  - Input validation and sanitization audit
+  - SQL injection and XSS prevention review
+- **Authentication & Authorization**
+  - Session security audit
+  - Password policy enforcement
+  - Brute force protection
+  - API authentication review
+- **Compliance & Audit**
+  - Audit logging for sensitive operations
+  - GDPR compliance (data export, deletion)
+  - Privacy policy and terms of service
+  - Data retention policies
+- **Testing & Verification**
+  - Penetration testing
+  - Dependency vulnerability scanning
+  - Security-focused code review process
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Event performance metrics | ⬜ Not Started | P1 |
-| Attendee analytics | ⬜ Not Started | P1 |
-| Organization dashboard | ⬜ Not Started | P1 |
-| Export reports | ⬜ Not Started | P2 |
+### Scalability Preparation
 
-### 2.4 Action Pages
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Petition pages | ⬜ Not Started | P1 |
-| Email-your-rep actions | ⬜ Not Started | P2 |
-| Signup forms | ⬜ Not Started | P1 |
-| Action tracking/analytics | ⬜ Not Started | P2 |
-
-### 2.5 Groups
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Group creation | ⬜ Not Started | P1 |
-| Dynamic group rules | ⬜ Not Started | P2 |
-| Manual group membership | ⬜ Not Started | P1 |
-| Group-based messaging | ⬜ Not Started | P2 |
-
-### 2.6 Enhanced Events
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Recurring events | ⬜ Not Started | P2 |
-| Volunteer shifts | ⬜ Not Started | P1 |
-| Event check-in app | ⬜ Not Started | P2 |
-| Post-event surveys | ⬜ Not Started | P2 |
+- **Load Testing**
+  - Baseline performance benchmarks
+  - Load testing under expected peak traffic
+  - Stress testing to find breaking points
+  - Capacity planning documentation
+- **Database Scaling**
+  - Horizontal scaling strategy
+  - Sharding considerations for large tables
+  - Archive strategy for historical data
+- **Infrastructure Scaling**
+  - Auto-scaling policies
+  - Multi-region considerations
+  - Disaster recovery planning
 
 ### Deliverables
 
-- [ ] SMS notification system
-- [ ] Support website with help center
-- [ ] Analytics dashboard
-- [ ] Action pages (petitions, signups)
-- [ ] Groups functionality
-- [ ] Recurring events and shifts
+- Optimized database queries and caching
+- Automated deployment pipeline
+- Comprehensive monitoring and alerting
+- Security hardening complete
+- Load tested with documented capacity limits
+- Documented patterns for building scalable features
 
 ---
 
 ## Phase 3: Campaign Platform
 
-**Duration**: Q4 2026  
 **Status**: ⬜ Not Started
 
-### Objectives
+This phase expands from an Events-only platform to a full campaign management suite. All features in this phase launch together as a unified product.
 
-- Communications platform (bulk email/SMS)
-- Voter data integration
-- Canvassing tools
-- Phone banking
-- Website builder
+### Voter Data & Modeling
 
-### 3.1 Communications Platform
+- Voter file import and management
+- Voter search, filtering, and targeting
+- Custom voter attributes and tagging
+- Voter history and interaction tracking
+- Targeting presets for common universes
+- Propensity scoring (support, turnout)
+- Issue-based modeling
+- Persuasion and turnout targeting
+- Model updates based on contact results
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Bulk email campaigns | ⬜ Not Started | P0 |
-| Email builder (WYSIWYG) | ⬜ Not Started | P1 |
-| Bulk SMS campaigns | ⬜ Not Started | P1 |
-| Audience segmentation | ⬜ Not Started | P1 |
-| Campaign analytics (opens, clicks) | ⬜ Not Started | P1 |
-| Unsubscribe management | ⬜ Not Started | P0 |
+### Mobile App
 
-### 3.2 Voter Data
+- Push notifications
+- Offline data sync
+- Event check-in via mobile
+- Canvassing mobile interface
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Voter file import | ⬜ Not Started | P0 |
-| Voter search/filter | ⬜ Not Started | P0 |
-| Custom voter attributes | ⬜ Not Started | P1 |
-| Voter history tracking | ⬜ Not Started | P1 |
-| One-click voter targeting presets | ⬜ Not Started | P2 |
+### Fieldwork
 
-### 3.3 Canvassing (Field)
+- **Canvassing**
+  - Canvass universe creation from voter data
+  - Route optimization
+  - Scripts and survey questions
+  - Door-knock tracking and result recording
+  - Real-time sync with mobile app
+- **Phone Banking**
+  - Call list generation from voter data
+  - Click-to-call integration
+  - Call scripts
+  - Call result tracking
+  - Predictive dialer
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Canvass universe creation | ⬜ Not Started | P0 |
-| Route optimization | ⬜ Not Started | P1 |
-| Canvass scripts | ⬜ Not Started | P1 |
-| Door-knock tracking | ⬜ Not Started | P0 |
-| Canvasser assignment | ⬜ Not Started | P1 |
-| Real-time sync | ⬜ Not Started | P1 |
+### Texting & Polling
 
-### 3.4 Phone Banking
+Grouped together as they share infrastructure (phone number management, compliance, response tracking).
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Call list generation | ⬜ Not Started | P0 |
-| Click-to-call integration | ⬜ Not Started | P1 |
-| Call scripts | ⬜ Not Started | P1 |
-| Call result tracking | ⬜ Not Started | P0 |
-| Predictive dialer (future) | ⬜ Not Started | P3 |
+- **Texting**
+  - P2P texting campaigns
+  - Volunteer texting interface
+  - Response tracking and conversation sync
+  - Opt-out compliance (TCPA, carrier requirements)
+  - Broadcast and targeted messaging
+- **Polling**
+  - Survey builder
+  - IVR (phone) polling
+  - Online polling
+  - Results analysis with crosstabs
+  - Weighting and demographic adjustments
 
-### 3.5 Website Builder
+### Communications Platform
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Template library | ⬜ Not Started | P1 |
-| Drag-and-drop builder | ⬜ Not Started | P2 |
-| Custom domain support | ⬜ Not Started | P1 |
-| Static site generation | ⬜ Not Started | P0 |
-| A/B testing framework | ⬜ Not Started | P2 |
+- Bulk email campaigns
+- Email builder (WYSIWYG)
+- Bulk SMS campaigns
+- Audience segmentation
+- Campaign analytics (opens, clicks, responses)
+- Unsubscribe management
+
+### Advanced Analytics
+
+- Cross-feature dashboards
+- Predictive analytics
+- AI-assisted content suggestions
+- Automated A/B testing
+
+### Marketing & Brand Transition
+
+This phase marks the transition from an Events-focused product to a full Campaign platform. Marketing efforts required:
+
+- **Brand Evolution**
+  - Evaluate rebrand vs. brand extension (e.g., "RallyUp" → "RallyUp for Campaigns" or new unified brand)
+  - Updated visual identity reflecting full platform capabilities
+  - Messaging shift from "event management" to "campaign management"
+- **Website & Positioning**
+  - Redesigned marketing website with campaign-focused messaging
+  - New feature pages for voter data, fieldwork, texting, polling
+  - Updated pricing page with campaign-tier plans
+  - Case studies and testimonials from campaign customers
+- **Launch Campaign**
+  - Announcement strategy for existing Events customers
+  - Migration path and upgrade incentives
+  - Press outreach and industry publication coverage
+  - Demo videos and onboarding materials for new features
+- **Sales Enablement**
+  - Updated pitch decks and sales materials
+  - Competitive positioning against existing campaign tools
+  - Training for sales team on campaign workflows
 
 ### Deliverables
 
-- [ ] Full communications platform
-- [ ] Voter data management
-- [ ] Canvassing tools
-- [ ] Phone banking system
-- [ ] Basic website builder
-- [ ] Full platform rebrand/merge
+- Complete voter data management and modeling
+- Mobile app for fieldwork
+- Canvassing and phone banking tools
+- P2P and broadcast texting
+- Self-service polling
+- Full communications platform
+- Advanced analytics and insights
+- Rebranded marketing presence
+- **Full Campaign Platform launch**
 
 ---
 
-## Phase 4: Advanced Features
+## Phase 4: Website Builder
 
-**Duration**: Q1 2027+  
 **Status**: ⬜ Not Started
 
-### Objectives
+Self-service website creation for campaigns.
 
-- P2P texting
-- Automated voter modeling
-- Self-service polling
-- Mobile app (post-Dioxus 1.0)
-- Advanced analytics & AI
+### Website Builder
 
-### 4.1 P2P Texting
+- Template library
+- Drag-and-drop page builder
+- Custom domain support
+- Static site generation
+- Integration with signup forms
+- A/B testing framework
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Texting campaign creation | ⬜ Not Started | P1 |
-| Volunteer texting interface | ⬜ Not Started | P1 |
-| Response tracking | ⬜ Not Started | P1 |
-| Opt-out compliance | ⬜ Not Started | P0 |
-| Conversation sync | ⬜ Not Started | P1 |
+### Deliverables
 
-### 4.2 Voter Modeling
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Automated propensity scoring | ⬜ Not Started | P2 |
-| Issue-based modeling | ⬜ Not Started | P2 |
-| Persuasion targets | ⬜ Not Started | P2 |
-| Turnout modeling | ⬜ Not Started | P2 |
-
-### 4.3 Self-Service Polling
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Survey builder | ⬜ Not Started | P1 |
-| IVR polling | ⬜ Not Started | P2 |
-| Online polling | ⬜ Not Started | P1 |
-| Results analysis | ⬜ Not Started | P1 |
-| Crosstabs & weighting | ⬜ Not Started | P2 |
-
-### 4.4 Mobile App
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Push notifications | ⬜ Not Started | P1 |
-| Canvassing mobile UI | ⬜ Not Started | P1 |
-| Event check-in via mobile | ⬜ Not Started | P2 |
-| Offline mode | ⬜ Not Started | P2 |
-
-### 4.5 Advanced Analytics & AI
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Cross-feature dashboards | ⬜ Not Started | P1 |
-| Predictive analytics | ⬜ Not Started | P2 |
-| AI-assisted content | ⬜ Not Started | P3 |
-| Automated A/B testing | ⬜ Not Started | P2 |
+- Complete website builder
+- Template library
+- Custom domain management
 
 ---
-
-## Ongoing: Infrastructure & Operations
-
-### Deployment & DevOps
-
-| Task | Status | Priority |
-|------|--------|----------|
-| VPS provisioning automation | ⬜ Not Started | P0 |
-| Docker deployment scripts | ⬜ Not Started | P0 |
-| SSL certificate automation | ⬜ Not Started | P0 |
-| Database backup automation | ⬜ Not Started | P0 |
-| Monitoring & alerting | ⬜ Not Started | P1 |
-| Log aggregation | ⬜ Not Started | P1 |
-| Staging environment | ⬜ Not Started | P1 |
-| Blue-green deployments | ⬜ Not Started | P2 |
-
-### Security
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Security headers | ⬜ Not Started | P0 |
-| Rate limiting | ⬜ Not Started | P0 |
-| Audit logging | ⬜ Not Started | P1 |
-| GDPR compliance | ⬜ Not Started | P1 |
-| Penetration testing | ⬜ Not Started | P2 |
-| SOC 2 preparation | ⬜ Not Started | P3 |
-
-### Performance
-
-| Task | Status | Priority |
-|------|--------|----------|
-| CDN setup (static assets) | ⬜ Not Started | P1 |
-| Database query optimization | ⬜ Not Started | P1 |
-| Redis caching layer | ⬜ Not Started | P1 |
-| Load testing | ⬜ Not Started | P2 |
-
----
-
-## Priority Legend
-
-| Priority | Meaning |
-|----------|---------|
-| P0 | Critical - blocks launch |
-| P1 | High - required for good launch |
-| P2 | Medium - nice to have for launch |
-| P3 | Low - post-launch |
 
 ## Status Legend
 
@@ -492,6 +382,4 @@
 
 ## Related Documentation
 
-- [AGENTS.md](../AGENTS.md) - AI coding assistant context
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture
-- [Features Documentation](features/) - Detailed feature specs
+- [AGENTS.md](AGENTS.md) - AI coding assistant context
