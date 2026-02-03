@@ -16,7 +16,8 @@ use account::{
 };
 use actions::Actions;
 use analytics::Analytics;
-use api::web_app::{get_mock_user_account, PermissionType, UserAccountStoreExt};
+use api::models::SubscriptionType;
+use api::state::{get_mock_user_account, UserAccountStoreExt};
 use dashboard::Dashboard;
 use dioxus::prelude::*;
 use events::Events;
@@ -64,7 +65,7 @@ fn Layout() -> Element {
             label: "Dashboard".to_string(),
         });
 
-        if user_account_context.has_permission(PermissionType::Events) {
+        if user_account_context.has_permission(SubscriptionType::Events) {
             main_menu_routes.extend([
                 NavRoute {
                     route: Routes::Events {}.to_string(),

@@ -1,0 +1,3 @@
+[print_schema]
+custom_type_derives = ["Clone", "diesel::query_builder::QueryId"]
+file = "packages/api/src/schema.rs"

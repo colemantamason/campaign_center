@@ -4,10 +4,14 @@ name = "web_app"
 version = "0.1.0"
 
 [dependencies]
-api = { workspace = true, features = ["shared", "web_app"] }
+api = { workspace = true, features = ["web_app"] }
+ui = { workspace = true, features = ["web_app"] }
+
+chrono = { workspace = true }
 dioxus = { workspace = true, features = ["fullstack", "router"] }
-lucide-dioxus = { version = "2.44.0", features = ["all-icons"] }
-ui = { workspace = true, features = ["shared", "web_app"] }
+lucide-dioxus = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
 
 [features]
 default = []

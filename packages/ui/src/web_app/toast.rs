@@ -1,7 +1,4 @@
-use crate::shared::{
-    button::{Button, ButtonSize, ButtonType, ButtonVariant},
-    icon::{Icon, IconSize, IconVariant},
-};
+use crate::shared::{Button, ButtonSize, ButtonType, ButtonVariant, Icon, IconSize, IconVariant};
 use dioxus::prelude::*;
 #[cfg(feature = "web")]
 use gloo::timers::future::TimeoutFuture;
@@ -97,8 +94,8 @@ fn Toast(props: ToastProps) -> Element {
 
     // remove the toast after the duration
     use_effect(move || {
+        #[cfg(feature = "web")]
         spawn(async move {
-            #[cfg(feature = "web")]
             TimeoutFuture::new(duration).await;
             toasts.remove(&toast_id);
         });

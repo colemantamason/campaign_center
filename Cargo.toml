@@ -8,16 +8,46 @@ members = [
     "packages/websites/events",
     "packages/websites/external/stop_communism",
     "packages/websites/marketing",
+    "packages/websites/support",
 ]
 resolver = "2"
 
 [workspace.dependencies]
 api = { path = "packages/api" }
-dioxus = { version = "0.7.3" }
 events = { path = "packages/websites/events" }
 marketing = { path = "packages/websites/marketing" }
 mobile_app = { path = "packages/mobile_app" }
 stop_communism = { path = "packages/websites/external/stop_communism" }
+support = { path = "packages/websites/support" }
 tooling = { path = "packages/tooling" }
 ui = { path = "packages/ui" }
 web_app = { path = "packages/web_app" }
+
+argon2 = { version = "0.5.3" }
+bigdecimal = { version = "0.4.10" }
+chrono = { version = "0.4.43", features = ["serde"] }
+deadpool-redis = { version = "0.22.1" }
+diesel = { version = "2.3.6", features = [
+    "chrono",
+    "network-address",
+    "numeric",
+    "postgres",
+    "serde_json",
+    "uuid",
+] }
+diesel-async = { version = "0.7.4", features = ["deadpool", "postgres"] }
+dioxus = { version = "0.7.3" }
+dotenvy = { version = "0.15.7" }
+gloo = { version = "0.11.0" }
+ipnetwork = { version = "0.21.1" }
+lucide-dioxus = { version = "2.563.0", features = ["all-icons"] }
+rand = { version = "0.8.5" }
+redis = { version = "1.0.3" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.149" }
+slug = { version = "0.1.6" }
+thiserror = { version = "2.0.18" }
+tracing = { version = "0.1.44" }
+uuid = { version = "1.20", features = ["serde", "v4"] }
+wasm-bindgen = { version = "0.2.108" }
+web-sys = { version = "0.3.85" }

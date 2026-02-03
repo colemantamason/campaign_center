@@ -7,20 +7,21 @@ version = "0.1.0"
 api = { workspace = true, features = [
     "events",
     "mobile_app",
-    "shared",
+    "support",
     "web_app",
 ] }
+
 dioxus = { workspace = true }
-gloo = { version = "0.11.0", optional = true }
-lucide-dioxus = { version = "2.44.0", features = ["all-icons"] }
-wasm-bindgen = { version = "0.2.105", optional = true }
-web-sys = { version = "0.3.82", optional = true }
+gloo = { workspace = true, optional = true }
+lucide-dioxus = { workspace = true }
+wasm-bindgen = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
 
 [features]
 events = []
 marketing = []
 mobile_app = []
 server = ["api/server"]
-shared = []
+support = []
 web = ["dep:gloo", "dep:wasm-bindgen", "dep:web-sys", "dioxus/web"]
 web_app = []

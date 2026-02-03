@@ -1,4 +1,4 @@
-use crate::shared::button::{Button, ButtonSize, ButtonType, ButtonVariant};
+use crate::shared::{Button, ButtonSize, ButtonType, ButtonVariant};
 use dioxus::prelude::*;
 
 #[derive(Clone, PartialEq)]

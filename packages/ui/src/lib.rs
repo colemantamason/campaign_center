@@ -4,7 +4,8 @@ pub mod events;
 pub mod marketing;
 #[cfg(feature = "mobile_app")]
 pub mod mobile_app;
-#[cfg(feature = "shared")]
 pub mod shared;
+#[cfg(feature = "support")]
+pub mod support;
 #[cfg(feature = "web_app")]
 pub mod web_app;

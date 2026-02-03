@@ -4,7 +4,14 @@ pub mod notification_badge;
 pub mod sidebar;
 pub mod toast;
 
-use api::web_app::{PermissionType, UserAccount, UserAccountStoreExt};
+pub use avatar::*;
+pub use confirmation_modal::*;
+pub use notification_badge::*;
+pub use sidebar::*;
+pub use toast::*;
+
+use api::models::SubscriptionType;
+use api::state::web_app::{UserAccount, UserAccountStoreExt};
 use dioxus::prelude::*;
 
 #[derive(Clone, PartialEq)]
@@ -56,7 +63,7 @@ impl UserAccountContext {
         }
     }
 
-    pub fn has_permission(&self, permission_type: PermissionType) -> bool {
+    pub fn has_permission(&self, subscription_type: SubscriptionType) -> bool {
         // get the active organization id
         if let Some(active_organization_membership_id) =
             self.get_active_organization_membership_id()
@@ -69,7 +76,7 @@ impl UserAccountContext {
                 .get(&active_organization_membership_id)
             {
                 // check if the organization has the required permission
-                if let Some(permission) = organization.permissions.get(&permission_type) {
+                if let Some(permission) = organization.permissions.get(&subscription_type) {
                     return *permission;
                 } else {
                     // permission not found
@@ -81,7 +88,7 @@ impl UserAccountContext {
             }
         } else {
             // no active organization ID set
-            return false;
+            return false
         }
     }
 }

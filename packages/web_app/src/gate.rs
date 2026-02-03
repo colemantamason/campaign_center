@@ -1,5 +1,6 @@
 use crate::routes::Routes;
-use api::web_app::{PermissionType, UserAccountStoreExt};
+use api::models::SubscriptionType;
+use api::state::UserAccountStoreExt;
 use dioxus::prelude::*;
 use ui::web_app::{
     toast::{ToastContext, ToastVariant},
@@ -8,7 +9,7 @@ use ui::web_app::{
 
 #[derive(Clone, PartialEq, Props)]
 pub struct GateProps {
-    required_permission: Option<PermissionType>,
+    required_permission: Option<SubscriptionType>,
     permission_fallback_route: Option<String>,
     children: Element,
 }

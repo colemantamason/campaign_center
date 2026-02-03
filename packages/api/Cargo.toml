@@ -4,11 +4,40 @@ name = "api"
 version = "0.1.0"
 
 [dependencies]
+argon2 = { workspace = true, optional = true }
+bigdecimal = { workspace = true, optional = true }
+chrono = { workspace = true }
+deadpool-redis = { workspace = true, optional = true }
+diesel = { workspace = true, optional = true }
+diesel-async = { workspace = true, optional = true }
 dioxus = { workspace = true }
+dotenvy = { workspace = true, optional = true }
+ipnetwork = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+redis = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+slug = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tracing = { workspace = true, optional = true }
+uuid = { workspace = true }
 
 [features]
 events = []
 mobile_app = []
-server = ["dioxus/server"]
-shared = []
+server = [
+    "dep:argon2",
+    "dep:bigdecimal",
+    "dep:deadpool-redis",
+    "dep:diesel",
+    "dep:diesel-async",
+    "dep:dotenvy",
+    "dep:ipnetwork",
+    "dep:rand",
+    "dep:redis",
+    "dep:slug",
+    "dep:tracing",
+    "dioxus/server",
+]
+support = []
 web_app = []

@@ -2,11 +2,10 @@ mod notification_menu;
 mod organization_selector;
 mod user_account_menu;
 
-use crate::web_app::sidebar::NavRoutes;
-use api::web_app::{Organization, UserRoleType};
+use crate::web_app::NavRoutes;
+use api::models::MemberRole;
+use api::state::Organization;
 use dioxus::prelude::*;
-#[cfg(feature = "web")]
-use dioxus::web::WebEventExt;
 #[cfg(feature = "web")]
 use gloo::events::EventListener;
 use notification_menu::NotificationMenu;
@@ -28,7 +27,7 @@ pub enum SidebarMenuType {
 pub struct SidebarMenuProps {
     r#type: SidebarMenuType,
     active_organization: Option<Store<Organization>>,
-    user_role: Option<Store<UserRoleType>>,
+    user_role: Option<Store<MemberRole>>,
     account_menu_routes: Option<NavRoutes>,
 }
 
@@ -72,6 +71,7 @@ pub fn SidebarMenu(props: SidebarMenuProps) -> Element {
             onmounted: move |element| {
                 #[cfg(feature = "web")]
                 {
+                    use dioxus::web::WebEventExt;
                     let element = element.data();
                     let node = element.as_web_event().dyn_into::<Node>().ok();
                     container_node.set(node);

@@ -1,21 +1,17 @@
 use crate::shared::{
-    button::{Button, ButtonSize, ButtonType, ButtonVariant},
-    divider::Divider,
-    icon::{Icon, IconSize, IconVariant},
+    Button, ButtonSize, ButtonType, ButtonVariant, Divider, Icon, IconSize, IconVariant,
 };
 use crate::web_app::{
-    avatar::{Avatar, AvatarVariant},
-    confirmation_modal::{ConfirmationModal, ConfirmationModalType},
-    sidebar::NavRoutes,
-    UserAccountContext,
+    Avatar, AvatarVariant, ConfirmationModal, ConfirmationModalType, NavRoutes, UserAccountContext,
 };
-use api::web_app::{UserAccountStoreExt, UserRoleType};
+use api::models::MemberRole;
+use api::state::UserAccountStoreExt;
 use dioxus::prelude::*;
 use lucide_dioxus::{ChevronsUpDown, LogOut, X};
 
 #[derive(Clone, PartialEq, Props)]
 pub struct UserAccountMenuProps {
-    user_role: Option<Store<UserRoleType>>,
+    user_role: Option<Store<MemberRole>>,
     account_menu_routes: Option<NavRoutes>,
     show_menu: Signal<bool>,
 }
