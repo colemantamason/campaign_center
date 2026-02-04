@@ -4,7 +4,7 @@ use crate::shared::{
 use crate::web_app::{
     Avatar, AvatarVariant, ConfirmationModal, ConfirmationModalType, NavRoutes, UserAccountContext,
 };
-use api::models::MemberRole;
+use api::enums::MemberRole;
 use api::state::UserAccountStoreExt;
 use dioxus::prelude::*;
 use lucide_dioxus::{ChevronsUpDown, LogOut, X};

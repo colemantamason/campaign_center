@@ -3,7 +3,7 @@ mod organization_selector;
 mod user_account_menu;
 
 use crate::web_app::NavRoutes;
-use api::models::MemberRole;
+use api::enums::MemberRole;
 use api::state::Organization;
 use dioxus::prelude::*;
 #[cfg(feature = "web")]

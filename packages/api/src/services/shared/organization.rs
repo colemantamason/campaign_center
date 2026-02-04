@@ -1,7 +1,8 @@
+use crate::enums::{MemberRole, SubscriptionType};
 use crate::error::AppError;
 use crate::models::{
-    MemberRole, NewOrganization, NewOrganizationMember, Organization, OrganizationMember,
-    OrganizationMemberUpdate, OrganizationUpdate, SubscriptionType,
+    NewOrganization, NewOrganizationMember, Organization, OrganizationMember,
+    OrganizationMemberUpdate, OrganizationUpdate,
 };
 use crate::postgres::get_postgres_connection;
 use crate::schema::{organization_members, organizations};

@@ -1,32 +1,46 @@
+use crate::enums::SubscriptionType;
+use crate::error::AppError;
+use crate::http::{
+    extract_client_ip, extract_user_agent, get_session_from_headers, is_secure_request,
+    WithCookie, WithCookieExt,
+};
 use crate::interfaces::{
     AuthResponse, LoginRequest, OrganizationInfo, OrganizationMembershipInfo, RegisterRequest,
-    UserAccountResponse, WithCookie,
+    UserAccountResponse,
 };
-use crate::models::SubscriptionType;
-use crate::postgres::initialize_postgres_pool;
+use crate::postgres::{initialize_postgres_pool, is_postgres_initialized};
 use crate::redis::{
     cache_session, get_cached_session, initialize_redis_pool, invalidate_cached_session,
-    CachedSession,
+    is_redis_initialized, CachedSession,
 };
 use crate::services::{
     authenticate_user, change_password as change_password_service, count_members, create_session,
-    delete_session, get_session_from_headers, get_user_by_id, is_secure_request,
-    list_user_organizations, register_user, validate_session as validate_session_service,
-    WithCookieExt,
+    delete_session, get_user_by_id, list_user_organizations, register_user,
+    validate_session as validate_session_service,
 };
 use dioxus::fullstack::HeaderMap;
 use dioxus::prelude::*;
 use std::collections::HashMap;
+use tracing;
 use uuid::Uuid;
 
-fn initialize_databases() {
-    initialize_postgres_pool().ok();
-    initialize_redis_pool().ok();
+fn initialize_databases() -> Result<(), AppError> {
+    if !is_postgres_initialized() {
+        initialize_postgres_pool()?;
+    }
+    if !is_redis_initialized() {
+        initialize_redis_pool()?;
+    }
+    Ok(())
 }
 
 #[post("/api/auth/register", headers: HeaderMap)]
 pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthResponse>, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
+
+    // extract user agent and ip from headers
+    let user_agent = extract_user_agent(&headers);
+    let ip_address = extract_client_ip(&headers);
 
     let user = register_user(
         request.email,
@@ -37,7 +51,7 @@ pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthRespons
     .await
     .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    let session = create_session(user.id, None, None)
+    let session = create_session(user.id, user_agent, ip_address)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
@@ -52,13 +66,15 @@ pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthRespons
     cache_session(&token, &cached).await.ok();
 
     // create auth response with session cookie set via http header
+    // session token is NOT included in the JSON response body (security: prevents XSS token theft)
+    // web browsers receive the token via HttpOnly Set-Cookie header
+    // mobile apps receive the token via X-Session-Token header
     let secure = is_secure_request(&headers);
     let auth_response = AuthResponse {
         user_id: user.id,
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        session_token: token.clone(),
     };
 
     Ok(WithCookie::with_session_cookie(
@@ -70,13 +86,17 @@ pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthRespons
 
 #[post("/api/auth/login", headers: HeaderMap)]
 pub async fn login(request: LoginRequest) -> Result<WithCookie<AuthResponse>, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
+
+    // extract user agent and ip from headers
+    let user_agent = extract_user_agent(&headers);
+    let ip_address = extract_client_ip(&headers);
 
     let user = authenticate_user(&request.email, &request.password)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    let session = create_session(user.id, None, None)
+    let session = create_session(user.id, user_agent, ip_address)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
@@ -91,13 +111,13 @@ pub async fn login(request: LoginRequest) -> Result<WithCookie<AuthResponse>, Se
     cache_session(&token, &cached).await.ok();
 
     // create auth response with session cookie set via http header
+    // session token is NOT included in the JSON response body (security: prevents XSS token theft)
     let secure = is_secure_request(&headers);
     let auth_response = AuthResponse {
         user_id: user.id,
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        session_token: token.clone(),
     };
 
     Ok(WithCookie::with_session_cookie(
@@ -115,15 +135,19 @@ pub struct LogoutResponse {
 
 #[post("/api/auth/logout", headers: HeaderMap)]
 pub async fn logout() -> Result<WithCookie<LogoutResponse>, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     // get session token from cookie and invalidate it
     if let Some(token_string) = get_session_from_headers(&headers) {
         if let Ok(token) = Uuid::parse_str(&token_string) {
-            // invalidate redis cache
-            invalidate_cached_session(&token_string).await.ok();
+            // invalidate redis cache first (before postgres, to ensure consistency)
+            if let Err(error) = invalidate_cached_session(&token_string).await {
+                tracing::warn!("failed to invalidate redis session cache during logout: {}", error);
+            }
             // delete the database session
-            delete_session(token).await.ok();
+            if let Err(error) = delete_session(token).await {
+                tracing::warn!("failed to delete postgres session during logout: {}", error);
+            }
         }
     }
 
@@ -135,7 +159,7 @@ pub async fn logout() -> Result<WithCookie<LogoutResponse>, ServerFnError> {
 
 #[get("/api/auth/current_user", headers: HeaderMap)]
 pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     // get session token from cookie
     let token_string = match get_session_from_headers(&headers) {
@@ -221,7 +245,7 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
 
 #[post("/api/auth/validate", headers: HeaderMap)]
 pub async fn validate_session() -> Result<Option<AuthResponse>, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     // get session token from cookie
     let token_string = match get_session_from_headers(&headers) {
@@ -260,12 +284,13 @@ pub async fn validate_session() -> Result<Option<AuthResponse>, ServerFnError> {
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
+    // note: session token is not included in the response body for security
+    // clients should use the token from the cookie or X-Session-Token header
     Ok(Some(AuthResponse {
         user_id: user.id,
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        session_token: token_string,
     }))
 }
 
@@ -274,7 +299,7 @@ pub async fn change_password(
     current_password: String,
     new_password: String,
 ) -> Result<(), ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     // get session token from cookie
     let token_string = get_session_from_headers(&headers)

@@ -61,10 +61,15 @@ pub async fn register_user(
         })
 }
 
+// pre-computed dummy hash for timing attack mitigation
+// this ensures consistent response time whether user exists or not
+const DUMMY_PASSWORD_HASH: &str = "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHR2YWx1ZQ$dummyhashvalue";
+
 pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    let user: User = users::table
+    // fetch user (may be None if not found)
+    let user: Option<User> = users::table
         .filter(users::email.eq(&email.to_lowercase()))
         .first(connection)
         .await
@@ -72,23 +77,34 @@ pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppE
         .map_err(|error| AppError::ExternalServiceError {
             service: "Postgres".to_string(),
             message: error.to_string(),
-        })?
-        .ok_or(AppError::InvalidCredentials)?;
-
-    if !verify_password(password, &user.password_hash)? {
-        return Err(AppError::InvalidCredentials);
-    }
-
-    diesel::update(users::table.find(user.id))
-        .set(users::last_login_at.eq(Some(Utc::now())))
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
         })?;
 
-    Ok(user)
+    // timing attack mitigation: always verify a hash to normalize response time
+    // whether the user exists or not, we perform the same expensive hash verification
+    let hash_to_verify = user
+        .as_ref()
+        .map(|u| u.password_hash.as_str())
+        .unwrap_or(DUMMY_PASSWORD_HASH);
+
+    let password_valid = verify_password(password, hash_to_verify).unwrap_or(false);
+
+    // only succeed if both user exists AND password is valid
+    match (user, password_valid) {
+        (Some(valid_user), true) => {
+            // update last login time
+            diesel::update(users::table.find(valid_user.id))
+                .set(users::last_login_at.eq(Some(Utc::now())))
+                .execute(connection)
+                .await
+                .map_err(|error| AppError::ExternalServiceError {
+                    service: "Postgres".to_string(),
+                    message: error.to_string(),
+                })?;
+
+            Ok(valid_user)
+        }
+        _ => Err(AppError::InvalidCredentials),
+    }
 }
 
 pub async fn get_user_by_id(user_id: i32) -> Result<User, AppError> {

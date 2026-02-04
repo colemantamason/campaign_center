@@ -1,14 +1,13 @@
+use crate::enums::DEFAULT_SESSION_EXPIRY_SECONDS;
 use crate::error::AppError;
 use crate::models::{NewSession, Session, SessionUpdate};
 use crate::postgres::get_postgres_connection;
+use crate::redis::invalidate_cached_session;
 use crate::schema::sessions;
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
-
-// default session expiry in hours (7 days)
-const DEFAULT_SESSION_EXPIRY_HOURS: i64 = 168;
 
 pub async fn create_session(
     user_id: i32,
@@ -17,12 +16,12 @@ pub async fn create_session(
 ) -> Result<Session, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    let expiry_hours = std::env::var("SESSION_EXPIRY_HOURS")
+    let expiry_seconds = std::env::var("SESSION_EXPIRY_SECONDS")
         .ok()
         .and_then(|string| string.parse().ok())
-        .unwrap_or(DEFAULT_SESSION_EXPIRY_HOURS);
+        .unwrap_or(DEFAULT_SESSION_EXPIRY_SECONDS);
 
-    let mut new_session = NewSession::new(user_id, expiry_hours);
+    let mut new_session = NewSession::new(user_id, expiry_seconds);
 
     if let Some(ua) = user_agent {
         new_session = new_session.set_user_agent(ua);
@@ -125,6 +124,29 @@ pub async fn delete_session(token: Uuid) -> Result<(), AppError> {
 pub async fn delete_all_user_sessions(user_id: i32) -> Result<i32, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
+    // first, fetch all session tokens for this user so we can invalidate redis cache
+    let tokens: Vec<Uuid> = sessions::table
+        .filter(sessions::user_id.eq(user_id))
+        .select(sessions::token)
+        .load::<Uuid>(connection)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
+
+    // invalidate each session in redis cache
+    for token in &tokens {
+        if let Err(error) = invalidate_cached_session(&token.to_string()).await {
+            tracing::warn!(
+                "failed to invalidate redis cache for session {} during delete_all_user_sessions: {}",
+                token,
+                error
+            );
+        }
+    }
+
+    // then delete all sessions from postgres
     let count = diesel::delete(sessions::table.filter(sessions::user_id.eq(user_id)))
         .execute(connection)
         .await

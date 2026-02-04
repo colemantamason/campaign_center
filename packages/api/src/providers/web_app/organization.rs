@@ -1,69 +1,90 @@
+use crate::enums::MemberRole;
+use crate::error::AppError;
+use crate::http::get_session_from_headers;
 use crate::interfaces::{
     CreateOrganizationRequest, InviteMemberRequest, OrganizationMemberResponse,
     OrganizationResponse,
 };
-use crate::models::{MemberRole, NewInvitation};
-use crate::postgres::{get_postgres_connection, initialize_postgres_pool};
+use crate::models::NewInvitation;
+use crate::postgres::{get_postgres_connection, initialize_postgres_pool, is_postgres_initialized};
 use crate::redis::{
-    cache_session, get_cached_session, initialize_redis_pool,
+    cache_session, get_cached_session, initialize_redis_pool, is_redis_initialized,
     update_cached_session_active_organization_membership_id, CachedSession,
 };
 use crate::schema::invitations;
 use crate::services::{
     create_organization as create_organization_service, get_membership, get_organization_by_id,
-    get_session_from_headers, get_user_by_id, list_organization_members, list_user_organizations,
-    remove_member, set_active_organization as set_active_organization_service, update_member_role,
+    get_user_by_id, list_organization_members, list_user_organizations, remove_member,
+    set_active_organization as set_active_organization_service, update_member_role,
     validate_session,
 };
 use diesel_async::RunQueryDsl;
 use dioxus::{fullstack::HeaderMap, prelude::*};
 use uuid::Uuid;
 
-fn initialize_databases() {
-    initialize_postgres_pool().ok();
-    initialize_redis_pool().ok();
+fn initialize_databases() -> Result<(), AppError> {
+    if !is_postgres_initialized() {
+        initialize_postgres_pool()?;
+    }
+    if !is_redis_initialized() {
+        initialize_redis_pool()?;
+    }
+    Ok(())
+}
+
+// validated session data - contains the fields needed by organization operations
+struct ValidatedSession {
+    pub session_id: i32,
+    pub user_id: i32,
 }
 
 async fn get_validated_session_from_headers(
     headers: &HeaderMap,
-) -> Result<(String, crate::models::Session), ServerFnError> {
+) -> Result<(String, ValidatedSession), ServerFnError> {
     let token_string =
         get_session_from_headers(headers).ok_or_else(|| ServerFnError::new("Not authenticated"))?;
 
     let token =
         Uuid::parse_str(&token_string).map_err(|_| ServerFnError::new("Invalid session token"))?;
-    // try redis cache first, but we always need the full session for these operations
-    if let Ok(Some(_cached)) = get_cached_session(&token_string).await {
-        // we have cached data, but we need the full session for some operations
-        // validate against the database to get the full session
-        let session = validate_session(token)
-            .await
-            .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-        return Ok((token_string, session));
+    // try redis cache first - if we have cached data, use it directly
+    if let Ok(Some(cached)) = get_cached_session(&token_string).await {
+        return Ok((
+            token_string,
+            ValidatedSession {
+                session_id: cached.session_id,
+                user_id: cached.user_id,
+            },
+        ));
     }
 
+    // cache miss - fall back to database validation
     let session = validate_session(token)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // cache the session
+    // cache the session for future requests
     let cached = CachedSession {
         session_id: session.id,
         user_id: session.user_id,
         active_organization_membership_id: session.active_organization_membership_id,
     };
-
     cache_session(&token_string, &cached).await.ok();
 
-    Ok((token_string, session))
+    Ok((
+        token_string,
+        ValidatedSession {
+            session_id: session.id,
+            user_id: session.user_id,
+        },
+    ))
 }
 
 #[post("/api/org/create", headers: HeaderMap)]
 pub async fn create_organization(
     request: CreateOrganizationRequest,
 ) -> Result<OrganizationResponse, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (token_string, session) = get_validated_session_from_headers(&headers).await?;
 
@@ -73,7 +94,7 @@ pub async fn create_organization(
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
     // auto-set this as the active organization
-    set_active_organization_service(session.id, Some(organization.id))
+    set_active_organization_service(session.session_id, Some(organization.id))
         .await
         .ok();
 
@@ -92,7 +113,7 @@ pub async fn create_organization(
 
 #[post("/api/org/set-active", headers: HeaderMap)]
 pub async fn set_active_organization(organization_id: i32) -> Result<(), ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (token_string, session) = get_validated_session_from_headers(&headers).await?;
 
@@ -105,7 +126,7 @@ pub async fn set_active_organization(organization_id: i32) -> Result<(), ServerF
         return Err(ServerFnError::new("Not a member of this organization"));
     }
 
-    set_active_organization_service(session.id, Some(organization_id))
+    set_active_organization_service(session.session_id, Some(organization_id))
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
@@ -119,7 +140,7 @@ pub async fn set_active_organization(organization_id: i32) -> Result<(), ServerF
 
 #[get("/api/org/list", headers: HeaderMap)]
 pub async fn get_user_organizations() -> Result<Vec<OrganizationResponse>, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (_token_string, session) = get_validated_session_from_headers(&headers).await?;
 
@@ -140,7 +161,7 @@ pub async fn get_user_organizations() -> Result<Vec<OrganizationResponse>, Serve
 
 #[get("/api/org/{organization_id}", headers: HeaderMap)]
 pub async fn get_organization(organization_id: i32) -> Result<OrganizationResponse, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (_token_string, session) = get_validated_session_from_headers(&headers).await?;
 
@@ -168,7 +189,7 @@ pub async fn get_organization(organization_id: i32) -> Result<OrganizationRespon
 pub async fn get_organization_members(
     organization_id: i32,
 ) -> Result<Vec<OrganizationMemberResponse>, ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (_token_string, session) = get_validated_session_from_headers(&headers).await?;
 
@@ -207,7 +228,7 @@ pub async fn invite_member(
     organization_id: i32,
     request: InviteMemberRequest,
 ) -> Result<(), ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (_token_string, session) = get_validated_session_from_headers(&headers).await?;
 
@@ -247,7 +268,7 @@ pub async fn remove_organization_member(
     organization_id: i32,
     member_id: i32,
 ) -> Result<(), ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (_token_string, session) = get_validated_session_from_headers(&headers).await?;
 
@@ -275,7 +296,7 @@ pub async fn update_organization_member_role(
     member_id: i32,
     new_role: String,
 ) -> Result<(), ServerFnError> {
-    initialize_databases();
+    initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let (_token_string, session) = get_validated_session_from_headers(&headers).await?;
 

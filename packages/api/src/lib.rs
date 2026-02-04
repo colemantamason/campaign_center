@@ -1,4 +1,7 @@
+pub mod enums;
 pub mod error;
+#[cfg(feature = "server")]
+pub mod http;
 pub mod interfaces;
 #[cfg(feature = "server")]
 pub mod models;

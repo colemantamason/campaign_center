@@ -149,6 +149,7 @@
 			"fetchpriority",
 			"Flexbox",
 			"gloo",
+			"httponly",
 			"Insertable",
 			"ipnetwork",
 			"lightningcss",

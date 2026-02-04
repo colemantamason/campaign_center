@@ -1,31 +1,75 @@
-pub use crate::interfaces::WithCookie;
+use crate::enums::DEFAULT_SESSION_EXPIRY_SECONDS;
 use axum::response::{IntoResponse, Response};
 pub use dioxus::fullstack::HeaderMap;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 // web browser has session token sent via Set-Cookie header (saved in browser cookies)
 const SESSION_COOKIE_NAME: &str = "session_token";
 // mobile apps have sessions token sent via custom X-Session-Token header (stored in secure native storage)
 const SESSION_TOKEN_HEADER: &str = "x-session-token";
-// default session max-age in seconds (7 days)
-const SESSION_MAX_AGE: i64 = 604800;
 
-// TODO: consider SameSite=None; Secure if using cross-site requests
-// TODO: consider adding Domain= if using subdomains
-// TODO: figure out if development uses HTTPS and can remove Secure flag
-pub fn create_session_cookie(token: &str, secure: bool) -> String {
-    let secure_flag = if secure { "; Secure" } else { "" };
-    format!(
-        "{}={}; Path=/; HttpOnly; SameSite=Strict; Max-Age={}{}",
-        SESSION_COOKIE_NAME, token, SESSION_MAX_AGE, secure_flag
-    )
+// wrapper for server responses that need to set 'httponly' cookies, protects against XSS attacks
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WithCookie<T> {
+    // the actual response data
+    pub data: T,
+    // cookie to set (only used on server side via IntoResponse, skipped in serialization)
+    #[serde(skip)]
+    pub cookie: Option<String>,
+    // raw token to send in X-Session-Token header for mobile apps
+    #[serde(skip)]
+    pub token: Option<String>,
 }
 
-pub fn create_clear_cookie() -> String {
-    format!(
-        "{}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0",
-        SESSION_COOKIE_NAME
-    )
+impl<T> WithCookie<T> {
+    // create a response without setting any cookie (used on client side for deserialization)
+    pub fn without_cookie(data: T) -> Self {
+        Self {
+            data,
+            cookie: None,
+            token: None,
+        }
+    }
+}
+
+pub fn create_session_cookie(token: &str, secure: bool, domain: Option<&str>) -> String {
+    let mut parts = vec![
+        format!("{}={}", SESSION_COOKIE_NAME, token),
+        "Path=/".to_string(),
+        "HttpOnly".to_string(),
+        "SameSite=Lax".to_string(),
+        format!("Max-Age={}", DEFAULT_SESSION_EXPIRY_SECONDS),
+    ];
+
+    if secure {
+        parts.push("Secure".to_string());
+    }
+
+    if let Some(domain) = domain {
+        if !domain.is_empty() {
+            parts.push(format!("Domain={}", domain));
+        }
+    }
+
+    parts.join("; ")
+}
+
+pub fn create_clear_cookie(domain: Option<&str>) -> String {
+    let mut parts = vec![
+        format!("{}=", SESSION_COOKIE_NAME),
+        "Path=/".to_string(),
+        "HttpOnly".to_string(),
+        "SameSite=Lax".to_string(),
+        "Max-Age=0".to_string(),
+    ];
+
+    if let Some(domain) = domain {
+        if !domain.is_empty() {
+            parts.push(format!("Domain={}", domain));
+        }
+    }
+
+    parts.join("; ")
 }
 
 // parse the session token from a HeaderMap (extracted via hoisted extractor)
@@ -75,9 +119,50 @@ pub fn is_secure_request(headers: &HeaderMap) -> bool {
     }
 
     // default to checking environment
-    std::env::var("SECURE_COOKIES")
-        .map(|value| value == "true" || value == "1")
+    std::env::var("ENVIRONMENT")
+        .map(|value| value == "production")
         .unwrap_or(false)
+}
+
+// get cookie domain from environment variable
+pub fn get_cookie_domain() -> Option<String> {
+    std::env::var("COOKIE_DOMAIN").ok()
+}
+
+// extract client ip address from headers (handles proxies)
+pub fn extract_client_ip(headers: &HeaderMap) -> Option<String> {
+    // check x-forwarded-for header (common in reverse proxy setups)
+    // format: "client, proxy1, proxy2" - first IP is the original client
+    if let Some(forwarded_for) = headers.get("x-forwarded-for") {
+        if let Ok(value) = forwarded_for.to_str() {
+            if let Some(first_ip) = value.split(',').next() {
+                let ip = first_ip.trim();
+                if !ip.is_empty() {
+                    return Some(ip.to_string());
+                }
+            }
+        }
+    }
+
+    // check x-real-ip header (nginx)
+    if let Some(real_ip) = headers.get("x-real-ip") {
+        if let Ok(ip) = real_ip.to_str() {
+            let ip = ip.trim();
+            if !ip.is_empty() {
+                return Some(ip.to_string());
+            }
+        }
+    }
+
+    None
+}
+
+// extract user-agent from headers
+pub fn extract_user_agent(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("user-agent")
+        .and_then(|header| header.to_str().ok())
+        .map(|string| string.to_string())
 }
 
 // extension trait to add cookie-setting methods to WithCookie
@@ -91,17 +176,19 @@ pub trait WithCookieExt<T> {
 
 impl<T> WithCookieExt<T> for WithCookie<T> {
     fn with_session_cookie(data: T, token: &str, secure: bool) -> WithCookie<T> {
+        let domain = get_cookie_domain();
         WithCookie {
             data,
-            cookie: Some(create_session_cookie(token, secure)),
+            cookie: Some(create_session_cookie(token, secure, domain.as_deref())),
             token: Some(token.to_string()),
         }
     }
 
     fn clearing_cookie(data: T) -> WithCookie<T> {
+        let domain = get_cookie_domain();
         WithCookie {
             data,
-            cookie: Some(create_clear_cookie()),
+            cookie: Some(create_clear_cookie(domain.as_deref())),
             token: None,
         }
     }

@@ -1,3 +1,4 @@
+use crate::enums::DEFAULT_SESSION_EXPIRY_SECONDS;
 use crate::error::AppError;
 use deadpool_redis::{redis::AsyncCommands, Config, Connection, Pool, Runtime::Tokio1};
 use serde::{Deserialize, Serialize};
@@ -5,14 +6,15 @@ use std::sync::OnceLock;
 
 static REDIS_POOL: OnceLock<Pool> = OnceLock::new();
 
-// default session cache ttl in seconds (7 days)
-const DEFAULT_SESSION_CACHE_TTL: i64 = 604800;
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CachedSession {
     pub session_id: i32,
     pub user_id: i32,
     pub active_organization_membership_id: Option<i32>,
+}
+
+pub fn is_redis_initialized() -> bool {
+    REDIS_POOL.get().is_some()
 }
 
 pub fn initialize_redis_pool() -> Result<(), AppError> {
@@ -54,13 +56,13 @@ pub async fn cache_session(token: &str, session: &CachedSession) -> Result<(), A
     let value = serde_json::to_string(session)
         .map_err(|error| AppError::InternalError(error.to_string()))?;
 
-    let ttl = std::env::var("SESSION_CACHE_TTL")
+    let expiry_seconds = std::env::var("SESSION_EXPIRY_SECONDS")
         .ok()
         .and_then(|string| string.parse().ok())
-        .unwrap_or(DEFAULT_SESSION_CACHE_TTL);
+        .unwrap_or(DEFAULT_SESSION_EXPIRY_SECONDS);
 
     connection
-        .set_ex::<&str, &str, ()>(&key, &value, ttl as u64)
+        .set_ex::<&str, &str, ()>(&key, &value, expiry_seconds as u64)
         .await
         .map_err(|error| AppError::ExternalServiceError {
             service: "Redis".to_string(),

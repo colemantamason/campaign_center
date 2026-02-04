@@ -10,6 +10,10 @@ use std::sync::OnceLock;
 
 static POSTGRES_POOL: OnceLock<Pool<AsyncPgConnection>> = OnceLock::new();
 
+pub fn is_postgres_initialized() -> bool {
+    POSTGRES_POOL.get().is_some()
+}
+
 pub fn initialize_postgres_pool() -> Result<(), AppError> {
     let postgres_url = std::env::var("POSTGRES_URL")
         .map_err(|_| AppError::ConfigError("POSTGRES_URL not set".to_string()))?;

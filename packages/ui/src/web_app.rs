@@ -4,7 +4,7 @@ pub mod notification_badge;
 pub mod sidebar;
 pub mod toast;
 
-use api::models::SubscriptionType;
+use api::enums::SubscriptionType;
 use api::state::{UserAccount, UserAccountStoreExt};
 pub use avatar::*;
 pub use confirmation_modal::*;

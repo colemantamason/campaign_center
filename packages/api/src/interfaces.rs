@@ -12,7 +12,7 @@ pub mod web_app;
 // pub use events::*;
 // #[cfg(feature = "mobile_app")]
 // pub use mobile_app::*;
-pub use shared::*;
+// pub use shared::*;
 // #[cfg(feature = "support")]
 // pub use support::*;
 #[cfg(feature = "web_app")]

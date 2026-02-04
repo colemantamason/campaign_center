@@ -1,5 +1,5 @@
 use crate::{gate::Gate, routes::Routes};
-use api::models::SubscriptionType;
+use api::enums::SubscriptionType;
 use dioxus::prelude::*;
 
 #[component]

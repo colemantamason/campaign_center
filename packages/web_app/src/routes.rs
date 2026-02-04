@@ -17,7 +17,7 @@ use account::{
 };
 use actions::Actions;
 use analytics::Analytics;
-use api::models::SubscriptionType;
+use api::enums::SubscriptionType;
 use api::providers::get_current_user;
 use api::state::{UserAccount, UserAccountStoreExt};
 use create::{CreateAccount, CreateOrganization};

@@ -1,4 +1,4 @@
-use crate::models::{MemberRole, SubscriptionType};
+use crate::enums::{MemberRole, SubscriptionType};
 use dioxus::prelude::*;
 use std::collections::HashMap;
 

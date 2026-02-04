@@ -47,10 +47,15 @@ campaign_center/
 ├── packages/
 │   ├── api/                   # Backend API layer
 │   │   └── src/
-│   │       ├── database.rs    # Database connection pool (server-only)
 │   │       ├── error.rs       # Error types
 │   │       ├── lib.rs         # Module exports with feature gates
+│   │       ├── postgres.rs    # PostgreSQL connection pool (server-only)
+│   │       ├── redis.rs       # Redis session cache pool (server-only)
 │   │       ├── schema.rs      # Diesel schema (auto-generated, server-only)
+│   │       │
+│   │       ├── http/          # HTTP utilities (server-only)
+│   │       │   ├── mod.rs
+│   │       │   └── cookie.rs  # Cookie handling, session tokens, WithCookie wrapper
 │   │       │
 │   │       ├── interfaces/    # DTOs for API requests/responses
 │   │       │   ├── shared/    # Shared DTOs
@@ -129,7 +134,6 @@ campaign_center/
 │   │           ├── exports.rs
 │   │           ├── team.rs
 │   │           ├── settings.rs
-│   │           ├── page_not_found.rs
 │   │           └── account/   # devices.rs, notifications.rs, organizations.rs
 │   │
 │   ├── mobile_app/            # Mobile application (future post-Dioxus 1.0)
@@ -164,13 +168,29 @@ The `api` package follows a layered architecture:
 │ Interfaces  │                         │   Schema    │
 │   (DTOs)    │                         │  (tables)   │
 └─────────────┘                         └─────────────┘
+       │
+       ▼
+┌─────────────┐
+│    HTTP     │
+│  (cookies)  │
+└─────────────┘
 ```
 
+- http/ - HTTP utilities (cookie handling, session tokens, `WithCookie` wrapper)
 - interfaces/ - Request/Response DTOs for API communication
 - models/ - Diesel ORM models (database rows) and relevant Enums
 - providers/ - Dioxus `#[server]` functions (API endpoints)
 - services/ - Business logic and database operations
 - state/ - Client-side state types with `#[derive(Store)]`
+
+### Session & Cookie Handling
+
+Session tokens are delivered securely:
+- **Web browsers**: HttpOnly `Set-Cookie` header (not accessible to JavaScript)
+- **Mobile apps**: `X-Session-Token` response header (stored in secure native storage)
+- **Security**: Session tokens are NOT included in JSON response bodies (prevents XSS token theft)
+
+Cookie configuration supports subdomain sharing via `COOKIE_DOMAIN` environment variable.
 
 ### Database Tables (Diesel Schema)
 

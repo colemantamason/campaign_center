@@ -1,6 +1,6 @@
 use crate::auth::AuthContext;
 use crate::routes::Routes;
-use api::models::SubscriptionType;
+use api::enums::SubscriptionType;
 use api::state::UserAccountStoreExt;
 use dioxus::prelude::*;
 use ui::web_app::{

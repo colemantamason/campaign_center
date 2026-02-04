@@ -1,4 +1,4 @@
-use crate::models::{MemberRole, SubscriptionType};
+use crate::enums::{MemberRole, SubscriptionType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -25,7 +25,6 @@ pub struct AuthResponse {
     pub email: String,
     pub first_name: String,
     pub last_name: String,
-    pub session_token: String,
 }
 
 // organization info for user account response
