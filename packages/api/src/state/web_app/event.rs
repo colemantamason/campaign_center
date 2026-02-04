@@ -1,4 +1,4 @@
-use crate::models::{EventType, EventVisibility, SignupStatus};
+use crate::enums::{EventType, EventVisibility, SignupStatus};
 use chrono::{DateTime, Utc};
 use dioxus::prelude::*;
 use std::collections::HashMap;

@@ -1,18 +1,23 @@
 use crate::enums::SubscriptionType;
 use crate::error::AppError;
+use crate::http::WithCookie;
+#[cfg(feature = "server")]
 use crate::http::{
     extract_client_ip, extract_user_agent, get_session_from_headers, is_secure_request,
-    WithCookie, WithCookieExt,
+    WithCookieExt,
 };
 use crate::interfaces::{
     AuthResponse, LoginRequest, OrganizationInfo, OrganizationMembershipInfo, RegisterRequest,
     UserAccountResponse,
 };
+#[cfg(feature = "server")]
 use crate::postgres::{initialize_postgres_pool, is_postgres_initialized};
+#[cfg(feature = "server")]
 use crate::redis::{
     cache_session, get_cached_session, initialize_redis_pool, invalidate_cached_session,
     is_redis_initialized, CachedSession,
 };
+#[cfg(feature = "server")]
 use crate::services::{
     authenticate_user, change_password as change_password_service, count_members, create_session,
     delete_session, get_user_by_id, list_user_organizations, register_user,
@@ -21,9 +26,11 @@ use crate::services::{
 use dioxus::fullstack::HeaderMap;
 use dioxus::prelude::*;
 use std::collections::HashMap;
+#[cfg(feature = "server")]
 use tracing;
 use uuid::Uuid;
 
+#[cfg(feature = "server")]
 fn initialize_databases() -> Result<(), AppError> {
     if !is_postgres_initialized() {
         initialize_postgres_pool()?;
@@ -142,7 +149,10 @@ pub async fn logout() -> Result<WithCookie<LogoutResponse>, ServerFnError> {
         if let Ok(token) = Uuid::parse_str(&token_string) {
             // invalidate redis cache first (before postgres, to ensure consistency)
             if let Err(error) = invalidate_cached_session(&token_string).await {
-                tracing::warn!("failed to invalidate redis session cache during logout: {}", error);
+                tracing::warn!(
+                    "failed to invalidate redis session cache during logout: {}",
+                    error
+                );
             }
             // delete the database session
             if let Err(error) = delete_session(token).await {

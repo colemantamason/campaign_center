@@ -1,4 +1,6 @@
+#[cfg(feature = "server")]
 use diesel::result::{DatabaseErrorKind as DieselDatabaseErrorKind, Error as DieselError};
+#[cfg(feature = "server")]
 use dioxus::prelude::ServerFnError as DioxusServerFnError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

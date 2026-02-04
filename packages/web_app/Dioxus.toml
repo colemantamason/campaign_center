@@ -9,6 +9,3 @@ title = "Campaign Events"
 index_on_404 = true
 reload_html = true
 watch_path = ["assets", "src"]
-
-[[web.proxy]]
-backend = "http://localhost:8000/api/"

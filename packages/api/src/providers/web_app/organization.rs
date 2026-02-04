@@ -1,27 +1,35 @@
 use crate::enums::MemberRole;
 use crate::error::AppError;
+#[cfg(feature = "server")]
 use crate::http::get_session_from_headers;
 use crate::interfaces::{
     CreateOrganizationRequest, InviteMemberRequest, OrganizationMemberResponse,
     OrganizationResponse,
 };
+#[cfg(feature = "server")]
 use crate::models::NewInvitation;
+#[cfg(feature = "server")]
 use crate::postgres::{get_postgres_connection, initialize_postgres_pool, is_postgres_initialized};
+#[cfg(feature = "server")]
 use crate::redis::{
     cache_session, get_cached_session, initialize_redis_pool, is_redis_initialized,
     update_cached_session_active_organization_membership_id, CachedSession,
 };
+#[cfg(feature = "server")]
 use crate::schema::invitations;
+#[cfg(feature = "server")]
 use crate::services::{
     create_organization as create_organization_service, get_membership, get_organization_by_id,
     get_user_by_id, list_organization_members, list_user_organizations, remove_member,
     set_active_organization as set_active_organization_service, update_member_role,
     validate_session,
 };
+#[cfg(feature = "server")]
 use diesel_async::RunQueryDsl;
 use dioxus::{fullstack::HeaderMap, prelude::*};
 use uuid::Uuid;
 
+#[cfg(feature = "server")]
 fn initialize_databases() -> Result<(), AppError> {
     if !is_postgres_initialized() {
         initialize_postgres_pool()?;
@@ -32,12 +40,14 @@ fn initialize_databases() -> Result<(), AppError> {
     Ok(())
 }
 
+#[cfg(feature = "server")]
 // validated session data - contains the fields needed by organization operations
 struct ValidatedSession {
     pub session_id: i32,
     pub user_id: i32,
 }
 
+#[cfg(feature = "server")]
 async fn get_validated_session_from_headers(
     headers: &HeaderMap,
 ) -> Result<(String, ValidatedSession), ServerFnError> {

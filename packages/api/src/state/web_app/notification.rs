@@ -1,4 +1,4 @@
-use crate::models::NotificationType;
+use crate::enums::NotificationType;
 use dioxus::prelude::*;
 use std::collections::HashMap;
 

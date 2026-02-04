@@ -1,9 +1,19 @@
-mod member_role;
-mod subscription_type;
+#[cfg(feature = "events")]
+pub mod events;
+#[cfg(feature = "mobile_app")]
+pub mod mobile_app;
+pub mod shared;
+#[cfg(feature = "support")]
+pub mod support;
+#[cfg(feature = "web_app")]
+pub mod web_app;
 
-pub use member_role::*;
-pub use subscription_type::*;
-
-// shared session expiry constant (7 days in seconds)
-// used by both redis cache TTL and postgres session expiry
-pub const DEFAULT_SESSION_EXPIRY_SECONDS: i64 = 604800;
+// #[cfg(feature = "events")]
+// pub use events::*;
+// #[cfg(feature = "mobile_app")]
+// pub use mobile_app::*;
+pub use shared::*;
+// #[cfg(feature = "support")]
+// pub use support::*;
+#[cfg(feature = "web_app")]
+pub use web_app::*;

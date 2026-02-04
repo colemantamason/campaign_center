@@ -63,7 +63,8 @@ pub async fn register_user(
 
 // pre-computed dummy hash for timing attack mitigation
 // this ensures consistent response time whether user exists or not
-const DUMMY_PASSWORD_HASH: &str = "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHR2YWx1ZQ$dummyhashvalue";
+const DUMMY_PASSWORD_HASH: &str =
+    "$argon2id$v=19$m=16,t=2,p=1$cnE4cnVmWGNhaTVLSXBrag$csCTOmrwecqL022wLOtkWA";
 
 pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppError> {
     let connection = &mut get_postgres_connection().await?;

@@ -51,6 +51,14 @@ Phases are listed in priority order. Each phase should be fully complete before 
   - [x] Login timing attack mitigation
   - [x] Subdomain cookie configuration support
 
+## Future Improvements (Added from plan)
+
+- **Rate limiting on auth endpoints**: Prevent brute force attacks (consider tower-governor or similar)
+- **CSRF tokens**: For authenticated endpoints, implement Double Submit Cookie pattern
+- **Scheduled session cleanup**: Run `cleanup_expired_sessions()` periodically (cron job or tokio task)
+- **Sliding session expiration**: Extend session on activity (update both Redis TTL and Postgres expires_at)
+- **Audit logging**: Log all auth events (login, logout, failed attempts) with IP and User-Agent
+
 ### Remaining
 
 - [ ] Organization management (creation, settings, team, permissions)

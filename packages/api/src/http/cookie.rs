@@ -1,11 +1,16 @@
+#[cfg(feature = "server")]
 use crate::enums::DEFAULT_SESSION_EXPIRY_SECONDS;
+#[cfg(feature = "server")]
 use axum::response::{IntoResponse, Response};
+#[cfg(feature = "server")]
 pub use dioxus::fullstack::HeaderMap;
 use serde::{Deserialize, Serialize};
 
 // web browser has session token sent via Set-Cookie header (saved in browser cookies)
+#[cfg(feature = "server")]
 const SESSION_COOKIE_NAME: &str = "session_token";
 // mobile apps have sessions token sent via custom X-Session-Token header (stored in secure native storage)
+#[cfg(feature = "server")]
 const SESSION_TOKEN_HEADER: &str = "x-session-token";
 
 // wrapper for server responses that need to set 'httponly' cookies, protects against XSS attacks
@@ -32,6 +37,7 @@ impl<T> WithCookie<T> {
     }
 }
 
+#[cfg(feature = "server")]
 pub fn create_session_cookie(token: &str, secure: bool, domain: Option<&str>) -> String {
     let mut parts = vec![
         format!("{}={}", SESSION_COOKIE_NAME, token),
@@ -54,6 +60,7 @@ pub fn create_session_cookie(token: &str, secure: bool, domain: Option<&str>) ->
     parts.join("; ")
 }
 
+#[cfg(feature = "server")]
 pub fn create_clear_cookie(domain: Option<&str>) -> String {
     let mut parts = vec![
         format!("{}=", SESSION_COOKIE_NAME),
@@ -73,6 +80,7 @@ pub fn create_clear_cookie(domain: Option<&str>) -> String {
 }
 
 // parse the session token from a HeaderMap (extracted via hoisted extractor)
+#[cfg(feature = "server")]
 pub fn get_session_from_headers(headers: &HeaderMap) -> Option<String> {
     // check for session cookie (web app)
     if let Some(cookie_header) = headers.get("cookie") {
@@ -103,6 +111,7 @@ pub fn get_session_from_headers(headers: &HeaderMap) -> Option<String> {
 }
 
 // check if the request is using https (for setting secure cookies)
+#[cfg(feature = "server")]
 pub fn is_secure_request(headers: &HeaderMap) -> bool {
     // check x-forwarded-proto header (common in reverse proxy setups)
     if let Some(proto) = headers.get("x-forwarded-proto") {
@@ -125,11 +134,13 @@ pub fn is_secure_request(headers: &HeaderMap) -> bool {
 }
 
 // get cookie domain from environment variable
+#[cfg(feature = "server")]
 pub fn get_cookie_domain() -> Option<String> {
     std::env::var("COOKIE_DOMAIN").ok()
 }
 
 // extract client ip address from headers (handles proxies)
+#[cfg(feature = "server")]
 pub fn extract_client_ip(headers: &HeaderMap) -> Option<String> {
     // check x-forwarded-for header (common in reverse proxy setups)
     // format: "client, proxy1, proxy2" - first IP is the original client
@@ -158,6 +169,7 @@ pub fn extract_client_ip(headers: &HeaderMap) -> Option<String> {
 }
 
 // extract user-agent from headers
+#[cfg(feature = "server")]
 pub fn extract_user_agent(headers: &HeaderMap) -> Option<String> {
     headers
         .get("user-agent")
@@ -166,6 +178,7 @@ pub fn extract_user_agent(headers: &HeaderMap) -> Option<String> {
 }
 
 // extension trait to add cookie-setting methods to WithCookie
+#[cfg(feature = "server")]
 pub trait WithCookieExt<T> {
     /// create a response with a session cookie (for web) and token header (for mobile)
     fn with_session_cookie(data: T, token: &str, secure: bool) -> WithCookie<T>;
@@ -174,6 +187,7 @@ pub trait WithCookieExt<T> {
     fn clearing_cookie(data: T) -> WithCookie<T>;
 }
 
+#[cfg(feature = "server")]
 impl<T> WithCookieExt<T> for WithCookie<T> {
     fn with_session_cookie(data: T, token: &str, secure: bool) -> WithCookie<T> {
         let domain = get_cookie_domain();
@@ -194,6 +208,7 @@ impl<T> WithCookieExt<T> for WithCookie<T> {
     }
 }
 
+#[cfg(feature = "server")]
 impl<T: Serialize> IntoResponse for WithCookie<T> {
     fn into_response(self) -> Response {
         let json_body = match serde_json::to_string(&self.data) {
