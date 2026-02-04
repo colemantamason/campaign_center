@@ -1,9 +1,9 @@
-use crate::database::get_connection;
 use crate::error::AppError;
 use crate::models::{
     MemberRole, NewOrganization, NewOrganizationMember, Organization, OrganizationMember,
     OrganizationMemberUpdate, OrganizationUpdate, SubscriptionType,
 };
+use crate::postgres::get_postgres_connection;
 use crate::schema::{organization_members, organizations};
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
@@ -21,7 +21,7 @@ pub async fn create_organization(
         ));
     }
 
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     let base_slug = slug_override
         .map(|slug| slugify(&slug))
@@ -41,7 +41,10 @@ pub async fn create_organization(
         .values(&new_organization)
         .get_result(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?;
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
 
     let owner_member = NewOrganizationMember::new(organization.id, user_id, MemberRole::Owner);
 
@@ -49,7 +52,10 @@ pub async fn create_organization(
         .values(&owner_member)
         .execute(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?;
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
 
     Ok(organization)
 }
@@ -68,7 +74,10 @@ async fn ensure_unique_slug(
             .get_result::<i64>(connection)
             .await
             .map(|count| count > 0)
-            .map_err(|error| AppError::DatabaseError(error.to_string()))?;
+            .map_err(|error| AppError::ExternalServiceError {
+                service: "Postgres".to_string(),
+                message: error.to_string(),
+            })?;
 
         if !exists {
             return Ok(slug);
@@ -86,46 +95,55 @@ async fn ensure_unique_slug(
 }
 
 pub async fn get_organization_by_id(org_id: i32) -> Result<Organization, AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     organizations::table
         .find(org_id)
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?
         .ok_or_else(|| AppError::not_found("Organization"))
 }
 
 pub async fn get_organization_by_slug(slug: &str) -> Result<Option<Organization>, AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     organizations::table
         .filter(organizations::slug.eq(slug))
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn update_organization(
     organization_id: i32,
     update: OrganizationUpdate,
 ) -> Result<Organization, AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     diesel::update(organizations::table.find(organization_id))
         .set(&update)
         .get_result::<Organization>(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn get_membership(
     organization_id: i32,
     user_id: i32,
 ) -> Result<Option<OrganizationMember>, AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     organization_members::table
         .filter(organization_members::organization_id.eq(organization_id))
@@ -133,13 +151,16 @@ pub async fn get_membership(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn list_user_organizations(
     user_id: i32,
 ) -> Result<Vec<(Organization, OrganizationMember)>, AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     organization_members::table
         .inner_join(organizations::table)
@@ -151,20 +172,26 @@ pub async fn list_user_organizations(
         ))
         .load::<(Organization, OrganizationMember)>(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn list_organization_members(
     organization_id: i32,
 ) -> Result<Vec<OrganizationMember>, AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     organization_members::table
         .filter(organization_members::organization_id.eq(organization_id))
         .order(organization_members::joined_at.asc())
         .load::<OrganizationMember>(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn add_member(
@@ -186,7 +213,7 @@ pub async fn add_member(
         return Err(AppError::already_exists("Member"));
     }
 
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     let mut new_member = NewOrganizationMember::new(organization_id, user_id, role);
 
@@ -198,7 +225,10 @@ pub async fn add_member(
         .values(&new_member)
         .get_result::<OrganizationMember>(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn update_member_role(
@@ -212,14 +242,17 @@ pub async fn update_member_role(
         ));
     }
 
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     let current: OrganizationMember = organization_members::table
         .find(member_id)
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?
         .ok_or_else(|| AppError::not_found("Member"))?;
 
     if current.get_role() == MemberRole::Owner {
@@ -236,11 +269,14 @@ pub async fn update_member_role(
         })
         .get_result::<OrganizationMember>(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn remove_member(member_id: i32) -> Result<(), AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     // Get member to check they're not the owner
     let member: OrganizationMember = organization_members::table
@@ -248,7 +284,10 @@ pub async fn remove_member(member_id: i32) -> Result<(), AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?
         .ok_or_else(|| AppError::not_found("Member"))?;
 
     if member.get_role() == MemberRole::Owner {
@@ -261,13 +300,16 @@ pub async fn remove_member(member_id: i32) -> Result<(), AppError> {
     diesel::delete(organization_members::table.find(member_id))
         .execute(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?;
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
 
     Ok(())
 }
 
 pub async fn count_members(organization_id: i32) -> Result<i32, AppError> {
-    let connection = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     organization_members::table
         .filter(organization_members::organization_id.eq(organization_id))
@@ -275,5 +317,8 @@ pub async fn count_members(organization_id: i32) -> Result<i32, AppError> {
         .get_result::<i64>(connection)
         .await
         .map(|count| count as i32)
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }

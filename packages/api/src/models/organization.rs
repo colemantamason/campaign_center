@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum SubscriptionType {
     Events,
 }
@@ -23,7 +23,7 @@ impl SubscriptionType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = organizations)]
 #[diesel(check_for_backend(Postgres))]
 pub struct Organization {
@@ -61,7 +61,7 @@ impl Organization {
     }
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = organizations)]
 pub struct NewOrganization {
     pub name: String,
@@ -94,7 +94,7 @@ impl NewOrganization {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = organizations)]
 pub struct OrganizationUpdate {
     pub name: Option<String>,

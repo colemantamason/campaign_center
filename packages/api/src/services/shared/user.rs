@@ -1,6 +1,6 @@
-use crate::database::get_connection;
 use crate::error::AppError;
 use crate::models::{NewUser, User, UserUpdate};
+use crate::postgres::get_postgres_connection;
 use crate::schema::users;
 use crate::services::{hash_password, validate_email, validate_password, verify_password};
 use chrono::Utc;
@@ -24,14 +24,17 @@ pub async fn register_user(
         return Err(AppError::validation("last_name", "Last name is required"));
     }
 
-    let conn = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     let existing: Option<User> = users::table
         .filter(users::email.eq(&email.to_lowercase()))
-        .first(conn)
+        .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?;
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
 
     if existing.is_some() {
         return Err(AppError::already_exists("User with this email"));
@@ -50,20 +53,26 @@ pub async fn register_user(
 
     diesel::insert_into(users::table)
         .values(&new_user)
-        .get_result::<User>(conn)
+        .get_result::<User>(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppError> {
-    let conn = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     let user: User = users::table
         .filter(users::email.eq(&email.to_lowercase()))
-        .first(conn)
+        .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?
         .ok_or(AppError::InvalidCredentials)?;
 
     if !verify_password(password, &user.password_hash)? {
@@ -72,44 +81,56 @@ pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppE
 
     diesel::update(users::table.find(user.id))
         .set(users::last_login_at.eq(Some(Utc::now())))
-        .execute(conn)
+        .execute(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?;
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
 
     Ok(user)
 }
 
 pub async fn get_user_by_id(user_id: i32) -> Result<User, AppError> {
-    let conn = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     users::table
         .find(user_id)
-        .first(conn)
+        .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?
         .ok_or_else(|| AppError::not_found("User"))
 }
 
 pub async fn get_user_by_email(email: &str) -> Result<Option<User>, AppError> {
-    let conn = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     users::table
         .filter(users::email.eq(&email.to_lowercase()))
-        .first(conn)
+        .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn update_user(user_id: i32, update: UserUpdate) -> Result<User, AppError> {
-    let conn = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
 
     diesel::update(users::table.find(user_id))
         .set(&update)
-        .get_result::<User>(conn)
+        .get_result::<User>(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn change_password(
@@ -130,12 +151,16 @@ pub async fn change_password(
 
     let new_hash = hash_password(new_password)?;
 
-    let conn = &mut get_connection().await?;
+    let connection = &mut get_postgres_connection().await?;
+
     diesel::update(users::table.find(user_id))
         .set(users::password_hash.eq(new_hash))
-        .execute(conn)
+        .execute(connection)
         .await
-        .map_err(|error| AppError::DatabaseError(error.to_string()))?;
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
 
     Ok(())
 }

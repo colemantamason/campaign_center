@@ -1,11 +1,10 @@
 use crate::schema::invitations;
 use chrono::{DateTime, Duration, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(PartialEq)]
 pub enum InvitationStatus {
     Pending,
     Accepted,
@@ -45,7 +44,7 @@ impl Display for InvitationStatus {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = invitations)]
 #[diesel(check_for_backend(Postgres))]
 pub struct Invitation {
@@ -75,7 +74,7 @@ impl Invitation {
     }
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = invitations)]
 pub struct NewInvitation {
     pub organization_id: i32,
@@ -101,7 +100,7 @@ impl NewInvitation {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = invitations)]
 pub struct InvitationUpdate {
     pub status: Option<String>,

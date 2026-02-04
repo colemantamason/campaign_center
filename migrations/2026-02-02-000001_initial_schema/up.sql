@@ -134,7 +134,6 @@ CREATE TABLE invitations (
     
     -- Role to assign
     role VARCHAR(50) NOT NULL DEFAULT 'member',
-    custom_permissions JSONB,
     
     -- Token for accepting
     token UUID UNIQUE NOT NULL DEFAULT uuid_generate_v4(),

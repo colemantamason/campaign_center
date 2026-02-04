@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // request to create a new organization
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct CreateOrganizationRequest {
     pub name: String,
     pub slug: Option<String>,
@@ -9,7 +9,7 @@ pub struct CreateOrganizationRequest {
 }
 
 // organization response
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct OrganizationResponse {
     pub id: i32,
     pub name: String,
@@ -18,7 +18,7 @@ pub struct OrganizationResponse {
 }
 
 // organization member response
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct OrganizationMemberResponse {
     pub user_id: i32,
     pub organization_id: i32,
@@ -29,7 +29,7 @@ pub struct OrganizationMemberResponse {
 }
 
 // request to invite a user to an organization
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct InviteMemberRequest {
     pub email: String,
     pub role: String,

@@ -1,10 +1,9 @@
 use crate::schema::{event_shifts, event_signups, events};
 use chrono::{DateTime, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(PartialEq)]
 pub enum EventType {
     Canvassing,
     PhoneBanking,
@@ -88,7 +87,7 @@ impl Display for EventType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(PartialEq)]
 pub enum EventVisibility {
     Public,
     Private,
@@ -128,7 +127,7 @@ impl Display for EventVisibility {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, PartialEq)]
 pub enum SignupStatus {
     SignedUp,
     CheckedIn,
@@ -172,7 +171,7 @@ impl Display for SignupStatus {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = events)]
 #[diesel(check_for_backend(Postgres))]
 pub struct Event {
@@ -210,7 +209,7 @@ impl Event {
     }
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = events)]
 pub struct NewEvent {
     pub organization_id: i32,
@@ -266,7 +265,7 @@ impl NewEvent {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = events)]
 pub struct EventUpdate {
     pub name: Option<String>,
@@ -288,7 +287,7 @@ pub struct EventUpdate {
     pub invite_groups: Option<Vec<Option<String>>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = event_shifts)]
 #[diesel(check_for_backend(Postgres))]
 pub struct EventShift {
@@ -303,7 +302,7 @@ pub struct EventShift {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = event_shifts)]
 pub struct NewEventShift {
     pub event_id: i32,
@@ -342,7 +341,7 @@ impl NewEventShift {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = event_shifts)]
 pub struct EventShiftUpdate {
     pub start_time: Option<DateTime<Utc>>,
@@ -352,7 +351,7 @@ pub struct EventShiftUpdate {
     pub notes: Option<Option<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = event_signups)]
 #[diesel(check_for_backend(Postgres))]
 pub struct EventSignup {
@@ -372,7 +371,7 @@ impl EventSignup {
     }
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = event_signups)]
 pub struct NewEventSignup {
     pub event_shift_id: i32,
@@ -397,7 +396,7 @@ impl NewEventSignup {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = event_signups)]
 pub struct EventSignupUpdate {
     pub status: Option<String>,

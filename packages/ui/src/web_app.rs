@@ -4,15 +4,14 @@ pub mod notification_badge;
 pub mod sidebar;
 pub mod toast;
 
+use api::models::SubscriptionType;
+use api::state::{UserAccount, UserAccountStoreExt};
 pub use avatar::*;
 pub use confirmation_modal::*;
+use dioxus::prelude::*;
 pub use notification_badge::*;
 pub use sidebar::*;
 pub use toast::*;
-
-use api::models::SubscriptionType;
-use api::state::web_app::{UserAccount, UserAccountStoreExt};
-use dioxus::prelude::*;
 
 #[derive(Clone, PartialEq)]
 pub struct UserAccountContext {
@@ -88,7 +87,7 @@ impl UserAccountContext {
             }
         } else {
             // no active organization ID set
-            return false
+            return false;
         }
     }
 }

@@ -1,16 +1,14 @@
 use crate::schema::users;
 use chrono::{DateTime, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(Postgres))]
 pub struct User {
     pub id: i32,
     pub email: String,
     pub email_verified_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing)]
     pub password_hash: String,
     pub first_name: String,
     pub last_name: String,
@@ -23,7 +21,7 @@ pub struct User {
     pub last_login_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = users)]
 pub struct NewUser {
     pub email: String,
@@ -53,7 +51,7 @@ impl NewUser {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = users)]
 pub struct UserUpdate {
     pub first_name: Option<String>,

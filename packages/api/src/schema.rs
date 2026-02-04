@@ -71,7 +71,6 @@ diesel::table! {
         email -> Varchar,
         #[max_length = 50]
         role -> Varchar,
-        custom_permissions -> Nullable<Jsonb>,
         token -> Uuid,
         #[max_length = 50]
         status -> Varchar,

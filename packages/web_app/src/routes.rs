@@ -1,15 +1,16 @@
 mod account;
 mod actions;
 mod analytics;
+mod create;
 mod dashboard;
 mod events;
 mod exports;
 mod groups;
 mod login;
-mod page_not_found;
 mod settings;
 mod team;
 
+use crate::auth::{user_response_to_account, AuthContext, AuthState};
 use account::{
     devices::DeviceSessions, notifications::NotificationPreferences,
     organizations::OrganizationManagement, Account,
@@ -17,7 +18,9 @@ use account::{
 use actions::Actions;
 use analytics::Analytics;
 use api::models::SubscriptionType;
-use api::state::{get_mock_user_account, UserAccountStoreExt};
+use api::providers::get_current_user;
+use api::state::{UserAccount, UserAccountStoreExt};
+use create::{CreateAccount, CreateOrganization};
 use dashboard::Dashboard;
 use dioxus::prelude::*;
 use events::Events;
@@ -28,8 +31,8 @@ use lucide_dioxus::{
     Bell, Building, Calendar, ChartColumn, ContactRound, FileOutput, LayoutGrid, Megaphone,
     MonitorSmartphone, Settings as Settings1, Settings2, User, UsersRound,
 };
-use page_not_found::PageNotFound;
 use settings::Settings;
+use std::collections::HashMap;
 use team::Team;
 use ui::web_app::{
     sidebar::{NavRoute, NavRoutes, Sidebar, SidebarType},
@@ -39,21 +42,67 @@ use ui::web_app::{
 
 #[component]
 fn Layout() -> Element {
+    use_context_provider(|| AuthContext::new());
+    let auth_context = use_context::<AuthContext>();
+    let auth_context_for_effect = auth_context.clone();
+
+    use_effect(move || {
+        let mut auth_context_for_effect = auth_context_for_effect.clone();
+        spawn(async move {
+            // cookies are sent automatically with the request
+            match get_current_user().await {
+                Ok(Some(user)) => {
+                    auth_context_for_effect.set_authenticated(user);
+                }
+                Ok(None) => {
+                    auth_context_for_effect.clear();
+                }
+                Err(_) => {
+                    auth_context_for_effect.clear();
+                }
+            }
+        });
+    });
+
+    // create an empty UserAccount for when not authenticated
+    let empty_user_account = UserAccount {
+        id: 0,
+        first_name: String::new(),
+        last_name: String::new(),
+        avatar_url: None,
+        active_organization_membership_id: None,
+        organization_memberships: HashMap::new(),
+        notifications: HashMap::new(),
+    };
+
+    // get the actual user account if authenticated
+    let user_account = auth_context
+        .user_account
+        .read()
+        .as_ref()
+        .map(user_response_to_account)
+        .unwrap_or(empty_user_account);
+
+    // provide the UserAccountContext
     use_context_provider(|| UserAccountContext {
-        user_account: Store::new(get_mock_user_account()),
+        user_account: Store::new(user_account),
     });
 
     let user_account_context = use_context::<UserAccountContext>();
 
     let current_route = router().full_route_string();
-    let is_main_sidebar = !current_route.starts_with(&Routes::Account {}.to_string());
+    let is_main_sidebar = !current_route.ends_with(&Routes::Login {}.to_string())
+        || !current_route.ends_with(&Routes::CreateAccount {}.to_string())
+        || !current_route.ends_with(&Routes::CreateOrganization {}.to_string())
+        || !current_route.starts_with(&Routes::Account {}.to_string());
+    let is_account_sidebar = current_route.starts_with(&Routes::Account {}.to_string());
 
     let mut main_menu_routes = NavRoutes::new();
     let mut tools_routes = NavRoutes::new();
     let mut account_menu_routes = NavRoutes::new();
-    let support_link = "#".to_string();
+    let mut support_link = "".to_string();
     let mut account_settings_routes = NavRoutes::new();
-    let dashboard_route = Routes::Dashboard {}.to_string();
+    let mut dashboard_route = "".to_string();
 
     // populate the routes based on the sidebar type and user permissions
     if is_main_sidebar {
@@ -122,6 +171,8 @@ fn Layout() -> Element {
             },
         ]);
 
+        support_link = "https://support.campaigncenter.com".to_string();
+
         account_menu_routes.push(NavRoute {
             route: Routes::Account {}.to_string(),
             icon: rsx! {
@@ -129,7 +180,11 @@ fn Layout() -> Element {
             },
             label: "Account Settings".to_string(),
         });
-    } else {
+    }
+
+    if is_account_sidebar {
+        dashboard_route = Routes::Dashboard {}.to_string();
+
         account_settings_routes.extend([
             NavRoute {
                 route: Routes::Account {}.to_string(),
@@ -162,9 +217,28 @@ fn Layout() -> Element {
         ]);
     }
 
+    // show skeleton while loading
+    let auth_state = auth_context.state.read().clone();
+    if matches!(auth_state, AuthState::Loading) {
+        return rsx! {
+            div { class: "flex bg-background min-h-screen",
+                // sidebar skeleton
+                div { class: "w-64 bg-muted animate-pulse" }
+                // main content skeleton
+                main { class: "flex-1 p-8",
+                    div { class: "space-y-4",
+                        div { class: "h-8 w-48 bg-muted rounded animate-pulse" }
+                        div { class: "h-4 w-96 bg-muted rounded animate-pulse" }
+                        div { class: "h-32 w-full bg-muted rounded animate-pulse" }
+                    }
+                }
+            }
+        };
+    }
+
     rsx! {
         ToastProvider {
-            div { class: "flex bg-background",
+            div { class: "flex bg-background min-h-screen",
                 // only render the sidebar if there's an active organization membership
                 if let Some(active_organization_membership) = user_account_context
                     .get_active_organization_membership_id()
@@ -207,6 +281,12 @@ pub enum Routes {
     #[route("/login")]
     Login {},
 
+    #[route("/create/account")]
+    CreateAccount {},
+
+    #[route("/create/organization")]
+    CreateOrganization {},
+
     #[route("/")]
     Dashboard {},
 
@@ -242,7 +322,4 @@ pub enum Routes {
 
     #[route("/account/organizations")]
     OrganizationManagement {},
-
-    #[route("/:..segments")]
-    PageNotFound {segments: Vec<String>},
 }

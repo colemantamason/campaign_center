@@ -4,7 +4,7 @@ use diesel::{pg::Pg as Postgres, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub enum MemberRole {
     Owner,
     Admin,
@@ -58,7 +58,7 @@ impl Display for MemberRole {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = organization_members)]
 #[diesel(check_for_backend(Postgres))]
 pub struct OrganizationMember {
@@ -77,7 +77,7 @@ impl OrganizationMember {
     }
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = organization_members)]
 pub struct NewOrganizationMember {
     pub organization_id: i32,
@@ -102,7 +102,7 @@ impl NewOrganizationMember {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = organization_members)]
 pub struct OrganizationMemberUpdate {
     pub role: Option<String>,

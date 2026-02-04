@@ -24,13 +24,13 @@ pub enum InputType {
     Zip,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum InputSize {
     Default,
     Form,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum InputVariant {
     Default,
     Sidebar,

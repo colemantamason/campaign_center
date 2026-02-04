@@ -2,7 +2,7 @@ use crate::models::NotificationType;
 use dioxus::prelude::*;
 use std::collections::HashMap;
 
-#[derive(Clone, Store)]
+#[derive(Store)]
 pub struct Notification {
     pub id: i32,
     pub organization_id: Option<i32>,

@@ -23,7 +23,7 @@ impl Organization {
 
 pub type Permissions = HashMap<SubscriptionType, bool>;
 
-#[derive(Clone, Store)]
+#[derive(Store)]
 pub struct OrganizationMembership {
     pub organization_id: i32,
     pub organization: Organization,

@@ -24,6 +24,7 @@ ui = { path = "packages/ui" }
 web_app = { path = "packages/web_app" }
 
 argon2 = { version = "0.5.3" }
+axum = { version = "0.8.8" }
 bigdecimal = { version = "0.4.10" }
 chrono = { version = "0.4.43", features = ["serde"] }
 deadpool-redis = { version = "0.22.1" }
@@ -42,7 +43,6 @@ gloo = { version = "0.11.0" }
 ipnetwork = { version = "0.21.1" }
 lucide-dioxus = { version = "2.563.0", features = ["all-icons"] }
 rand = { version = "0.8.5" }
-redis = { version = "1.0.3" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149" }
 slug = { version = "0.1.6" }
@@ -50,4 +50,4 @@ thiserror = { version = "2.0.18" }
 tracing = { version = "0.1.44" }
 uuid = { version = "1.20", features = ["serde", "v4"] }
 wasm-bindgen = { version = "0.2.108" }
-web-sys = { version = "0.3.85" }
+web-sys = { version = "0.3.85", features = ["HtmlDocument"] }

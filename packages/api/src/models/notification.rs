@@ -1,10 +1,9 @@
 use crate::schema::notifications;
 use chrono::{DateTime, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(PartialEq)]
 pub enum NotificationType {
     Info,
     EventReminder,
@@ -48,7 +47,7 @@ impl Display for NotificationType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Identifiable, Queryable, Selectable, Serialize)]
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = notifications)]
 #[diesel(check_for_backend(Postgres))]
 pub struct Notification {
@@ -70,7 +69,7 @@ impl Notification {
     }
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = notifications)]
 pub struct NewNotification {
     pub user_id: i32,
@@ -109,7 +108,7 @@ impl NewNotification {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = notifications)]
 pub struct NotificationUpdate {
     pub read: Option<bool>,

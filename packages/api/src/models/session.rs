@@ -4,7 +4,7 @@ use diesel::{pg::Pg as Postgres, prelude::*};
 use ipnetwork::IpNetwork;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Queryable, Selectable)]
+#[derive(Queryable, Selectable)]
 #[diesel(table_name = sessions)]
 #[diesel(check_for_backend(Postgres))]
 pub struct Session {
@@ -25,7 +25,7 @@ impl Session {
     }
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Insertable)]
 #[diesel(table_name = sessions)]
 pub struct NewSession {
     pub token: Uuid,
@@ -64,7 +64,7 @@ impl NewSession {
     }
 }
 
-#[derive(AsChangeset, Debug, Default)]
+#[derive(AsChangeset, Default)]
 #[diesel(table_name = sessions)]
 pub struct SessionUpdate {
     pub active_organization_membership_id: Option<Option<i32>>,

@@ -6,6 +6,7 @@ out_dir = "dist"
 title = "Campaign Events"
 
 [web.watcher]
+index_on_404 = true
 reload_html = true
 watch_path = ["assets", "src"]
 

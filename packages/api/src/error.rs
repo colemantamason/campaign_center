@@ -3,7 +3,7 @@ use dioxus::prelude::ServerFnError as DioxusServerFnError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Debug, Deserialize, Error, Serialize)]
+#[derive(Debug, Deserialize, Error, Serialize)]
 pub enum AppError {
     // Authentication errors
     #[error("Not authenticated")]
@@ -35,10 +35,6 @@ pub enum AppError {
 
     #[error("{entity} already exists")]
     AlreadyExists { entity: String },
-
-    // Database errors
-    #[error("Database error: {0}")]
-    DatabaseError(String),
 
     // Configuration errors
     #[error("Configuration error: {0}")]
@@ -107,7 +103,10 @@ impl From<DieselError> for AppError {
                     entity: info.message().to_string(),
                 }
             }
-            _ => AppError::DatabaseError(err.to_string()),
+            _ => AppError::ExternalServiceError {
+                service: "Postgres".to_string(),
+                message: err.to_string(),
+            },
         }
     }
 }

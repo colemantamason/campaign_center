@@ -12,6 +12,8 @@ dioxus = { workspace = true, features = ["fullstack", "router"] }
 lucide-dioxus = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }
+wasm-bindgen = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
 
 [features]
 default = []

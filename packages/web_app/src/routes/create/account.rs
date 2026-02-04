@@ -1,15 +1,17 @@
 use crate::auth::AuthContext;
 use crate::gate::Gate;
 use crate::routes::Routes;
-use api::interfaces::LoginRequest;
-use api::providers::{get_current_user, login};
+use api::interfaces::RegisterRequest;
+use api::providers::{get_current_user, register};
 use dioxus::prelude::*;
 
 #[component]
-pub fn Login() -> Element {
+pub fn CreateAccount() -> Element {
+    let mut first_name = use_signal(String::new);
+    let mut last_name = use_signal(String::new);
     let mut email = use_signal(String::new);
     let mut password = use_signal(String::new);
-    let mut login_error = use_signal(|| None::<String>);
+    let mut create_error = use_signal(|| None::<String>);
     let mut is_loading = use_signal(|| false);
     let auth_context = use_context::<AuthContext>();
 
@@ -19,32 +21,33 @@ pub fn Login() -> Element {
 
         spawn(async move {
             is_loading.set(true);
-            login_error.set(None);
-
-            let request = LoginRequest {
+            create_error.set(None);
+            let request = RegisterRequest {
                 email: email.read().clone(),
                 password: password.read().clone(),
+                first_name: first_name.read().clone(),
+                last_name: last_name.read().clone(),
             };
 
-            match login(request).await {
+            match register(request).await {
                 Ok(_response) => {
-                    // fetch the full user account after login
+                    // fetch the full user account after registration
                     match get_current_user().await {
                         Ok(Some(user)) => {
                             auth_context_spawn.set_authenticated(user);
-                            // navigation will happen through Gate
-                            router().push(Routes::Dashboard {}.to_string());
+                            // redirect to create organization (new users have no orgs)
+                            router().push(Routes::CreateOrganization {}.to_string());
                         }
                         Ok(None) => {
-                            login_error.set(Some("Failed to fetch user account".to_string()));
+                            create_error.set(Some("Failed to fetch user account".to_string()));
                         }
                         Err(error) => {
-                            login_error.set(Some(error.to_string()));
+                            create_error.set(Some(error.to_string()));
                         }
                     }
                 }
                 Err(error) => {
-                    login_error.set(Some(error.to_string()));
+                    create_error.set(Some(error.to_string()));
                 }
             }
             is_loading.set(false);
@@ -56,24 +59,59 @@ pub fn Login() -> Element {
             div { class: "flex min-h-screen items-center justify-center",
                 div { class: "w-full max-w-md space-y-6 p-8",
                     div { class: "text-center",
-                        h1 { class: "text-2xl font-bold text-primary", "Login" }
+                        h1 { class: "text-2xl font-bold text-primary", "Create Account" }
                         p { class: "text-muted-foreground mt-2",
-                            "Don't have an account? "
+                            "Already have an account? "
                             a {
                                 class: "text-primary underline",
-                                href: Routes::CreateAccount {}.to_string(),
-                                "Create one"
+                                href: Routes::Login {}.to_string(),
+                                "Login"
                             }
                         }
                     }
 
-                    if let Some(error) = login_error.read().as_ref() {
+                    if let Some(error) = create_error.read().as_ref() {
                         div { class: "bg-destructive/10 text-destructive p-3 rounded-md text-sm",
                             "{error}"
                         }
                     }
 
                     form { class: "space-y-4", onsubmit: handle_submit,
+                        div { class: "grid grid-cols-2 gap-4",
+                            div {
+                                label {
+                                    class: "block text-sm font-medium mb-1",
+                                    r#for: "first_name",
+                                    "First Name"
+                                }
+                                input {
+                                    id: "first_name",
+                                    r#type: "text",
+                                    required: true,
+                                    class: "w-full px-3 py-2 border border-input rounded-md bg-background",
+                                    placeholder: "John",
+                                    value: "{first_name}",
+                                    oninput: move |evt| first_name.set(evt.value()),
+                                }
+                            }
+                            div {
+                                label {
+                                    class: "block text-sm font-medium mb-1",
+                                    r#for: "last_name",
+                                    "Last Name"
+                                }
+                                input {
+                                    id: "last_name",
+                                    r#type: "text",
+                                    required: true,
+                                    class: "w-full px-3 py-2 border border-input rounded-md bg-background",
+                                    placeholder: "Doe",
+                                    value: "{last_name}",
+                                    oninput: move |evt| last_name.set(evt.value()),
+                                }
+                            }
+                        }
+
                         div {
                             label {
                                 class: "block text-sm font-medium mb-1",
@@ -102,9 +140,12 @@ pub fn Login() -> Element {
                                 r#type: "password",
                                 required: true,
                                 class: "w-full px-3 py-2 border border-input rounded-md bg-background",
-                                placeholder: "Your password",
+                                placeholder: "At least 8 characters",
                                 value: "{password}",
                                 oninput: move |evt| password.set(evt.value()),
+                            }
+                            p { class: "text-xs text-muted-foreground mt-1",
+                                "Must be at least 8 characters with a letter and number"
                             }
                         }
 
@@ -113,9 +154,9 @@ pub fn Login() -> Element {
                             disabled: *is_loading.read(),
                             class: "w-full py-2 px-4 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50",
                             if *is_loading.read() {
-                                "Logging in..."
+                                "Creating account..."
                             } else {
-                                "Login"
+                                "Create Account"
                             }
                         }
                     }
