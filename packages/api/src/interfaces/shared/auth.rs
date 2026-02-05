@@ -1,24 +1,28 @@
-use crate::enums::{MemberRole, SubscriptionType};
+use crate::enums::{MemberRole, Platform, SubscriptionType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// request to register a new user
 #[derive(Deserialize, Serialize)]
 pub struct RegisterRequest {
     pub email: String,
     pub password: String,
     pub first_name: String,
     pub last_name: String,
+    pub platform: Platform,
 }
 
-// request to login
 #[derive(Deserialize, Serialize)]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
+    pub platform: Platform,
 }
 
-// auth response with user data
+#[derive(Deserialize, Serialize)]
+pub struct LogoutRequest {
+    pub platform: Platform,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 pub struct AuthResponse {
     pub user_id: i32,
@@ -27,7 +31,11 @@ pub struct AuthResponse {
     pub last_name: String,
 }
 
-// organization info for user account response
+#[derive(Clone, Deserialize, Serialize)]
+pub struct LogoutResponse {
+    pub success: bool,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 pub struct OrganizationInfo {
     pub id: i32,
@@ -36,7 +44,6 @@ pub struct OrganizationInfo {
     pub member_count: i32,
 }
 
-// organization membership for user account response
 #[derive(Clone, Deserialize, Serialize)]
 pub struct OrganizationMembershipInfo {
     pub id: i32,
@@ -46,7 +53,6 @@ pub struct OrganizationMembershipInfo {
     pub permissions: HashMap<SubscriptionType, bool>,
 }
 
-// full user account response with organizations
 #[derive(Clone, Deserialize, Serialize)]
 pub struct UserAccountResponse {
     pub id: i32,

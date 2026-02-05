@@ -47,105 +47,78 @@ campaign_center/
 ├── packages/
 │   ├── api/                   # Backend API layer
 │   │   └── src/
+│   │       ├── lib.rs         # Module exports, feature gates, initialize_databases()
 │   │       ├── error.rs       # Error types
-│   │       ├── lib.rs         # Module exports with feature gates
 │   │       ├── postgres.rs    # PostgreSQL connection pool (server-only)
 │   │       ├── redis.rs       # Redis session cache pool (server-only)
 │   │       ├── schema.rs      # Diesel schema (auto-generated, server-only)
-│   │       │
+│   │       ├── enums.rs       # Enum module exports
+│   │       ├── enums/         # Project enums
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       ├── http.rs        # HTTP module exports
 │   │       ├── http/          # HTTP utilities (server-only)
-│   │       │   ├── mod.rs
-│   │       │   └── cookie.rs  # Cookie handling, session tokens, WithCookie wrapper
-│   │       │
+│   │       │   └── token.rs   # Session token handling, platform-aware auth
+│   │       ├── interfaces.rs  # Interface module exports
 │   │       ├── interfaces/    # DTOs for API requests/responses
-│   │       │   ├── shared/    # Shared DTOs
-│   │       │   ├── web_app/   # auth.rs, organization.rs
-│   │       │   ├── events/    # (empty - ready for events DTOs)
-│   │       │   ├── mobile_app/
-│   │       │   └── support/
-│   │       │
-│   │       ├── models/        # Diesel ORM models & relevant Enums (server-only)
-│   │       │   ├── event.rs
-│   │       │   ├── invitation.rs
-│   │       │   ├── notification.rs
-│   │       │   ├── organization.rs
-│   │       │   ├── organization_member.rs
-│   │       │   ├── session.rs
-│   │       │   └── user.rs
-│   │       │
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       ├── models.rs      # Model module exports
+│   │       ├── models/        # Diesel ORM models (server-only)
+│   │       │   ├── event.rs, invitation.rs, notification.rs
+│   │       │   ├── organization.rs, organization_member.rs
+│   │       │   └── session.rs, user.rs
+│   │       ├── providers.rs   # Provider module exports
 │   │       ├── providers/     # Dioxus #[server] functions
-│   │       │   ├── shared/    # (empty)
-│   │       │   ├── web_app/   # auth.rs, organization.rs
-│   │       │   ├── events/
-│   │       │   ├── mobile_app/
-│   │       │   └── support/
-│   │       │
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       ├── services.rs    # Service module exports
 │   │       ├── services/      # Business logic (server-only)
-│   │       │   ├── shared/    # auth.rs, organization.rs, session.rs, user.rs
-│   │       │   ├── web_app/   # (empty)
-│   │       │   ├── events/
-│   │       │   ├── mobile_app/
-│   │       │   └── support/
-│   │       │
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       ├── state.rs       # State module exports
 │   │       └── state/         # Client-side state types with #[derive(Store)]
-│   │           ├── shared/    # organization.rs (OrganizationMembership, Permissions)
-│   │           ├── web_app/   # user.rs, notification.rs, event.rs
-│   │           ├── events/
-│   │           ├── mobile_app/
-│   │           └── support/
-│   │
+│   │           └── shared/, web_app/, events/, mobile_app/, support/
 │   ├── ui/                    # Shared UI components
 │   │   └── src/
 │   │       ├── lib.rs         # Feature-gated module exports
-│   │       ├── shared/        # Cross-app shared components
-│   │       │   ├── button.rs
-│   │       │   ├── checkbox.rs
-│   │       │   ├── divider.rs
-│   │       │   ├── icon.rs
-│   │       │   ├── form/      # sms_opt_in.rs
-│   │       │   └── input/     # masked_input.rs, unmasked_input.rs
-│   │       │
-│   │       ├── web_app/       # Web app components
-│   │       │   ├── avatar.rs
-│   │       │   ├── confirmation_modal.rs
-│   │       │   ├── notification_badge.rs
-│   │       │   ├── toast.rs
-│   │       │   └── sidebar/   # nav_button.rs, nav_label.rs, sidebar_menu/
-│   │       │
-│   │       ├── events/        # (empty - ready for events components)
-│   │       ├── marketing/     # (empty - ready for marketing components)
-│   │       ├── mobile_app/    # (empty - future)
-│   │       └── support/       # (empty - ready for support components)
-│   │
-│   ├── web_app/               # Main SaaS application
+│   │       ├── shared.rs      # Shared module exports (WIP)
+│   │       ├── shared/        # Cross-project shared components (WIP)
+│   │       ├── web_app.rs     # Web app module exports (WIP)
+│   │       ├── web_app/       # Web app components (WIP)
+│   │       ├── events.rs      # Events app module exports (scaffold)
+│   │       ├── events/        # Events app components (scaffold)
+│   │       ├── marketing.rs   # Marketing website module exports (scaffold)
+│   │       ├── marketing/     # Marketing website components (scaffold)
+│   │       ├── mobile_app.rs  # Mobile app module exports (scaffold)
+│   │       ├── mobile_app/    # Mobile app components (scaffold)
+│   │       ├── support.rs     # Support app components (scaffold)
+│   │       └── support/       # Support app components (scaffold)
+│   ├── web_app/               # Main SaaS application (WIP)
 │   │   ├── Dioxus.toml        # Dioxus configuration
 │   │   ├── assets/style.css   # Compiled Tailwind CSS
 │   │   └── src/
 │   │       ├── main.rs        # App entry point
-│   │       ├── routes.rs      # Route definitions + Layout component
+│   │       ├── auth.rs        # Auth state management
 │   │       ├── gate.rs        # Permission-based route guards
+│   │       ├── routes.rs      # Route definitions + Layout component
 │   │       └── routes/        # Route page components
-│   │           ├── login.rs
-│   │           ├── dashboard.rs
-│   │           ├── events.rs
-│   │           ├── actions.rs
-│   │           ├── groups.rs
-│   │           ├── analytics.rs
-│   │           ├── exports.rs
-│   │           ├── team.rs
-│   │           ├── settings.rs
-│   │           └── account/   # devices.rs, notifications.rs, organizations.rs
-│   │
-│   ├── mobile_app/            # Mobile application (future post-Dioxus 1.0)
+│   ├── mobile_app/            # Mobile application (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
 │   ├── tooling/               # Build tools (CSS processing)
+│   │   └── src/
+│   │       └── main.rs
 │   └── websites/              # Public-facing websites
-│       ├── events/
-│       ├── marketing/
-│       ├── support/
+│       ├── events             # Event discovery platform (scaffold)
+│       │   └── src/
+│       │       └── lib.rs
+│       ├── marketing          # Marketing website (scaffold)
+│       │   └── src/
+│       │       └── lib.rs
+│       ├── support            # Help center (scaffold)
+│       │   └── src/
+│       │       └── lib.rs
 │       └── external/          # Temporary external projects
-│
 ├── docs/                      # Documentation
 │   ├── AGENTS.md              # This file
+│   ├── INFRASTRUCTURE.md      # Hosting infrastructure plan
 │   └── ROADMAP.md             # Development roadmap
 ├── migrations/                # Diesel database migrations
 ├── tailwind/                  # Tailwind configuration
@@ -162,26 +135,27 @@ The `api` package follows a layered architecture:
 │  Providers  │────▶│  Services   │────▶│   Models    │
 │ (endpoints) │     │ (business)  │     │ (database)  │
 └─────────────┘     └─────────────┘     └─────────────┘
-       │                                       │
-       ▼                                       ▼
-┌─────────────┐                         ┌─────────────┐
-│ Interfaces  │                         │   Schema    │
-│   (DTOs)    │                         │  (tables)   │
-└─────────────┘                         └─────────────┘
+       │                   │                   │
+       ▼                   ▼                   ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Interfaces  │     │    Enums    │     │   Schema    │
+│   (DTOs)    │     │  (shared)   │     │  (tables)   │
+└─────────────┘     └─────────────┘     └─────────────┘
        │
        ▼
 ┌─────────────┐
 │    HTTP     │
-│  (cookies)  │
+│  (tokens)   │
 └─────────────┘
 ```
 
-- http/ - HTTP utilities (cookie handling, session tokens, `WithCookie` wrapper)
+- enums/ - Shared enums used across providers, services, models, and interfaces
+- http/ - HTTP utilities (session token handling, platform-aware)
 - interfaces/ - Request/Response DTOs for API communication
 - models/ - Diesel ORM models (database rows) and relevant Enums
 - providers/ - Dioxus `#[server]` functions (API endpoints)
 - services/ - Business logic and database operations
-- state/ - Client-side state types with `#[derive(Store)]`
+- state/ - Client-side state types with stores/signals
 
 ### Session & Cookie Handling
 
@@ -189,8 +163,21 @@ Session tokens are delivered securely:
 - **Web browsers**: HttpOnly `Set-Cookie` header (not accessible to JavaScript)
 - **Mobile apps**: `X-Session-Token` response header (stored in secure native storage)
 - **Security**: Session tokens are NOT included in JSON response bodies (prevents XSS token theft)
+- **Cookie configuration**: Supports subdomain sharing via `COOKIE_DOMAIN` environment variable.
 
-Cookie configuration supports subdomain sharing via `COOKIE_DOMAIN` environment variable.
+**Platform Tracking**: Sessions include a `platform` field (`Platform` enum: `Web`, `Mobile`) that:
+- Enables "Active Sessions" UI to show device types clearly
+- Allows revoking all sessions by platform (e.g., "Sign out all mobile devices")
+- Supports platform-specific session policies if needed (e.g., different expiry times)
+- Each app passes its platform when creating sessions (`Platform::Web` for web_app, `Platform::Mobile` for mobile_app)
+
+**Device Detection**: The `DeviceInfo` struct parses `user_agent` to detect iOS/Android and specific devices:
+- `Session::device_info()` returns parsed device details (OS, version, browser, device type)
+- `Session::device_display()` returns human-readable string like "iPhone (iOS 17.2)" or "Chrome on macOS"
+
+**Shared Auth Pattern**: Auth providers live in `api/providers/shared/auth.rs` and are used by both web_app and mobile_app. The only difference between platforms is:
+- Token delivery mechanism (cookie for web, `X-Session-Token` header for mobile)
+- Platform value passed in request payloads (determines which token mechanism to use)
 
 ### Database Tables (Diesel Schema)
 
@@ -199,7 +186,7 @@ Current tables defined in `schema.rs`:
 | Table | Description |
 |-------|-------------|
 | `users` | User accounts with auth info |
-| `sessions` | Session tokens linked to users and active org membership |
+| `sessions` | Session tokens linked to users, active org membership, and platform (web/mobile) |
 | `organizations` | Organizations/campaigns |
 | `organization_members` | User-to-org membership with roles |
 | `invitations` | Team member invitation tokens |
@@ -299,7 +286,7 @@ This ensures each app only includes relevant code for smaller bundles. Make sure
 ## Coding Conventions
 
 ### Rust/Dioxus Guidelines
-ALWAYS: Update this document or the Roadmap when relevant lessons are learned or structural changes are made that require an update
+ALWAYS: Update this document when relevant lessons are learned or structural changes are made that require an update
 ALWAYS: Ignore TODO comments unless explicitly asked to address them
 ALWAYS: Add comments in lowercase
 NEVER: Add comments when the code is easily readable
@@ -309,6 +296,7 @@ ALWAYS: Check existing patterns in similar components before implementing new on
 ALWAYS: Use exhaustive match whenever working with enums
 ALWAYS: Make sure props are external to the component function
 ALWAYS: Optional props use `Option<T>`, not default values
+ALWAYS: Use the full naming of variables and functions instead of shorthand (i.e. |string| instead of |s| in a closure)
 
 ### CSS/Tailwind Guidelines
 
@@ -316,8 +304,8 @@ ALWAYS: Use flexbox for layout
 AVOID: Complex positioning, floats, or cutting-edge CSS
 ALWAYS: Style Lucide icons with class only
 NEVER: Use inline style or other props for Lucide icon sizing
-Pattern: common_classes + size_classes + variant_classes + custom_classes
-NEVER use eval() for JavaScript
-INSTEAD: Use wasm-bindgen/web-sys/gloo or other Rust WASM features if possible
+- INSTEAD: Use Tailwind class styling
+NEVER: use eval() for JavaScript
+- INSTEAD: Use wasm-bindgen/web-sys/gloo or other Rust WASM features if possible
 
 ---

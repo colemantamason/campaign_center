@@ -1,6 +1,7 @@
 use crate::auth::AuthContext;
 use crate::gate::Gate;
 use crate::routes::Routes;
+use api::enums::Platform;
 use api::interfaces::RegisterRequest;
 use api::providers::{get_current_user, register};
 use dioxus::prelude::*;
@@ -27,6 +28,7 @@ pub fn CreateAccount() -> Element {
                 password: password.read().clone(),
                 first_name: first_name.read().clone(),
                 last_name: last_name.read().clone(),
+                platform: Platform::Web,
             };
 
             match register(request).await {

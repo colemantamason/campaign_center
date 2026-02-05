@@ -111,6 +111,7 @@ CREATE TABLE sessions (
     -- Session info
     user_agent TEXT,
     ip_address INET,
+    platform VARCHAR(20) NOT NULL DEFAULT 'web',
     
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -121,6 +122,7 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_token ON sessions(token);
 CREATE INDEX idx_sessions_user ON sessions(user_id);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX idx_sessions_platform ON sessions(platform);
 
 -------------------------------------------------------------------------------
 -- INVITATIONS

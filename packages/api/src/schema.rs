@@ -167,6 +167,8 @@ diesel::table! {
         created_at -> Timestamptz,
         expires_at -> Timestamptz,
         last_accessed_at -> Timestamptz,
+        #[max_length = 20]
+        platform -> Varchar,
     }
 }
 

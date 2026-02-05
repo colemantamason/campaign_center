@@ -1,7 +1,8 @@
 use crate::enums::MemberRole;
-use crate::error::AppError;
 #[cfg(feature = "server")]
-use crate::http::get_session_from_headers;
+use crate::http::get_session_token_from_headers;
+#[cfg(feature = "server")]
+use crate::initialize_databases;
 use crate::interfaces::{
     CreateOrganizationRequest, InviteMemberRequest, OrganizationMemberResponse,
     OrganizationResponse,
@@ -9,11 +10,11 @@ use crate::interfaces::{
 #[cfg(feature = "server")]
 use crate::models::NewInvitation;
 #[cfg(feature = "server")]
-use crate::postgres::{get_postgres_connection, initialize_postgres_pool, is_postgres_initialized};
+use crate::postgres::get_postgres_connection;
 #[cfg(feature = "server")]
 use crate::redis::{
-    cache_session, get_cached_session, initialize_redis_pool, is_redis_initialized,
-    update_cached_session_active_organization_membership_id, CachedSession,
+    cache_session, get_cached_session, update_cached_session_active_organization_membership_id,
+    CachedSession,
 };
 #[cfg(feature = "server")]
 use crate::schema::invitations;
@@ -30,18 +31,6 @@ use dioxus::{fullstack::HeaderMap, prelude::*};
 use uuid::Uuid;
 
 #[cfg(feature = "server")]
-fn initialize_databases() -> Result<(), AppError> {
-    if !is_postgres_initialized() {
-        initialize_postgres_pool()?;
-    }
-    if !is_redis_initialized() {
-        initialize_redis_pool()?;
-    }
-    Ok(())
-}
-
-#[cfg(feature = "server")]
-// validated session data - contains the fields needed by organization operations
 struct ValidatedSession {
     pub session_id: i32,
     pub user_id: i32,
@@ -51,13 +40,13 @@ struct ValidatedSession {
 async fn get_validated_session_from_headers(
     headers: &HeaderMap,
 ) -> Result<(String, ValidatedSession), ServerFnError> {
-    let token_string =
-        get_session_from_headers(headers).ok_or_else(|| ServerFnError::new("Not authenticated"))?;
+    let token_string = get_session_token_from_headers(headers)
+        .ok_or_else(|| ServerFnError::new("Not authenticated"))?;
 
     let token =
         Uuid::parse_str(&token_string).map_err(|_| ServerFnError::new("Invalid session token"))?;
 
-    // try redis cache first - if we have cached data, use it directly
+    // get session from cache or database
     if let Ok(Some(cached)) = get_cached_session(&token_string).await {
         return Ok((
             token_string,
@@ -68,17 +57,16 @@ async fn get_validated_session_from_headers(
         ));
     }
 
-    // cache miss - fall back to database validation
     let session = validate_session(token)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // cache the session for future requests
     let cached = CachedSession {
         session_id: session.id,
         user_id: session.user_id,
         active_organization_membership_id: session.active_organization_membership_id,
     };
+
     cache_session(&token_string, &cached).await.ok();
 
     Ok((
@@ -98,19 +86,15 @@ pub async fn create_organization(
 
     let (token_string, session) = get_validated_session_from_headers(&headers).await?;
 
-    // create_organization_service returns both organization and membership (creator as owner)
     let (organization, membership) =
         create_organization_service(request.name, request.slug, session.user_id)
             .await
             .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // auto-set this as the active organization using the MEMBERSHIP ID (not organization ID)
-    // The sessions.active_organization_membership_id FK references organization_members.id
     set_active_organization_service(session.session_id, Some(membership.id))
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // update the cached session with the new active org membership ID
     update_cached_session_active_organization_membership_id(&token_string, Some(membership.id))
         .await
         .ok();
@@ -129,18 +113,15 @@ pub async fn set_active_organization(organization_id: i32) -> Result<(), ServerF
 
     let (token_string, session) = get_validated_session_from_headers(&headers).await?;
 
-    // verify user is a member of the organization and get their membership
     let membership = get_membership(organization_id, session.user_id)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?
         .ok_or_else(|| ServerFnError::new("Not a member of this organization"))?;
 
-    // Use the MEMBERSHIP ID (not organization ID) - FK references organization_members.id
     set_active_organization_service(session.session_id, Some(membership.id))
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // update the cached session with membership ID
     update_cached_session_active_organization_membership_id(&token_string, Some(membership.id))
         .await
         .ok();

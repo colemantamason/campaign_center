@@ -1,6 +1,7 @@
 use crate::auth::AuthContext;
 use crate::gate::Gate;
 use crate::routes::Routes;
+use api::enums::Platform;
 use api::interfaces::LoginRequest;
 use api::providers::{get_current_user, login};
 use dioxus::prelude::*;
@@ -24,6 +25,7 @@ pub fn Login() -> Element {
             let request = LoginRequest {
                 email: email.read().clone(),
                 password: password.read().clone(),
+                platform: Platform::Web,
             };
 
             match login(request).await {

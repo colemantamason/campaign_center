@@ -1,30 +1,24 @@
 use crate::enums::SubscriptionType;
-use crate::error::AppError;
-use crate::http::WithCookie;
+use crate::http::WithToken;
 #[cfg(feature = "server")]
 use crate::http::{
-    create_clear_cookie, create_session_cookie, extract_client_ip, extract_user_agent,
-    get_cookie_domain, get_session_from_headers, is_secure_request, SESSION_TOKEN_HEADER,
+    clear_session_token_response, extract_client_ip, extract_user_agent,
+    get_session_token_from_headers, set_session_token_response,
 };
+#[cfg(feature = "server")]
+use crate::initialize_databases;
 use crate::interfaces::{
-    AuthResponse, LoginRequest, OrganizationInfo, OrganizationMembershipInfo, RegisterRequest,
-    UserAccountResponse,
+    AuthResponse, LoginRequest, LogoutRequest, LogoutResponse, OrganizationInfo,
+    OrganizationMembershipInfo, RegisterRequest, UserAccountResponse,
 };
 #[cfg(feature = "server")]
-use crate::postgres::{initialize_postgres_pool, is_postgres_initialized};
-#[cfg(feature = "server")]
-use crate::redis::{
-    cache_session, get_cached_session, initialize_redis_pool, invalidate_cached_session,
-    is_redis_initialized, CachedSession,
-};
+use crate::redis::{cache_session, get_cached_session, invalidate_cached_session, CachedSession};
 #[cfg(feature = "server")]
 use crate::services::{
     authenticate_user, change_password as change_password_service, count_members, create_session,
     delete_session, get_user_by_id, list_user_organizations, register_user,
     validate_session as validate_session_service,
 };
-#[cfg(feature = "server")]
-use axum::http::{header::SET_COOKIE, HeaderName, HeaderValue};
 use dioxus::fullstack::HeaderMap;
 use dioxus::prelude::*;
 use std::collections::HashMap;
@@ -32,22 +26,10 @@ use std::collections::HashMap;
 use tracing;
 use uuid::Uuid;
 
-#[cfg(feature = "server")]
-fn initialize_databases() -> Result<(), AppError> {
-    if !is_postgres_initialized() {
-        initialize_postgres_pool()?;
-    }
-    if !is_redis_initialized() {
-        initialize_redis_pool()?;
-    }
-    Ok(())
-}
-
 #[post("/api/auth/register", headers: HeaderMap)]
-pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthResponse>, ServerFnError> {
+pub async fn register(request: RegisterRequest) -> Result<WithToken<AuthResponse>, ServerFnError> {
     initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // extract user agent and ip from headers
     let user_agent = extract_user_agent(&headers);
     let ip_address = extract_client_ip(&headers);
 
@@ -60,41 +42,21 @@ pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthRespons
     .await
     .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    let session = create_session(user.id, user_agent, ip_address)
+    let session = create_session(user.id, request.platform, user_agent, ip_address)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let token = session.token.to_string();
 
-    // cache the session in redis
     let cached = CachedSession {
         session_id: session.id,
         user_id: user.id,
         active_organization_membership_id: None,
     };
+
     cache_session(&token, &cached).await.ok();
 
-    // set session token via dioxus fullstack context
-    // session token is NOT included in the JSON response body (security: prevents XSS token theft)
-    // web browsers receive the token via HttpOnly Set-Cookie header
-    // mobile apps receive the token via X-Session-Token header (stored in secure native storage)
-    let secure = is_secure_request(&headers);
-    let domain = get_cookie_domain();
-    let cookie = create_session_cookie(&token, secure, domain.as_deref());
-
-    if let Some(context) = FullstackContext::current() {
-        // set cookie for web browsers
-        if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
-            context.add_response_header(SET_COOKIE, cookie_value);
-        }
-        // set token header for mobile apps
-        if let Ok(token_value) = token.parse::<HeaderValue>() {
-            context.add_response_header(
-                axum::http::HeaderName::from_static(SESSION_TOKEN_HEADER),
-                token_value,
-            );
-        }
-    }
+    set_session_token_response(&token, request.platform, &headers);
 
     let auth_response = AuthResponse {
         user_id: user.id,
@@ -103,14 +65,13 @@ pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthRespons
         last_name: user.last_name,
     };
 
-    Ok(WithCookie::without_cookie(auth_response))
+    Ok(WithToken::new(auth_response))
 }
 
 #[post("/api/auth/login", headers: HeaderMap)]
-pub async fn login(request: LoginRequest) -> Result<WithCookie<AuthResponse>, ServerFnError> {
+pub async fn login(request: LoginRequest) -> Result<WithToken<AuthResponse>, ServerFnError> {
     initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // extract user agent and ip from headers
     let user_agent = extract_user_agent(&headers);
     let ip_address = extract_client_ip(&headers);
 
@@ -118,38 +79,21 @@ pub async fn login(request: LoginRequest) -> Result<WithCookie<AuthResponse>, Se
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    let session = create_session(user.id, user_agent, ip_address)
+    let session = create_session(user.id, request.platform, user_agent, ip_address)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let token = session.token.to_string();
 
-    // cache the session in redis
     let cached = CachedSession {
         session_id: session.id,
         user_id: user.id,
         active_organization_membership_id: session.active_organization_membership_id,
     };
+
     cache_session(&token, &cached).await.ok();
 
-    // set session token via dioxus fullstack context
-    // session token is NOT included in the JSON response body (security: prevents XSS token theft)
-    // web browsers receive the token via HttpOnly Set-Cookie header
-    // mobile apps receive the token via X-Session-Token header (stored in secure native storage)
-    let secure = is_secure_request(&headers);
-    let domain = get_cookie_domain();
-    let cookie = create_session_cookie(&token, secure, domain.as_deref());
-
-    if let Some(context) = FullstackContext::current() {
-        // set cookie for web browsers
-        if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
-            context.add_response_header(SET_COOKIE, cookie_value);
-        }
-        // set token header for mobile apps
-        if let Ok(token_value) = token.parse::<HeaderValue>() {
-            context.add_response_header(HeaderName::from_static(SESSION_TOKEN_HEADER), token_value);
-        }
-    }
+    set_session_token_response(&token, request.platform, &headers);
 
     let auth_response = AuthResponse {
         user_id: user.id,
@@ -158,63 +102,46 @@ pub async fn login(request: LoginRequest) -> Result<WithCookie<AuthResponse>, Se
         last_name: user.last_name,
     };
 
-    Ok(WithCookie::without_cookie(auth_response))
-}
-
-/// logout response data (success indicator)
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
-pub struct LogoutResponse {
-    pub success: bool,
+    Ok(WithToken::new(auth_response))
 }
 
 #[post("/api/auth/logout", headers: HeaderMap)]
-pub async fn logout() -> Result<WithCookie<LogoutResponse>, ServerFnError> {
+pub async fn logout(request: LogoutRequest) -> Result<WithToken<LogoutResponse>, ServerFnError> {
     initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // get session token from cookie and invalidate it
-    if let Some(token_string) = get_session_from_headers(&headers) {
-        if let Ok(token) = Uuid::parse_str(&token_string) {
-            // invalidate redis cache first (before postgres, to ensure consistency)
-            if let Err(error) = invalidate_cached_session(&token_string).await {
-                tracing::warn!(
-                    "failed to invalidate redis session cache during logout: {}",
-                    error
-                );
+    let token_string = get_session_token_from_headers(&headers);
+
+    if let Some(ref token_str) = token_string {
+        match Uuid::parse_str(token_str) {
+            Ok(token) => {
+                // invalidate redis cache first (before postgres, to ensure consistency)
+                if let Err(error) = invalidate_cached_session(token_str).await {
+                    tracing::warn!(
+                        "failed to invalidate redis session cache during logout: {}",
+                        error
+                    );
+                }
+
+                if let Err(error) = delete_session(token).await {
+                    tracing::warn!("failed to delete postgres session during logout: {}", error);
+                }
             }
-            // delete the database session
-            if let Err(error) = delete_session(token).await {
-                tracing::warn!("failed to delete postgres session during logout: {}", error);
+            Err(_) => {
+                tracing::warn!("invalid session token format during logout");
             }
         }
     }
 
-    // clear session via dioxus fullstack context
-    // web browsers: clear cookie
-    // mobile apps: send empty token header (client should delete from secure storage)
-    let domain = get_cookie_domain();
-    let cookie = create_clear_cookie(domain.as_deref());
+    clear_session_token_response(request.platform);
 
-    if let Some(context) = FullstackContext::current() {
-        // clear cookie for web browsers
-        if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
-            context.add_response_header(SET_COOKIE, cookie_value);
-        }
-        // send empty token header for mobile apps (signals logout)
-        context.add_response_header(
-            HeaderName::from_static(SESSION_TOKEN_HEADER),
-            HeaderValue::from_static(""),
-        );
-    }
-
-    Ok(WithCookie::without_cookie(LogoutResponse { success: true }))
+    Ok(WithToken::new(LogoutResponse { success: true }))
 }
 
 #[get("/api/auth/current_user", headers: HeaderMap)]
 pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnError> {
     initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // get session token from cookie
-    let token_string = match get_session_from_headers(&headers) {
+    let token_string = match get_session_token_from_headers(&headers) {
         Some(t) if !t.is_empty() => t,
         _ => return Ok(None),
     };
@@ -224,17 +151,15 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
         Err(_) => return Ok(None),
     };
 
-    // try to get session from redis cache first
+    // get user_id from cache or database
     let (user_id, active_org_id) = match get_cached_session(&token_string).await {
         Ok(Some(cached)) => (cached.user_id, cached.active_organization_membership_id),
         _ => {
-            // fall back to database
             let session = match validate_session_service(token).await {
                 Ok(session) => session,
                 Err(_) => return Ok(None),
             };
 
-            // cache the session for future requests
             let cached = CachedSession {
                 session_id: session.id,
                 user_id: session.user_id,
@@ -250,7 +175,6 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // get user's organizations
     let organizations = list_user_organizations(user_id)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
@@ -260,7 +184,6 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
     for (organization, member) in organizations {
         let member_count = count_members(organization.id).await.unwrap_or(0);
 
-        // get organization permissions from subscriptions
         let mut permissions = HashMap::new();
         for subscription in &organization.subscriptions {
             if let Some(sub_str) = subscription {
@@ -283,7 +206,6 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
             permissions,
         };
 
-        // Key by membership_id (not organization.id) to match active_organization_membership_id
         organization_memberships.insert(member.id, membership_info);
     }
 
@@ -301,8 +223,7 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
 pub async fn validate_session() -> Result<Option<AuthResponse>, ServerFnError> {
     initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // get session token from cookie
-    let token_string = match get_session_from_headers(&headers) {
+    let token_string = match get_session_token_from_headers(&headers) {
         Some(t) if !t.is_empty() => t,
         _ => return Ok(None),
     };
@@ -312,17 +233,15 @@ pub async fn validate_session() -> Result<Option<AuthResponse>, ServerFnError> {
         Err(_) => return Ok(None),
     };
 
-    // try redis cache first
+    // get user_id from cache or database
     let user_id = match get_cached_session(&token_string).await {
         Ok(Some(cached)) => cached.user_id,
         _ => {
-            // fall back to database validation
             let session = match validate_session_service(token).await {
                 Ok(session) => session,
                 Err(_) => return Ok(None),
             };
 
-            // cache the session
             let cached = CachedSession {
                 session_id: session.id,
                 user_id: session.user_id,
@@ -338,8 +257,6 @@ pub async fn validate_session() -> Result<Option<AuthResponse>, ServerFnError> {
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // note: session token is not included in the response body for security
-    // clients should use the token from the cookie or X-Session-Token header
     Ok(Some(AuthResponse {
         user_id: user.id,
         email: user.email,
@@ -355,8 +272,7 @@ pub async fn change_password(
 ) -> Result<(), ServerFnError> {
     initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // get session token from cookie
-    let token_string = get_session_from_headers(&headers)
+    let token_string = get_session_token_from_headers(&headers)
         .ok_or_else(|| ServerFnError::new("Not authenticated"))?;
 
     let token =

@@ -1,3 +1,4 @@
+use crate::enums::{DeviceInfo, Platform};
 use crate::schema::sessions;
 use chrono::{DateTime, Duration, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
@@ -17,11 +18,32 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub last_accessed_at: DateTime<Utc>,
+    pub platform: String,
 }
 
 impl Session {
     pub fn is_valid(&self) -> bool {
         self.expires_at > Utc::now()
+    }
+
+    pub fn platform(&self) -> Platform {
+        Platform::from_str(&self.platform).unwrap_or(Platform::Web)
+    }
+
+    // get device info parsed from user agent
+    pub fn device_info(&self) -> Option<DeviceInfo> {
+        self.user_agent
+            .as_ref()
+            .map(|user_agent| DeviceInfo::from_user_agent(user_agent))
+    }
+
+    // get a human-readable device description for display in UI
+    // e.g., "iPhone (iOS 17.2)" or "Chrome on macOS"
+    pub fn device_display(&self) -> String {
+        match self.device_info() {
+            Some(info) => info.display_string(self.platform()),
+            None => self.platform().display_name().to_string(),
+        }
     }
 }
 
@@ -34,17 +56,19 @@ pub struct NewSession {
     pub user_agent: Option<String>,
     pub ip_address: Option<IpNetwork>,
     pub expires_at: DateTime<Utc>,
+    pub platform: String,
 }
 
 impl NewSession {
-    pub fn new(user_id: i32, expiry_hours: i64) -> Self {
+    pub fn new(user_id: i32, expiry_seconds: i64, platform: Platform) -> Self {
         Self {
             token: Uuid::new_v4(),
             user_id,
             active_organization_membership_id: None,
             user_agent: None,
             ip_address: None,
-            expires_at: Utc::now() + Duration::hours(expiry_hours),
+            expires_at: Utc::now() + Duration::seconds(expiry_seconds),
+            platform: platform.as_str().to_string(),
         }
     }
 
