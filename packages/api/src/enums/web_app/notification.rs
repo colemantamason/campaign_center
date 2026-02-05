@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum NotificationType {
     Info,
     EventReminder,

@@ -1,5 +1,33 @@
 // @generated automatically by Diesel CLI.
-// Run `diesel migration run` to update this file.
+
+diesel::table! {
+    event_shifts (id) {
+        id -> Int4,
+        event_id -> Int4,
+        start_time -> Timestamptz,
+        end_time -> Timestamptz,
+        #[max_length = 50]
+        timezone -> Varchar,
+        capacity -> Nullable<Int4>,
+        notes -> Nullable<Text>,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    event_signups (id) {
+        id -> Int4,
+        event_shift_id -> Int4,
+        user_id -> Int4,
+        #[max_length = 20]
+        status -> Varchar,
+        notes -> Nullable<Text>,
+        signed_up_at -> Timestamptz,
+        checked_in_at -> Nullable<Timestamptz>,
+        cancelled_at -> Nullable<Timestamptz>,
+    }
+}
 
 diesel::table! {
     events (id) {
@@ -31,35 +59,6 @@ diesel::table! {
         created_by -> Int4,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
-    }
-}
-
-diesel::table! {
-    event_shifts (id) {
-        id -> Int4,
-        event_id -> Int4,
-        start_time -> Timestamptz,
-        end_time -> Timestamptz,
-        #[max_length = 50]
-        timezone -> Varchar,
-        capacity -> Nullable<Int4>,
-        notes -> Nullable<Text>,
-        created_at -> Timestamptz,
-        updated_at -> Timestamptz,
-    }
-}
-
-diesel::table! {
-    event_signups (id) {
-        id -> Int4,
-        event_shift_id -> Int4,
-        user_id -> Int4,
-        #[max_length = 20]
-        status -> Varchar,
-        notes -> Nullable<Text>,
-        signed_up_at -> Timestamptz,
-        checked_in_at -> Nullable<Timestamptz>,
-        cancelled_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -199,11 +198,12 @@ diesel::joinable!(event_shifts -> events (event_id));
 diesel::joinable!(event_signups -> event_shifts (event_shift_id));
 diesel::joinable!(event_signups -> users (user_id));
 diesel::joinable!(events -> organizations (organization_id));
+diesel::joinable!(events -> users (created_by));
 diesel::joinable!(invitations -> organizations (organization_id));
+diesel::joinable!(invitations -> users (invited_by));
 diesel::joinable!(notifications -> organizations (organization_id));
 diesel::joinable!(notifications -> users (user_id));
 diesel::joinable!(organization_members -> organizations (organization_id));
-diesel::joinable!(organization_members -> users (user_id));
 diesel::joinable!(organizations -> users (created_by));
 diesel::joinable!(password_reset_tokens -> users (user_id));
 diesel::joinable!(sessions -> organization_members (active_organization_membership_id));

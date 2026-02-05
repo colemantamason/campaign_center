@@ -39,6 +39,7 @@ pub struct OrganizationInfo {
 // organization membership for user account response
 #[derive(Clone, Deserialize, Serialize)]
 pub struct OrganizationMembershipInfo {
+    pub id: i32,
     pub organization_id: i32,
     pub organization: OrganizationInfo,
     pub user_role: MemberRole,

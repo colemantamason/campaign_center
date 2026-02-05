@@ -12,7 +12,6 @@ deadpool-redis = { workspace = true, optional = true }
 diesel = { workspace = true, optional = true }
 diesel-async = { workspace = true, optional = true }
 dioxus = { workspace = true }
-dotenvy = { workspace = true, optional = true }
 ipnetwork = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 serde = { workspace = true }
@@ -32,7 +31,6 @@ server = [
     "dep:deadpool-redis",
     "dep:diesel",
     "dep:diesel-async",
-    "dep:dotenvy",
     "dep:ipnetwork",
     "dep:rand",
     "dep:slug",

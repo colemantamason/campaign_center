@@ -23,8 +23,9 @@ impl Organization {
 
 pub type Permissions = HashMap<SubscriptionType, bool>;
 
-#[derive(Store)]
+#[derive(Clone, Store)]
 pub struct OrganizationMembership {
+    pub id: i32,
     pub organization_id: i32,
     pub organization: Organization,
     pub user_role: MemberRole,
@@ -33,6 +34,7 @@ pub struct OrganizationMembership {
 
 impl OrganizationMembership {
     pub fn new(
+        id: i32,
         organization_id: i32,
         name: String,
         avatar_url: Option<String>,
@@ -41,6 +43,7 @@ impl OrganizationMembership {
         permissions: Permissions,
     ) -> Self {
         Self {
+            id,
             organization_id,
             organization: Organization::new(organization_id, name, avatar_url, member_count),
             user_role,

@@ -3,9 +3,15 @@ pub mod gate;
 pub mod routes;
 
 use dioxus::prelude::*;
+#[cfg(feature = "server")]
+use dotenvy::dotenv;
 use routes::Routes;
 
 fn main() {
+    // load environment variables from .env file (ignored if file doesn't exist)
+    #[cfg(feature = "server")]
+    dotenv().ok();
+
     dioxus::launch(App);
 }
 

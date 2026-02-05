@@ -1,7 +1,7 @@
 use crate::state::{Notifications, OrganizationMemberships};
 use dioxus::prelude::*;
 
-#[derive(Store)]
+#[derive(Clone, Store)]
 pub struct UserAccount {
     pub id: i32,
     pub first_name: String,

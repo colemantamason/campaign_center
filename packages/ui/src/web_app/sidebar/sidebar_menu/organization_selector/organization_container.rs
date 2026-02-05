@@ -20,7 +20,7 @@ pub struct OrganizationContainerProps {
     avatar_url: Option<String>,
     member_count: Option<i32>,
     show_menu: Option<Signal<bool>>,
-    organization_id: Option<i32>,
+    organization_membership_id: Option<i32>,
     selected_organization_membership_id: Option<Signal<Option<i32>>>,
     show_confirmation_modal: Option<Signal<bool>>,
 }
@@ -108,7 +108,7 @@ pub fn OrganizationContainer(props: OrganizationContainerProps) -> Element {
                     if let Some(mut selected_organization_membership_id) = props
                         .selected_organization_membership_id
                     {
-                        selected_organization_membership_id.set(props.organization_id);
+                        selected_organization_membership_id.set(props.organization_membership_id);
                     }
                     if let Some(mut show_confirmation_modal) = props.show_confirmation_modal {
                         show_confirmation_modal.set(true);

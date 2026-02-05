@@ -7,6 +7,41 @@
 	"tasks": {
 		"version": "2.0.0",
 		"tasks": [
+			//Docker
+			{
+				"label": "Run Docker",
+				"type": "shell",
+				"command": "docker-compose -f compose.yml up",
+				"isBackground": true,
+				"options": {
+					"cwd": "${workspaceFolder}"
+				},
+			},
+			{
+				"label": "Stop Docker",
+				"type": "shell",
+				"command": "docker-compose -f compose.yml down",
+				"options": {
+					"cwd": "${workspaceFolder}"
+				},
+			},
+			// Diesel
+			{
+				"label": "Run Migrations",
+				"type": "shell",
+				"command": "diesel migration run",
+				"options": {
+					"cwd": "${workspaceFolder}"
+				},
+			},
+			{
+				"label": "Revert Migrations",
+				"type": "shell",
+				"command": "diesel migration revert",
+				"options": {
+					"cwd": "${workspaceFolder}"
+				},
+			},
 			// External Website
 			{
 				"label": "Tailwind CLI - external",
@@ -104,15 +139,6 @@
 		]
 	},
 	"settings": {
-		// "rust-analyzer.cargo.features": [
-		// 	"server",
-		// 	"web",
-		// 	"events",
-		// 	"marketing",
-		// 	"mobile_app",
-		// 	"shared",
-		// 	"web_app",
-		// ],
 		"rust-analyzer.cargo.features": "all",
 		"rust-analyzer.check.features": "all",
 		"files.associations": {
@@ -125,7 +151,7 @@
 		"tailwindCSS.includeLanguages": {
 			"rust": "html",
 		},
-		"tasksStatusbar.taskLabelFilter": "Run * |Build *",
+		"tasksStatusbar.taskLabelFilter": "Run * |Build *|Stop *|Revert *",
 		"emeraldwalk.runonsave": {
 			"commands": [
 				{
@@ -143,6 +169,7 @@
 			"Datelike",
 			"deadpool",
 			"dioxus",
+			"dotenv",
 			"dotenvy",
 			"emeraldwalk",
 			"evenodd",

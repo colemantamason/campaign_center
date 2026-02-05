@@ -81,7 +81,7 @@ fn Layout() -> Element {
         .read()
         .as_ref()
         .map(user_response_to_account)
-        .unwrap_or(empty_user_account);
+        .unwrap_or(empty_user_account.clone());
 
     // provide the UserAccountContext
     use_context_provider(|| UserAccountContext {
@@ -89,6 +89,25 @@ fn Layout() -> Element {
     });
 
     let user_account_context = use_context::<UserAccountContext>();
+
+    // sync UserAccountContext when AuthContext changes (e.g., after org creation)
+    use_effect(move || {
+        let updated_account = auth_context
+            .user_account
+            .read()
+            .as_ref()
+            .map(user_response_to_account)
+            .unwrap_or(empty_user_account.clone());
+
+        // Update the store with new data
+        user_account_context.user_account.id().set(updated_account.id);
+        user_account_context.user_account.first_name().set(updated_account.first_name);
+        user_account_context.user_account.last_name().set(updated_account.last_name);
+        user_account_context.user_account.avatar_url().set(updated_account.avatar_url);
+        user_account_context.user_account.active_organization_membership_id().set(updated_account.active_organization_membership_id);
+        user_account_context.user_account.organization_memberships().set(updated_account.organization_memberships);
+        user_account_context.user_account.notifications().set(updated_account.notifications);
+    });
 
     let current_route = router().full_route_string();
     let is_main_sidebar = !current_route.ends_with(&Routes::Login {}.to_string())

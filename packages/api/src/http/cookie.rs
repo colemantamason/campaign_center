@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 const SESSION_COOKIE_NAME: &str = "session_token";
 // mobile apps have sessions token sent via custom X-Session-Token header (stored in secure native storage)
 #[cfg(feature = "server")]
-const SESSION_TOKEN_HEADER: &str = "x-session-token";
+pub const SESSION_TOKEN_HEADER: &str = "x-session-token";
 
 // wrapper for server responses that need to set 'httponly' cookies, protects against XSS attacks
 #[derive(Clone, Debug, Deserialize, Serialize)]

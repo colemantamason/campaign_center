@@ -75,6 +75,7 @@ impl AuthContext {
 pub fn user_response_to_account(response: &UserAccountResponse) -> UserAccount {
     let mut organization_memberships: OrganizationMemberships = HashMap::new();
 
+    // The HashMap is keyed by membership_id (not organization_id)
     for (id, membership_info) in &response.organization_memberships {
         let organization = Organization::new(
             membership_info.organization.id,
@@ -86,7 +87,8 @@ pub fn user_response_to_account(response: &UserAccountResponse) -> UserAccount {
         let permissions: Permissions = membership_info.permissions.clone();
 
         let membership = OrganizationMembership {
-            organization_id: *id,
+            id: *id,
+            organization_id: membership_info.organization_id,
             organization,
             user_role: membership_info.user_role.clone(),
             permissions,
@@ -113,19 +115,19 @@ pub fn use_auth_init() -> AuthContext {
 
     // Check auth state on mount - cookies are sent automatically
     use_effect(move || {
-        let mut auth_ctx = auth_context_for_effect.clone();
+        let mut auth_context_for_effect = auth_context_for_effect.clone();
 
         spawn(async move {
             // cookies are sent automatically with the request
             match get_current_user().await {
                 Ok(Some(user)) => {
-                    auth_ctx.set_authenticated(user);
+                    auth_context_for_effect.set_authenticated(user);
                 }
                 Ok(None) => {
-                    auth_ctx.clear();
+                    auth_context_for_effect.clear();
                 }
                 Err(_) => {
-                    auth_ctx.clear();
+                    auth_context_for_effect.clear();
                 }
             }
         });

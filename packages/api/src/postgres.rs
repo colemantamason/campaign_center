@@ -15,8 +15,8 @@ pub fn is_postgres_initialized() -> bool {
 }
 
 pub fn initialize_postgres_pool() -> Result<(), AppError> {
-    let postgres_url = std::env::var("POSTGRES_URL")
-        .map_err(|_| AppError::ConfigError("POSTGRES_URL not set".to_string()))?;
+    let postgres_url = std::env::var("DATABASE_URL")
+        .map_err(|_| AppError::ConfigError("DATABASE_URL not set".to_string()))?;
 
     let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(&postgres_url);
 

@@ -3,8 +3,8 @@ use crate::error::AppError;
 use crate::http::WithCookie;
 #[cfg(feature = "server")]
 use crate::http::{
-    extract_client_ip, extract_user_agent, get_session_from_headers, is_secure_request,
-    WithCookieExt,
+    create_clear_cookie, create_session_cookie, extract_client_ip, extract_user_agent,
+    get_cookie_domain, get_session_from_headers, is_secure_request, SESSION_TOKEN_HEADER,
 };
 use crate::interfaces::{
     AuthResponse, LoginRequest, OrganizationInfo, OrganizationMembershipInfo, RegisterRequest,
@@ -23,6 +23,8 @@ use crate::services::{
     delete_session, get_user_by_id, list_user_organizations, register_user,
     validate_session as validate_session_service,
 };
+#[cfg(feature = "server")]
+use axum::http::{header::SET_COOKIE, HeaderName, HeaderValue};
 use dioxus::fullstack::HeaderMap;
 use dioxus::prelude::*;
 use std::collections::HashMap;
@@ -72,11 +74,28 @@ pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthRespons
     };
     cache_session(&token, &cached).await.ok();
 
-    // create auth response with session cookie set via http header
+    // set session token via dioxus fullstack context
     // session token is NOT included in the JSON response body (security: prevents XSS token theft)
     // web browsers receive the token via HttpOnly Set-Cookie header
-    // mobile apps receive the token via X-Session-Token header
+    // mobile apps receive the token via X-Session-Token header (stored in secure native storage)
     let secure = is_secure_request(&headers);
+    let domain = get_cookie_domain();
+    let cookie = create_session_cookie(&token, secure, domain.as_deref());
+
+    if let Some(context) = FullstackContext::current() {
+        // set cookie for web browsers
+        if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
+            context.add_response_header(SET_COOKIE, cookie_value);
+        }
+        // set token header for mobile apps
+        if let Ok(token_value) = token.parse::<HeaderValue>() {
+            context.add_response_header(
+                axum::http::HeaderName::from_static(SESSION_TOKEN_HEADER),
+                token_value,
+            );
+        }
+    }
+
     let auth_response = AuthResponse {
         user_id: user.id,
         email: user.email,
@@ -84,11 +103,7 @@ pub async fn register(request: RegisterRequest) -> Result<WithCookie<AuthRespons
         last_name: user.last_name,
     };
 
-    Ok(WithCookie::with_session_cookie(
-        auth_response,
-        &token,
-        secure,
-    ))
+    Ok(WithCookie::without_cookie(auth_response))
 }
 
 #[post("/api/auth/login", headers: HeaderMap)]
@@ -117,9 +132,25 @@ pub async fn login(request: LoginRequest) -> Result<WithCookie<AuthResponse>, Se
     };
     cache_session(&token, &cached).await.ok();
 
-    // create auth response with session cookie set via http header
+    // set session token via dioxus fullstack context
     // session token is NOT included in the JSON response body (security: prevents XSS token theft)
+    // web browsers receive the token via HttpOnly Set-Cookie header
+    // mobile apps receive the token via X-Session-Token header (stored in secure native storage)
     let secure = is_secure_request(&headers);
+    let domain = get_cookie_domain();
+    let cookie = create_session_cookie(&token, secure, domain.as_deref());
+
+    if let Some(context) = FullstackContext::current() {
+        // set cookie for web browsers
+        if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
+            context.add_response_header(SET_COOKIE, cookie_value);
+        }
+        // set token header for mobile apps
+        if let Ok(token_value) = token.parse::<HeaderValue>() {
+            context.add_response_header(HeaderName::from_static(SESSION_TOKEN_HEADER), token_value);
+        }
+    }
+
     let auth_response = AuthResponse {
         user_id: user.id,
         email: user.email,
@@ -127,11 +158,7 @@ pub async fn login(request: LoginRequest) -> Result<WithCookie<AuthResponse>, Se
         last_name: user.last_name,
     };
 
-    Ok(WithCookie::with_session_cookie(
-        auth_response,
-        &token,
-        secure,
-    ))
+    Ok(WithCookie::without_cookie(auth_response))
 }
 
 /// logout response data (success indicator)
@@ -161,10 +188,25 @@ pub async fn logout() -> Result<WithCookie<LogoutResponse>, ServerFnError> {
         }
     }
 
-    // return response with set-cookie header that clears the cookie
-    Ok(WithCookie::clearing_cookie(LogoutResponse {
-        success: true,
-    }))
+    // clear session via dioxus fullstack context
+    // web browsers: clear cookie
+    // mobile apps: send empty token header (client should delete from secure storage)
+    let domain = get_cookie_domain();
+    let cookie = create_clear_cookie(domain.as_deref());
+
+    if let Some(context) = FullstackContext::current() {
+        // clear cookie for web browsers
+        if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
+            context.add_response_header(SET_COOKIE, cookie_value);
+        }
+        // send empty token header for mobile apps (signals logout)
+        context.add_response_header(
+            HeaderName::from_static(SESSION_TOKEN_HEADER),
+            HeaderValue::from_static(""),
+        );
+    }
+
+    Ok(WithCookie::without_cookie(LogoutResponse { success: true }))
 }
 
 #[get("/api/auth/current_user", headers: HeaderMap)]
@@ -229,6 +271,7 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
         }
 
         let membership_info = OrganizationMembershipInfo {
+            id: member.id,
             organization_id: organization.id,
             organization: OrganizationInfo {
                 id: organization.id,
@@ -240,7 +283,8 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
             permissions,
         };
 
-        organization_memberships.insert(organization.id, membership_info);
+        // Key by membership_id (not organization.id) to match active_organization_membership_id
+        organization_memberships.insert(member.id, membership_info);
     }
 
     Ok(Some(UserAccountResponse {

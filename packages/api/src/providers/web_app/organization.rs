@@ -98,18 +98,20 @@ pub async fn create_organization(
 
     let (token_string, session) = get_validated_session_from_headers(&headers).await?;
 
-    // create_organization_service already adds the creator as owner
-    let organization = create_organization_service(request.name, request.slug, session.user_id)
+    // create_organization_service returns both organization and membership (creator as owner)
+    let (organization, membership) =
+        create_organization_service(request.name, request.slug, session.user_id)
+            .await
+            .map_err(|error| ServerFnError::new(error.to_string()))?;
+
+    // auto-set this as the active organization using the MEMBERSHIP ID (not organization ID)
+    // The sessions.active_organization_membership_id FK references organization_members.id
+    set_active_organization_service(session.session_id, Some(membership.id))
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // auto-set this as the active organization
-    set_active_organization_service(session.session_id, Some(organization.id))
-        .await
-        .ok();
-
-    // update the cached session with the new active org
-    update_cached_session_active_organization_membership_id(&token_string, Some(organization.id))
+    // update the cached session with the new active org membership ID
+    update_cached_session_active_organization_membership_id(&token_string, Some(membership.id))
         .await
         .ok();
 
@@ -127,21 +129,19 @@ pub async fn set_active_organization(organization_id: i32) -> Result<(), ServerF
 
     let (token_string, session) = get_validated_session_from_headers(&headers).await?;
 
-    // verify user is a member of the organization
+    // verify user is a member of the organization and get their membership
     let membership = get_membership(organization_id, session.user_id)
         .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .map_err(|error| ServerFnError::new(error.to_string()))?
+        .ok_or_else(|| ServerFnError::new("Not a member of this organization"))?;
 
-    if membership.is_none() {
-        return Err(ServerFnError::new("Not a member of this organization"));
-    }
-
-    set_active_organization_service(session.session_id, Some(organization_id))
+    // Use the MEMBERSHIP ID (not organization ID) - FK references organization_members.id
+    set_active_organization_service(session.session_id, Some(membership.id))
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    // update the cached session
-    update_cached_session_active_organization_membership_id(&token_string, Some(organization_id))
+    // update the cached session with membership ID
+    update_cached_session_active_organization_membership_id(&token_string, Some(membership.id))
         .await
         .ok();
 

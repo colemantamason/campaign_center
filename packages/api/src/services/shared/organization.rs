@@ -10,11 +10,13 @@ use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use slug::slugify;
 
+/// Creates a new organization and adds the creator as owner.
+/// Returns both the Organization and the OrganizationMember (for the owner).
 pub async fn create_organization(
     name: String,
     slug_override: Option<String>,
     user_id: i32,
-) -> Result<Organization, AppError> {
+) -> Result<(Organization, OrganizationMember), AppError> {
     if name.trim().is_empty() {
         return Err(AppError::validation(
             "name",
@@ -49,16 +51,16 @@ pub async fn create_organization(
 
     let owner_member = NewOrganizationMember::new(organization.id, user_id, MemberRole::Owner);
 
-    diesel::insert_into(organization_members::table)
+    let membership: OrganizationMember = diesel::insert_into(organization_members::table)
         .values(&owner_member)
-        .execute(connection)
+        .get_result(connection)
         .await
         .map_err(|error| AppError::ExternalServiceError {
             service: "Postgres".to_string(),
             message: error.to_string(),
         })?;
 
-    Ok(organization)
+    Ok((organization, membership))
 }
 
 async fn ensure_unique_slug(

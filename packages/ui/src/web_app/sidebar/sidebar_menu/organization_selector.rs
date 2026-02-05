@@ -79,50 +79,52 @@ pub fn OrganizationSelector(mut props: OrganizationSelectorProps) -> Element {
                         {
                             // filter organizations based on search text
                             let search = search_text.read().to_lowercase();
-                            let mut visible_organizations: Vec<Organization> = user_account
+                            // Keep full membership info (not just Organization) to preserve membership_id
+                            // Clone memberships into a vec to own the data (avoids borrow issues)
+                            let mut visible_memberships: Vec<_> = user_account
                                 .organization_memberships()
                                 .read()
                                 .values()
                                 .filter(|membership| {
                                     membership.organization.name.to_lowercase().contains(&search)
                                 })
-                                .map(|membership| membership.organization.clone())
+                                .cloned()
                                 .collect();
-                            visible_organizations
+                            visible_memberships
                                 .sort_by(|a, b| {
-                                    let a_is_active = a.id == active_organization.read().id;
-                                    let b_is_active = b.id == active_organization.read().id;
+                                    let a_is_active = a.organization.id == active_organization.read().id;
+                                    let b_is_active = b.organization.id == active_organization.read().id;
                                     if a_is_active && !b_is_active {
                                         Ordering::Less
                                     } else if !a_is_active && b_is_active {
                                         Ordering::Greater
                                     } else {
-                                        a.name.cmp(&b.name)
+                                        a.organization.name.cmp(&b.organization.name)
                                     }
                                 });
-                            if visible_organizations.is_empty() {
+                            if visible_memberships.is_empty() {
                                 rsx! {
                                     div { class: "px-4 py-3 text-sm text-muted-foreground text-center", "No results found" }
                                 }
                             } else {
                                 rsx! {
-                                    for organization in visible_organizations {
-                                        div { key: "{organization.id}", class: "w-full px-2",
-                                            if organization.id == active_organization.read().id {
+                                    for membership in visible_memberships {
+                                        div { key: "{membership.id}", class: "w-full px-2",
+                                            if membership.organization.id == active_organization.read().id {
                                                 OrganizationContainer {
                                                     r#type: OrganizationContainerType::Active,
-                                                    name: Some(organization.name.clone().into()),
-                                                    avatar_url: organization.avatar_url.clone(),
-                                                    member_count: Some(organization.member_count.into()),
+                                                    name: Some(membership.organization.name.clone().into()),
+                                                    avatar_url: membership.organization.avatar_url.clone(),
+                                                    member_count: Some(membership.organization.member_count.into()),
                                                 }
                                             } else {
                                                 OrganizationContainer {
                                                     r#type: OrganizationContainerType::NonActive,
-                                                    name: Some(organization.name.clone().into()),
-                                                    avatar_url: organization.avatar_url.clone(),
-                                                    member_count: Some(organization.member_count.into()),
+                                                    name: Some(membership.organization.name.clone().into()),
+                                                    avatar_url: membership.organization.avatar_url.clone(),
+                                                    member_count: Some(membership.organization.member_count.into()),
                                                     show_menu: Some(props.show_menu.into()),
-                                                    organization_id: Some(organization.id.into()),
+                                                    organization_membership_id: Some(membership.id.into()),
                                                     selected_organization_membership_id: Some(selected_organization_membership_id.into()),
                                                     show_confirmation_modal: Some(show_confirmation_modal.into()),
                                                 }
