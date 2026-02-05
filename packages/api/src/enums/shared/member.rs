@@ -38,7 +38,6 @@ impl MemberRole {
         }
     }
 
-    // check if this role can manage the target role
     pub fn can_manage(&self, target: &MemberRole) -> bool {
         match (self, target) {
             (MemberRole::Owner, _) => true,

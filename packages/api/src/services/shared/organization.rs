@@ -1,4 +1,4 @@
-use crate::enums::{MemberRole, SubscriptionType};
+use crate::enums::{MemberRole, OrganizationType, SubscriptionType};
 use crate::error::AppError;
 use crate::models::{
     NewOrganization, NewOrganizationMember, Organization, OrganizationMember,
@@ -10,11 +10,10 @@ use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use slug::slugify;
 
-/// Creates a new organization and adds the creator as owner.
-/// Returns both the Organization and the OrganizationMember (for the owner).
 pub async fn create_organization(
     name: String,
     slug_override: Option<String>,
+    organization_type: OrganizationType,
     user_id: i32,
 ) -> Result<(Organization, OrganizationMember), AppError> {
     if name.trim().is_empty() {
@@ -35,6 +34,7 @@ pub async fn create_organization(
     let new_organization = NewOrganization::new(
         name.trim().to_string(),
         final_slug,
+        organization_type,
         "America/New_York".to_string(), // TODO: allow timezone selection
         Vec::from([SubscriptionType::Events]), // TODO: add in subscriptions
         user_id,
@@ -281,7 +281,6 @@ pub async fn update_member_role(
 pub async fn remove_member(member_id: i32) -> Result<(), AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    // Get member to check they're not the owner
     let member: OrganizationMember = organization_members::table
         .find(member_id)
         .first(connection)

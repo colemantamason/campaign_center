@@ -4,7 +4,6 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 // used by both redis cache TTL and postgres session expiry (7 days in seconds)
 pub const DEFAULT_SESSION_EXPIRY_SECONDS: i64 = 604800;
 
-// platform from which the session was created
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub enum Platform {
     Web,
@@ -41,7 +40,6 @@ impl Display for Platform {
     }
 }
 
-// device information parsed from user agent string
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DeviceInfo {
     pub os: Option<String>,
@@ -51,11 +49,9 @@ pub struct DeviceInfo {
 }
 
 impl DeviceInfo {
-    // parse device info from user agent string
     pub fn from_user_agent(user_agent: &str) -> Self {
         let user_agent = user_agent.to_lowercase();
 
-        // detect OS
         let (os, os_version) = if user_agent.contains("iphone")
             || user_agent.contains("ipad")
             || user_agent.contains("ios")
@@ -84,7 +80,6 @@ impl DeviceInfo {
             (None, None)
         };
 
-        // detect device type
         let device_type = if user_agent.contains("iphone") {
             Some("iPhone".to_string())
         } else if user_agent.contains("ipad") {
@@ -97,7 +92,6 @@ impl DeviceInfo {
             None
         };
 
-        // detect browser (for web sessions)
         let browser = if user_agent.contains("edg/") {
             Some("Edge".to_string())
         } else if user_agent.contains("chrome") && !user_agent.contains("chromium") {

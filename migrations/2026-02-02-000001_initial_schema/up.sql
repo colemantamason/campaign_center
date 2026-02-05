@@ -42,6 +42,7 @@ CREATE TABLE organizations (
     -- Basic Info
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
+    organization_type VARCHAR(50) NOT NULL,
     description TEXT,
     avatar_url TEXT,
     website_url TEXT,

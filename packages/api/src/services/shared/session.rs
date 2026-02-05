@@ -60,7 +60,6 @@ pub async fn get_session_by_token(token: Uuid) -> Result<Session, AppError> {
         .ok_or(AppError::NotAuthenticated)?;
 
     if !session.is_valid() {
-        // delete expired session
         diesel::delete(sessions::table.find(session.id))
             .execute(connection)
             .await
@@ -74,7 +73,6 @@ pub async fn get_session_by_token(token: Uuid) -> Result<Session, AppError> {
 pub async fn validate_session(token: Uuid) -> Result<Session, AppError> {
     let session = get_session_by_token(token).await?;
 
-    // update last accessed time
     let connection = &mut get_postgres_connection().await?;
     diesel::update(sessions::table.find(session.id))
         .set(sessions::last_accessed_at.eq(Utc::now()))
@@ -125,7 +123,6 @@ pub async fn delete_session(token: Uuid) -> Result<(), AppError> {
 pub async fn delete_all_user_sessions(user_id: i32) -> Result<i32, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    // first, fetch all session tokens for this user so we can invalidate redis cache
     let tokens: Vec<Uuid> = sessions::table
         .filter(sessions::user_id.eq(user_id))
         .select(sessions::token)
@@ -136,7 +133,7 @@ pub async fn delete_all_user_sessions(user_id: i32) -> Result<i32, AppError> {
             message: error.to_string(),
         })?;
 
-    // invalidate each session in redis cache
+    // invalidate each session in redis cache and postgres
     for token in &tokens {
         if let Err(error) = invalidate_cached_session(&token.to_string()).await {
             tracing::warn!(
@@ -147,7 +144,6 @@ pub async fn delete_all_user_sessions(user_id: i32) -> Result<i32, AppError> {
         }
     }
 
-    // then delete all sessions from postgres
     let count = diesel::delete(sessions::table.filter(sessions::user_id.eq(user_id)))
         .execute(connection)
         .await
@@ -193,7 +189,6 @@ pub async fn cleanup_expired_sessions() -> Result<i32, AppError> {
     Ok(count as i32)
 }
 
-// delete all sessions for a user on a specific platform (e.g., "revoke all mobile sessions")
 pub async fn delete_user_sessions_by_platform(
     user_id: i32,
     platform: Platform,
@@ -201,7 +196,6 @@ pub async fn delete_user_sessions_by_platform(
     let connection = &mut get_postgres_connection().await?;
     let platform_string = platform.as_str();
 
-    // fetch session tokens for redis cache invalidation
     let tokens: Vec<Uuid> = sessions::table
         .filter(sessions::user_id.eq(user_id))
         .filter(sessions::platform.eq(platform_string))
@@ -213,7 +207,7 @@ pub async fn delete_user_sessions_by_platform(
             message: error.to_string(),
         })?;
 
-    // invalidate each session in redis cache
+    // invalidate each session in redis cache and postgres
     for token in &tokens {
         if let Err(error) = invalidate_cached_session(&token.to_string()).await {
             tracing::warn!(
@@ -224,7 +218,6 @@ pub async fn delete_user_sessions_by_platform(
         }
     }
 
-    // delete sessions from postgres
     let count = diesel::delete(
         sessions::table
             .filter(sessions::user_id.eq(user_id))

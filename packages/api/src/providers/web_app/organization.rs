@@ -87,7 +87,7 @@ pub async fn create_organization(
     let (token_string, session) = get_validated_session_from_headers(&headers).await?;
 
     let (organization, membership) =
-        create_organization_service(request.name, request.slug, session.user_id)
+        create_organization_service(request.name, request.slug, request.organization_type, session.user_id)
             .await
             .map_err(|error| ServerFnError::new(error.to_string()))?;
 

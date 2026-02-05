@@ -1,6 +1,7 @@
 use crate::auth::AuthContext;
 use crate::gate::Gate;
 use crate::routes::Routes;
+use api::enums::OrganizationType;
 use api::interfaces::CreateOrganizationRequest;
 use api::providers::{create_organization, get_current_user};
 use dioxus::prelude::*;
@@ -8,6 +9,7 @@ use dioxus::prelude::*;
 #[component]
 pub fn CreateOrganization() -> Element {
     let mut name = use_signal(String::new);
+    let mut organization_type = use_signal(|| OrganizationType::Campaign);
     let mut create_error = use_signal(|| None::<String>);
     let mut is_loading = use_signal(|| false);
     let auth_context = use_context::<AuthContext>();
@@ -23,6 +25,7 @@ pub fn CreateOrganization() -> Element {
                 name: name.read().clone(),
                 slug: None,
                 description: None,
+                organization_type: *organization_type.read(),
             };
 
             match create_organization(request).await {
@@ -71,8 +74,27 @@ pub fn CreateOrganization() -> Element {
                         div {
                             label {
                                 class: "block text-sm font-medium mb-1",
+                                r#for: "org-type",
+                                "Type"
+                            }
+                            select {
+                                id: "org-type",
+                                class: "w-full px-3 py-2 border border-input rounded-md bg-background",
+                                onchange: move |evt| {
+                                    if let Some(org_type) = OrganizationType::from_str(&evt.value()) {
+                                        organization_type.set(org_type);
+                                    }
+                                },
+                                option { value: "campaign", selected: *organization_type.read() == OrganizationType::Campaign, "Campaign" }
+                                option { value: "organization", selected: *organization_type.read() == OrganizationType::Organization, "Organization" }
+                            }
+                        }
+
+                        div {
+                            label {
+                                class: "block text-sm font-medium mb-1",
                                 r#for: "name",
-                                "Organization Name"
+                                "Name"
                             }
                             input {
                                 id: "name",

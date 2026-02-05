@@ -200,7 +200,7 @@ pub fn extract_client_ip(headers: &HeaderMap) -> Option<String> {
         }
     }
 
-    // in development or when not behind a proxy, return None
+    // in development return None
     None
 }
 

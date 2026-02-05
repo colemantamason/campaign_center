@@ -117,6 +117,8 @@ diesel::table! {
         name -> Varchar,
         #[max_length = 100]
         slug -> Varchar,
+        #[max_length = 50]
+        organization_type -> Varchar,
         description -> Nullable<Text>,
         avatar_url -> Nullable<Text>,
         website_url -> Nullable<Text>,

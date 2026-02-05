@@ -1,48 +1,8 @@
+use crate::enums::{InvitationStatus, DEFAULT_INVITATION_EXPIRY_DAYS};
 use crate::schema::invitations;
 use chrono::{DateTime, Duration, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use uuid::Uuid;
-
-#[derive(PartialEq)]
-pub enum InvitationStatus {
-    Pending,
-    Accepted,
-    Expired,
-}
-
-impl InvitationStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            InvitationStatus::Pending => "pending",
-            InvitationStatus::Accepted => "accepted",
-            InvitationStatus::Expired => "expired",
-        }
-    }
-
-    pub fn from_str(string: &str) -> Option<Self> {
-        match string {
-            "pending" => Some(InvitationStatus::Pending),
-            "accepted" => Some(InvitationStatus::Accepted),
-            "expired" => Some(InvitationStatus::Expired),
-            _ => None,
-        }
-    }
-
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            InvitationStatus::Pending => "Pending",
-            InvitationStatus::Accepted => "Accepted",
-            InvitationStatus::Expired => "Expired",
-        }
-    }
-}
-
-impl Display for InvitationStatus {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        write!(formatter, "{}", self.display_name())
-    }
-}
 
 #[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = invitations)]
@@ -95,7 +55,7 @@ impl NewInvitation {
             token: Uuid::new_v4(),
             status: InvitationStatus::Pending.as_str().to_string(),
             invited_by,
-            expires_at: Utc::now() + Duration::days(7), // expires after 7 days
+            expires_at: Utc::now() + Duration::days(DEFAULT_INVITATION_EXPIRY_DAYS),
         }
     }
 }

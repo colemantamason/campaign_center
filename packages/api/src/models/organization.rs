@@ -1,4 +1,4 @@
-use crate::enums::SubscriptionType;
+use crate::enums::{OrganizationType, SubscriptionType};
 use crate::schema::organizations;
 use chrono::{DateTime, Utc};
 use diesel::{pg::Pg as Postgres, prelude::*};
@@ -10,6 +10,7 @@ pub struct Organization {
     pub id: i32,
     pub name: String,
     pub slug: String,
+    pub organization_type: String,
     pub description: Option<String>,
     pub avatar_url: Option<String>,
     pub website_url: Option<String>,
@@ -29,6 +30,11 @@ pub struct Organization {
 }
 
 impl Organization {
+    pub fn get_organization_type(&self) -> OrganizationType {
+        OrganizationType::from_str(&self.organization_type)
+            .unwrap_or(OrganizationType::Organization)
+    }
+
     pub fn get_subscriptions(&self) -> Vec<SubscriptionType> {
         self.subscriptions
             .iter()
@@ -46,6 +52,7 @@ impl Organization {
 pub struct NewOrganization {
     pub name: String,
     pub slug: String,
+    pub organization_type: String,
     pub description: Option<String>,
     pub timezone: String,
     pub subscriptions: Vec<Option<String>>,
@@ -56,6 +63,7 @@ impl NewOrganization {
     pub fn new(
         name: String,
         slug: String,
+        organization_type: OrganizationType,
         timezone: String,
         subscriptions: Vec<SubscriptionType>,
         created_by: i32,
@@ -63,6 +71,7 @@ impl NewOrganization {
         Self {
             name,
             slug,
+            organization_type: organization_type.as_str().to_string(),
             description: None,
             timezone,
             subscriptions: subscriptions

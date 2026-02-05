@@ -1,14 +1,14 @@
+use crate::enums::OrganizationType;
 use serde::{Deserialize, Serialize};
 
-// request to create a new organization
 #[derive(Deserialize, Serialize)]
 pub struct CreateOrganizationRequest {
     pub name: String,
     pub slug: Option<String>,
     pub description: Option<String>,
+    pub organization_type: OrganizationType,
 }
 
-// organization response
 #[derive(Deserialize, Serialize)]
 pub struct OrganizationResponse {
     pub id: i32,
@@ -17,7 +17,6 @@ pub struct OrganizationResponse {
     pub description: Option<String>,
 }
 
-// organization member response
 #[derive(Deserialize, Serialize)]
 pub struct OrganizationMemberResponse {
     pub user_id: i32,
@@ -28,7 +27,6 @@ pub struct OrganizationMemberResponse {
     pub last_name: String,
 }
 
-// request to invite a user to an organization
 #[derive(Deserialize, Serialize)]
 pub struct InviteMemberRequest {
     pub email: String,

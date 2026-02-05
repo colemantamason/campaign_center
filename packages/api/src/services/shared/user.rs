@@ -61,15 +61,13 @@ pub async fn register_user(
         })
 }
 
-// pre-computed dummy hash for timing attack mitigation
-// this ensures consistent response time whether user exists or not
+// hash for "hunter42" used for timing attack mitigation
 const DUMMY_PASSWORD_HASH: &str =
     "$argon2id$v=19$m=16,t=2,p=1$cnE4cnVmWGNhaTVLSXBrag$csCTOmrwecqL022wLOtkWA";
 
 pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    // fetch user (may be None if not found)
     let user: Option<User> = users::table
         .filter(users::email.eq(&email.to_lowercase()))
         .first(connection)
@@ -80,8 +78,7 @@ pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppE
             message: error.to_string(),
         })?;
 
-    // timing attack mitigation: always verify a hash to normalize response time
-    // whether the user exists or not, we perform the same expensive hash verification
+    // timing attack mitigation: even if the user doesn't exist, we verify a hash to normalize response time
     let hash_to_verify = user
         .as_ref()
         .map(|u| u.password_hash.as_str())

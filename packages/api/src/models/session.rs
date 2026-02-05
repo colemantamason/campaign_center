@@ -30,7 +30,6 @@ impl Session {
         Platform::from_str(&self.platform).unwrap_or(Platform::Web)
     }
 
-    // get device info parsed from user agent
     pub fn device_info(&self) -> Option<DeviceInfo> {
         self.user_agent
             .as_ref()
@@ -38,7 +37,6 @@ impl Session {
     }
 
     // get a human-readable device description for display in UI
-    // e.g., "iPhone (iOS 17.2)" or "Chrome on macOS"
     pub fn device_display(&self) -> String {
         match self.device_info() {
             Some(info) => info.display_string(self.platform()),
