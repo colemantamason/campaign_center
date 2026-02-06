@@ -30,6 +30,7 @@ pub fn initialize_minio_client() -> Result<(), AppError> {
         .region(Region::new("us-east-1"))
         .credentials_provider(credentials)
         .force_path_style(true)
+        .behavior_version_latest()
         .build();
 
     let client = Client::from_conf(config);

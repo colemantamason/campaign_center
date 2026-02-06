@@ -28,7 +28,7 @@ ui = { path = "packages/ui" }
 web_app = { path = "packages/web_app" }
 
 argon2 = { version = "0.5.3" }
-aws-config = { version = "1.8.13", features = ["behavior-version-latest"] }
+aws-config = { version = "1.8.13" }
 aws-credential-types = { version = "1.2.11" }
 aws-sdk-s3 = { version = "1.121" }
 axum = { version = "0.8.8" }
