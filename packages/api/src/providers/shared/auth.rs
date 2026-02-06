@@ -32,6 +32,7 @@ pub async fn register(request: RegisterRequest) -> Result<WithToken<AuthResponse
         request.password,
         request.first_name,
         request.last_name,
+        request.is_staff,
     )
     .await
     .map_err(|error| ServerFnError::new(error.to_string()))?;
@@ -46,6 +47,7 @@ pub async fn register(request: RegisterRequest) -> Result<WithToken<AuthResponse
         session_id: session.id,
         user_id: user.id,
         active_organization_membership_id: None,
+        is_staff: user.is_staff,
     };
 
     if let Err(error) = redis_cache_session(&token, &cached, None).await {
@@ -62,6 +64,7 @@ pub async fn register(request: RegisterRequest) -> Result<WithToken<AuthResponse
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        is_staff: user.is_staff,
     };
 
     Ok(WithToken::new(auth_response))
@@ -86,6 +89,7 @@ pub async fn login(request: LoginRequest) -> Result<WithToken<AuthResponse>, Ser
         session_id: session.id,
         user_id: user.id,
         active_organization_membership_id: session.active_organization_membership_id,
+        is_staff: user.is_staff,
     };
 
     if let Err(error) = redis_cache_session(&token, &cached, None).await {
@@ -99,6 +103,7 @@ pub async fn login(request: LoginRequest) -> Result<WithToken<AuthResponse>, Ser
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        is_staff: user.is_staff,
     };
 
     Ok(WithToken::new(auth_response))
@@ -201,6 +206,7 @@ pub async fn validate_session() -> Result<Option<AuthResponse>, ServerFnError> {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        is_staff: user.is_staff,
     }))
 }
 

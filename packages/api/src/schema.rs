@@ -323,6 +323,7 @@ diesel::table! {
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
         last_login_at -> Nullable<Timestamptz>,
+        is_staff -> Bool,
     }
 }
 

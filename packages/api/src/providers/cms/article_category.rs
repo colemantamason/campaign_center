@@ -17,7 +17,7 @@ use dioxus::prelude::*;
 pub async fn create_category(
     request: CreateCategoryRequest,
 ) -> Result<CategoryResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let category = create_category_service(
         request.name,
@@ -36,7 +36,7 @@ pub async fn create_category(
 pub async fn list_categories(
     article_type: ArticleType,
 ) -> Result<Vec<CategoryResponse>, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let categories = list_categories_service(article_type)
         .await
@@ -53,7 +53,7 @@ pub async fn update_category(
     category_id: i32,
     request: UpdateCategoryRequest,
 ) -> Result<CategoryResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let category = update_category_service(
         category_id,
@@ -70,7 +70,7 @@ pub async fn update_category(
 
 #[post("/api/cms/categories/delete", auth: AuthSession)]
 pub async fn delete_category(category_id: i32) -> Result<(), ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     delete_category_service(category_id)
         .await
@@ -81,7 +81,7 @@ pub async fn delete_category(category_id: i32) -> Result<(), ServerFnError> {
 
 #[post("/api/cms/categories/reorder", auth: AuthSession)]
 pub async fn reorder_categories(request: ReorderCategoriesRequest) -> Result<(), ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     batch_reorder_categories_service(request.order)
         .await

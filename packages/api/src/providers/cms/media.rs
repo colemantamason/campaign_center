@@ -15,7 +15,7 @@ use dioxus::prelude::*;
 pub async fn upload_media(
     request: UploadMediaRequest,
 ) -> Result<MediaAssetResponse, ServerFnError> {
-    let session = auth.require_auth()?;
+    let session = auth.require_staff()?;
 
     // TODO: actual file bytes will come via multipart upload or a two-step presigned URL flow;
     // for now the service creates the DB record and placeholder upload
@@ -50,7 +50,7 @@ pub async fn upload_media(
 pub async fn list_media(
     request: ListMediaRequest,
 ) -> Result<MediaListResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let page = request.page.unwrap_or(1).max(1);
     let per_page = request.per_page.unwrap_or(20).clamp(1, 100);
@@ -87,7 +87,7 @@ pub async fn list_media(
 
 #[post("/api/cms/media/delete", auth: AuthSession)]
 pub async fn delete_media(asset_id: i32) -> Result<(), ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     delete_media_service(asset_id)
         .await

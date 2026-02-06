@@ -11,6 +11,7 @@ pub struct CachedSession {
     pub session_id: i32,
     pub user_id: i32,
     pub active_organization_membership_id: Option<i32>,
+    pub is_staff: bool,
 }
 
 pub fn is_redis_initialized() -> bool {
@@ -136,7 +137,8 @@ pub async fn update_redis_cached_session_active_organization_membership_id(
 ) -> Result<(), AppError> {
     if let Some(mut session) = get_redis_cached_session(token).await? {
         session.active_organization_membership_id = organization_id;
-        redis_cache_session(token, &session, None).await?;
+        let remaining_expiry = get_redis_session_expiry(token).await.ok();
+        redis_cache_session(token, &session, remaining_expiry).await?;
     }
 
     Ok(())

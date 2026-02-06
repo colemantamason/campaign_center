@@ -1,13 +1,10 @@
 use crate::enums::{ArticleStatus, ArticleType};
 use crate::error::AppError;
-use crate::interfaces::{
-    ArticleAuthorInfo, ArticleCategoryInfo, ArticleTagInfo, PublicArticleListResponse,
-    PublicArticleResponse,
-};
+use crate::interfaces::{PublicArticleListResponse, PublicArticleResponse};
 use crate::models::Article;
 use crate::postgres::get_postgres_connection;
 use crate::redis::{get_redis_cached_article_by_slug, redis_cache_article_by_slug};
-use crate::schema::{article_categories, article_tags, articles, articles_tags, users};
+use crate::schema::{article_categories, article_tags, articles, articles_tags};
 use crate::services::cms::article::{
     batch_get_author_infos, batch_get_category_infos, batch_get_tag_infos,
 };
@@ -36,7 +33,11 @@ pub async fn get_published_article_by_slug(slug: &str) -> Result<PublicArticleRe
         })?
         .ok_or_else(|| AppError::not_found("Article"))?;
 
-    let response = build_public_article_response(&article).await?;
+    let response = batch_build_public_article_responses(&[article])
+        .await?
+        .into_iter()
+        .next()
+        .ok_or_else(|| AppError::InternalError("Failed to build article response".to_string()))?;
 
     if let Ok(json) = serde_json::to_string(&response) {
         redis_cache_article_by_slug(slug, &json).await.ok();
@@ -156,100 +157,7 @@ pub async fn list_published_articles(
     })
 }
 
-async fn build_public_article_response(
-    article: &Article,
-) -> Result<PublicArticleResponse, AppError> {
-    let connection = &mut get_postgres_connection().await?;
-
-    let (first_name, last_name, avatar_url): (String, String, Option<String>) = users::table
-        .find(article.author_id)
-        .select((users::first_name, users::last_name, users::avatar_url))
-        .first(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
-
-    let author = ArticleAuthorInfo {
-        id: article.author_id,
-        first_name,
-        last_name,
-        avatar_url,
-    };
-
-    let category = if let Some(cat_id) = article.category_id {
-        let (name, slug): (String, String) = article_categories::table
-            .find(cat_id)
-            .select((article_categories::name, article_categories::slug))
-            .first(connection)
-            .await
-            .optional()
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?
-            .unwrap_or_else(|| ("Unknown".to_string(), "unknown".to_string()));
-
-        Some(ArticleCategoryInfo {
-            id: cat_id,
-            name,
-            slug,
-        })
-    } else {
-        None
-    };
-    let tag_ids: Vec<i32> = articles_tags::table
-        .filter(articles_tags::article_id.eq(article.id))
-        .select(articles_tags::tag_id)
-        .load(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
-
-    let tags = if tag_ids.is_empty() {
-        vec![]
-    } else {
-        let tag_rows: Vec<(i32, String, String)> = article_tags::table
-            .filter(article_tags::id.eq_any(&tag_ids))
-            .select((article_tags::id, article_tags::name, article_tags::slug))
-            .load(connection)
-            .await
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
-
-        tag_rows
-            .into_iter()
-            .map(|(id, name, slug)| ArticleTagInfo { id, name, slug })
-            .collect()
-    };
-
-    Ok(PublicArticleResponse {
-        id: article.id,
-        article_type: article.get_article_type(),
-        title: article.title.clone(),
-        slug: article.slug.clone(),
-        excerpt: article.excerpt.clone(),
-        content: article.content.clone(),
-        cover_image_url: article.cover_image_url.clone(),
-        author,
-        category,
-        tags,
-        published_at: article.published_at.unwrap_or_else(|| {
-            tracing::warn!(
-                "published article id={} has NULL published_at, using current time",
-                article.id
-            );
-            Utc::now()
-        }),
-    })
-}
-
-async fn batch_build_public_article_responses(
+pub async fn batch_build_public_article_responses(
     articles: &[Article],
 ) -> Result<Vec<PublicArticleResponse>, AppError> {
     if articles.is_empty() {

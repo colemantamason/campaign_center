@@ -19,6 +19,7 @@ pub struct User {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_login_at: Option<DateTime<Utc>>,
+    pub is_staff: bool,
 }
 
 #[derive(Insertable)]
@@ -30,6 +31,7 @@ pub struct NewUser {
     pub last_name: String,
     pub phone_number: Option<String>,
     pub timezone: String,
+    pub is_staff: bool,
 }
 
 impl NewUser {
@@ -39,6 +41,7 @@ impl NewUser {
         first_name: String,
         last_name: String,
         timezone: String,
+        is_staff: bool,
     ) -> Self {
         Self {
             email,
@@ -47,6 +50,7 @@ impl NewUser {
             last_name,
             phone_number: None,
             timezone,
+            is_staff,
         }
     }
 }
@@ -61,4 +65,5 @@ pub struct UserUpdate {
     pub timezone: Option<String>,
     pub email_verified_at: Option<DateTime<Utc>>,
     pub last_login_at: Option<DateTime<Utc>>,
+    pub is_staff: Option<bool>,
 }

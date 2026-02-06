@@ -2,9 +2,13 @@ use crate::enums::{SESSION_EXPIRY_SECONDS, SLIDING_SESSION_THRESHOLD_SECONDS};
 #[cfg(feature = "server")]
 use crate::http::get_session_token_from_headers;
 #[cfg(feature = "server")]
+use crate::postgres::get_postgres_connection;
+#[cfg(feature = "server")]
 use crate::redis::{
     get_redis_cached_session, get_redis_session_expiry, redis_cache_session, CachedSession,
 };
+#[cfg(feature = "server")]
+use crate::schema::users;
 #[cfg(feature = "server")]
 use crate::services::{
     extend_session_expiry as extend_session_expiry_service,
@@ -18,8 +22,11 @@ use axum::{
     response::Response,
 };
 use chrono::Utc;
+#[cfg(feature = "server")]
+use diesel::prelude::*;
+#[cfg(feature = "server")]
+use diesel_async::RunQueryDsl;
 use dioxus::prelude::*;
-use std::env;
 #[cfg(feature = "server")]
 use uuid::Uuid;
 
@@ -29,6 +36,7 @@ pub struct ValidatedSession {
     pub user_id: i32,
     pub active_organization_membership_id: Option<i32>,
     pub token: String,
+    pub is_staff: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -40,6 +48,14 @@ impl AuthSession {
     pub fn require_auth(self) -> Result<ValidatedSession, ServerFnError> {
         self.current
             .ok_or_else(|| ServerFnError::new("Not authenticated"))
+    }
+
+    pub fn require_staff(self) -> Result<ValidatedSession, ServerFnError> {
+        let session = self.require_auth()?;
+        if !session.is_staff {
+            return Err(ServerFnError::new("Staff access required"));
+        }
+        Ok(session)
     }
 }
 
@@ -77,13 +93,10 @@ async fn resolve_session(headers: &axum::http::HeaderMap) -> Option<ValidatedSes
             user_id: cached.user_id,
             active_organization_membership_id: cached.active_organization_membership_id,
             token: token_string.clone(),
+            is_staff: cached.is_staff,
         };
 
-        let expiry_seconds = env::var("SESSION_EXPIRY_SECONDS")
-            .ok()
-            .and_then(|string| string.parse().ok())
-            .unwrap_or(SESSION_EXPIRY_SECONDS);
-        let extend_when_expiry_below = expiry_seconds - SLIDING_SESSION_THRESHOLD_SECONDS;
+        let extend_when_expiry_below = SESSION_EXPIRY_SECONDS - SLIDING_SESSION_THRESHOLD_SECONDS;
 
         let should_extend = get_redis_session_expiry(&token_string)
             .await
@@ -95,7 +108,7 @@ async fn resolve_session(headers: &axum::http::HeaderMap) -> Option<ValidatedSes
             let session_id = cached.session_id;
             let cached_clone = cached.clone();
             let token_for_task = token_string.clone();
-            let new_expiry = expiry_seconds as u64;
+            let new_expiry = SESSION_EXPIRY_SECONDS as u64;
 
             // spawn the postgres update + redis re-cache so we don't block the response
             spawn(async move {
@@ -122,15 +135,28 @@ async fn resolve_session(headers: &axum::http::HeaderMap) -> Option<ValidatedSes
         return Some(validated);
     }
 
-    // fall back to postgres
     let session = validate_session_service(token).await.ok()?;
 
     let new_expiry = (session.expires_at - Utc::now()).num_seconds().max(0) as u64;
+
+    let is_staff = {
+        if let Ok(mut connection) = get_postgres_connection().await {
+            users::table
+                .find(session.user_id)
+                .select(users::is_staff)
+                .first::<bool>(&mut *connection)
+                .await
+                .unwrap_or(false)
+        } else {
+            false
+        }
+    };
 
     let cached = CachedSession {
         session_id: session.id,
         user_id: session.user_id,
         active_organization_membership_id: session.active_organization_membership_id,
+        is_staff,
     };
     redis_cache_session(&token_string, &cached, Some(new_expiry))
         .await
@@ -141,5 +167,6 @@ async fn resolve_session(headers: &axum::http::HeaderMap) -> Option<ValidatedSes
         user_id: session.user_id,
         active_organization_membership_id: session.active_organization_membership_id,
         token: token_string,
+        is_staff,
     })
 }

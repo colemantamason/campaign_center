@@ -12,6 +12,7 @@ pub async fn register_user(
     password: String,
     first_name: String,
     last_name: String,
+    is_staff: bool,
 ) -> Result<User, AppError> {
     validate_email(&email)?;
     validate_password(&password)?;
@@ -49,6 +50,7 @@ pub async fn register_user(
         last_name.trim().to_string(),
         // TODO: Ask user to set timezone?
         "America/New_York".to_string(),
+        is_staff,
     );
 
     diesel::insert_into(users::table)
@@ -86,10 +88,8 @@ pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppE
 
     let password_valid = verify_password(password, hash_to_verify).unwrap_or(false);
 
-    // only succeed if both user exists AND password is valid
     match (user, password_valid) {
         (Some(valid_user), true) => {
-            // update last login time
             diesel::update(users::table.find(valid_user.id))
                 .set(users::last_login_at.eq(Some(Utc::now())))
                 .execute(connection)

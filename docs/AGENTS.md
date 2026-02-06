@@ -187,6 +187,8 @@ Session tokens are delivered securely:
 - Attaches `Option<ValidatedSession>` to the request extensions
 - Server functions extract the session via `session: Option<ValidatedSession>` in the attribute
 - Use `require_auth(session)?` helper in endpoints that require authentication
+- Use `auth.require_staff()?` in CMS endpoints to restrict access to staff users (`is_staff == true`)
+- `ValidatedSession` includes `is_staff: bool`, populated from Redis cache or Postgres fallback
 - Performs **sliding session expiry**: if more than `SLIDING_SESSION_THRESHOLD_SECONDS` (1 hour) has passed since `last_accessed_at`, spawns an async task to extend `expires_at` in Postgres and reset the Redis expiry — this keeps active sessions alive without a DB write on every request
 
 **Server Initialization**: Service connections (Postgres, Redis, MinIO) and the session middleware are initialized once at server startup via `initialize_services()` in `api/src/lib.rs`, called from each app's `main.rs`.
@@ -222,7 +224,7 @@ Current tables defined in `schema.rs`:
 
 | Table | Description |
 |-------|-------------|
-| `users` | User accounts with auth info |
+| `users` | User accounts with auth info; `is_staff` field controls CMS access |
 | `sessions` | Session tokens linked to users, active org membership, and platform (web/mobile) |
 | `organizations` | Organizations/campaigns |
 | `organization_members` | User-to-org membership with roles |
@@ -348,6 +350,9 @@ ALWAYS: Use typed enums (e.g., `MemberRole`, `ArticleType`) for comparisons — 
 ALWAYS: Use `.unwrap_or_else()` with logging instead of `.expect()` in production paths
 ALWAYS: Log silenced Redis/cache errors with `tracing::warn!()` instead of `.ok()`
 ALWAYS: Reset Redis session TTL to full duration on any session update — active users should never expire mid-session (sliding window model)
+ALWAYS: Wrap multi-table deletes in `connection.transaction()` — even with ON DELETE CASCADE as a safety net
+ALWAYS: Use `auth.require_staff()` (not `auth.require_auth()`) for CMS endpoints
+ALWAYS: Keep DB logic in services, not providers — providers should delegate to service functions
 
 ### Rust/Dioxus Guidelines
 ALWAYS: Gate web-specific code with `#[cfg(feature = "web")]`

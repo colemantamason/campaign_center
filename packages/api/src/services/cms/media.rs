@@ -7,6 +7,8 @@ use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
+const MINIO_DELETE_MAX_RETRIES: u32 = 3;
+
 pub async fn upload_media(
     uploaded_by: i32,
     original_filename: String,
@@ -97,11 +99,6 @@ pub async fn delete_media(asset_id: i32) -> Result<(), AppError> {
             message: error.to_string(),
         })?
         .ok_or_else(|| AppError::not_found("Media asset"))?;
-
-    // delete from minio
-    minio_delete_media(&asset.storage_key).await?;
-
-    // delete from database
     diesel::delete(media_assets::table.find(asset_id))
         .execute(connection)
         .await
@@ -109,6 +106,34 @@ pub async fn delete_media(asset_id: i32) -> Result<(), AppError> {
             service: "Postgres".to_string(),
             message: error.to_string(),
         })?;
+
+    let storage_key = asset.storage_key;
+    let mut last_error = None;
+
+    for attempt in 0..MINIO_DELETE_MAX_RETRIES {
+        match minio_delete_media(&storage_key).await {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                last_error = Some(error);
+                if attempt + 1 < MINIO_DELETE_MAX_RETRIES {
+                    tracing::warn!(
+                        "MinIO delete attempt {} failed for '{}', retrying...",
+                        attempt + 1,
+                        storage_key
+                    );
+                }
+            }
+        }
+    }
+
+    if let Some(error) = last_error {
+        tracing::error!(
+            "Failed to delete MinIO object '{}' after {} retries (DB record already deleted, orphaned file): {}",
+            storage_key,
+            MINIO_DELETE_MAX_RETRIES,
+            error
+        );
+    }
 
     Ok(())
 }

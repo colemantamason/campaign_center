@@ -1,19 +1,20 @@
-use crate::enums::{MemberRole, OrganizationType, SubscriptionType};
+use crate::enums::{InvitationStatus, MemberRole, OrganizationType, SubscriptionType};
 use crate::error::AppError;
 use crate::models::{
-    NewOrganization, NewOrganizationMember, Organization, OrganizationMember,
+    NewInvitation, NewOrganization, NewOrganizationMember, Organization, OrganizationMember,
     OrganizationMemberUpdate, OrganizationUpdate,
 };
 use crate::postgres::get_postgres_connection;
-use crate::schema::{organization_members, organizations};
+use crate::schema::{invitations, organization_members, organizations, users};
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use slug::slugify;
 
 pub async fn create_organization(
     name: String,
-    slug_override: Option<String>,
     organization_type: OrganizationType,
+    description: Option<String>,
+    slug_override: Option<String>,
     user_id: i32,
 ) -> Result<(Organization, OrganizationMember), AppError> {
     if name.trim().is_empty() {
@@ -35,6 +36,7 @@ pub async fn create_organization(
         name.trim().to_string(),
         final_slug,
         organization_type,
+        description,
         "America/New_York".to_string(), // TODO: allow timezone selection
         Vec::from([SubscriptionType::Events]), // TODO: add in subscriptions
         user_id,
@@ -352,4 +354,107 @@ pub async fn batch_count_members(
         .into_iter()
         .map(|(org_id, count)| (org_id, count as i32))
         .collect())
+}
+
+pub async fn get_members_with_user_info(
+    organization_id: i32,
+) -> Result<Vec<(OrganizationMember, String, String, String)>, AppError> {
+    let connection = &mut get_postgres_connection().await?;
+
+    organization_members::table
+        .inner_join(users::table.on(users::id.eq(organization_members::user_id)))
+        .filter(organization_members::organization_id.eq(organization_id))
+        .order(organization_members::joined_at.asc())
+        .select((
+            organization_members::all_columns,
+            users::email,
+            users::first_name,
+            users::last_name,
+        ))
+        .load::<(OrganizationMember, String, String, String)>(connection)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
+}
+
+pub async fn create_invitation(
+    organization_id: i32,
+    email: String,
+    role: String,
+    invited_by: i32,
+) -> Result<(), AppError> {
+    let connection = &mut get_postgres_connection().await?;
+
+    let existing = invitations::table
+        .filter(invitations::organization_id.eq(organization_id))
+        .filter(invitations::email.eq(&email))
+        .filter(invitations::status.eq(InvitationStatus::Pending.as_str()))
+        .first::<crate::models::Invitation>(connection)
+        .await
+        .optional()
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
+
+    if let Some(invite) = existing {
+        if !invite.is_expired() {
+            return Err(AppError::already_exists(
+                "Pending invitation for this email",
+            ));
+        }
+
+        diesel::delete(invitations::table.find(invite.id))
+            .execute(connection)
+            .await
+            .map_err(|error| AppError::ExternalServiceError {
+                service: "Postgres".to_string(),
+                message: error.to_string(),
+            })?;
+    }
+
+    let user_with_email = users::table
+        .filter(users::email.eq(&email.to_lowercase()))
+        .select(users::id)
+        .first::<i32>(connection)
+        .await
+        .optional()
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
+
+    if let Some(user_id) = user_with_email {
+        let already_member = organization_members::table
+            .filter(organization_members::organization_id.eq(organization_id))
+            .filter(organization_members::user_id.eq(user_id))
+            .first::<OrganizationMember>(connection)
+            .await
+            .optional()
+            .map_err(|error| AppError::ExternalServiceError {
+                service: "Postgres".to_string(),
+                message: error.to_string(),
+            })?;
+
+        if already_member.is_some() {
+            return Err(AppError::already_exists(
+                "User is already a member of this organization",
+            ));
+        }
+    }
+
+    let invitation = NewInvitation::new(organization_id, email, role, invited_by);
+
+    diesel::insert_into(invitations::table)
+        .values(&invitation)
+        .execute(connection)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: format!("Failed to create invitation: {}", error),
+        })?;
+
+    Ok(())
 }

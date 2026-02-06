@@ -3,7 +3,7 @@ use crate::models::{ArticleTag, ArticleTagLink, NewArticleTag};
 use crate::postgres::get_postgres_connection;
 use crate::schema::{article_tags, articles_tags};
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use slug::slugify;
 
 pub async fn create_tag(name: String, slug: Option<String>) -> Result<ArticleTag, AppError> {
@@ -15,7 +15,6 @@ pub async fn create_tag(name: String, slug: Option<String>) -> Result<ArticleTag
 
     let connection = &mut get_postgres_connection().await?;
 
-    // check slug uniqueness
     let existing: Option<ArticleTag> = article_tags::table
         .filter(article_tags::slug.eq(&slug))
         .first(connection)
@@ -45,7 +44,13 @@ pub async fn create_tag(name: String, slug: Option<String>) -> Result<ArticleTag
 pub async fn search_tags(query: String, limit: i64) -> Result<Vec<ArticleTag>, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    let pattern = format!("%{}%", query.to_lowercase());
+    let escaped = query
+        .to_lowercase()
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+
+    let pattern = format!("%{}%", escaped);
 
     article_tags::table
         .filter(article_tags::name.ilike(&pattern))
@@ -62,35 +67,40 @@ pub async fn search_tags(query: String, limit: i64) -> Result<Vec<ArticleTag>, A
 pub async fn delete_tag(tag_id: i32) -> Result<(), AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    // remove all article-tag links first
-    diesel::delete(articles_tags::table.filter(articles_tags::tag_id.eq(tag_id)))
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+    connection
+        .transaction::<_, AppError, _>(|connection| {
+            Box::pin(async move {
+                diesel::delete(articles_tags::table.filter(articles_tags::tag_id.eq(tag_id)))
+                    .execute(connection)
+                    .await
+                    .map_err(|error| AppError::ExternalServiceError {
+                        service: "Postgres".to_string(),
+                        message: error.to_string(),
+                    })?;
 
-    let deleted = diesel::delete(article_tags::table.find(tag_id))
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+                let deleted = diesel::delete(article_tags::table.find(tag_id))
+                    .execute(connection)
+                    .await
+                    .map_err(|error| AppError::ExternalServiceError {
+                        service: "Postgres".to_string(),
+                        message: error.to_string(),
+                    })?;
 
-    if deleted == 0 {
-        return Err(AppError::not_found("Tag"));
-    }
+                if deleted == 0 {
+                    return Err(AppError::not_found("Tag"));
+                }
+
+                Ok(())
+            })
+        })
+        .await?;
 
     Ok(())
 }
 
-// sync the articles_tags join table for a given article
 pub async fn sync_article_tags(article_id: i32, tag_ids: &[i32]) -> Result<(), AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    // remove all existing links for this article
     diesel::delete(articles_tags::table.filter(articles_tags::article_id.eq(article_id)))
         .execute(connection)
         .await

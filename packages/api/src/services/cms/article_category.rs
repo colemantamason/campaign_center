@@ -22,7 +22,6 @@ pub async fn create_category(
 
     let connection = &mut get_postgres_connection().await?;
 
-    // check slug uniqueness within the same article_type
     let existing: Option<ArticleCategory> = article_categories::table
         .filter(article_categories::slug.eq(&slug))
         .filter(article_categories::article_type.eq(article_type.as_str()))
@@ -80,7 +79,6 @@ pub async fn update_category(
 ) -> Result<ArticleCategory, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    // verify category exists
     let existing: ArticleCategory = article_categories::table
         .find(category_id)
         .first(connection)
@@ -92,7 +90,6 @@ pub async fn update_category(
         })?
         .ok_or_else(|| AppError::not_found("Category"))?;
 
-    // if slug is changing, check uniqueness
     if let Some(ref new_slug) = slug {
         let duplicate: Option<ArticleCategory> = article_categories::table
             .filter(article_categories::slug.eq(new_slug))

@@ -64,6 +64,7 @@ impl NewOrganization {
         name: String,
         slug: String,
         organization_type: OrganizationType,
+        description: Option<String>,
         timezone: String,
         subscriptions: Vec<SubscriptionType>,
         created_by: i32,
@@ -72,7 +73,7 @@ impl NewOrganization {
             name,
             slug,
             organization_type: organization_type.as_str().to_string(),
-            description: None,
+            description,
             timezone,
             subscriptions: subscriptions
                 .into_iter()

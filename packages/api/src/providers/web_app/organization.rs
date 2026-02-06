@@ -5,26 +5,15 @@ use crate::interfaces::{
     OrganizationResponse,
 };
 #[cfg(feature = "server")]
-use crate::models::NewInvitation;
-#[cfg(feature = "server")]
-use crate::postgres::get_postgres_connection;
-#[cfg(feature = "server")]
 use crate::redis::update_redis_cached_session_active_organization_membership_id;
 #[cfg(feature = "server")]
-use crate::schema::{invitations, users};
-#[cfg(feature = "server")]
 use crate::services::{
-    create_organization as create_organization_service, get_membership, get_organization_by_id,
-    list_organization_members, list_user_organizations, remove_member,
+    create_invitation, create_organization as create_organization_service,
+    get_members_with_user_info, get_membership, get_organization_by_id, list_organization_members,
+    list_user_organizations, remove_member,
     set_active_organization as set_active_organization_service, update_member_role,
 };
-#[cfg(feature = "server")]
-use diesel::prelude::*;
-#[cfg(feature = "server")]
-use diesel_async::RunQueryDsl;
 use dioxus::prelude::*;
-#[cfg(feature = "server")]
-use std::collections::HashMap;
 
 #[post("/api/org/create", auth: AuthSession)]
 pub async fn create_organization(
@@ -34,8 +23,9 @@ pub async fn create_organization(
 
     let (organization, membership) = create_organization_service(
         request.name,
-        request.slug,
         request.organization_type,
+        request.description,
+        request.slug,
         session.user_id,
     )
     .await
@@ -140,48 +130,23 @@ pub async fn get_organization_members(
         return Err(ServerFnError::new("Not a member of this organization"));
     }
 
-    let members = list_organization_members(organization_id)
+    let members_with_info = get_members_with_user_info(organization_id)
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    if members.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let user_ids: Vec<i32> = members.iter().map(|member| member.user_id).collect();
-
-    let connection = &mut get_postgres_connection()
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
-
-    let user_rows: Vec<(i32, String, String, String)> = users::table
-        .filter(users::id.eq_any(&user_ids))
-        .select((users::id, users::email, users::first_name, users::last_name))
-        .load(connection)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
-
-    let user_map: HashMap<i32, (String, String, String)> = user_rows
+    Ok(members_with_info
         .into_iter()
-        .map(|(id, email, first_name, last_name)| (id, (email, first_name, last_name)))
-        .collect();
-
-    let mut responses = Vec::with_capacity(members.len());
-
-    for member in members {
-        if let Some((email, first_name, last_name)) = user_map.get(&member.user_id) {
-            responses.push(OrganizationMemberResponse {
+        .map(
+            |(member, email, first_name, last_name)| OrganizationMemberResponse {
                 user_id: member.user_id,
                 organization_id: member.organization_id,
-                role: member.role.clone(),
-                email: email.clone(),
-                first_name: first_name.clone(),
-                last_name: last_name.clone(),
-            });
-        }
-    }
-
-    Ok(responses)
+                role: member.role,
+                email,
+                first_name,
+                last_name,
+            },
+        )
+        .collect())
 }
 
 #[post("/api/org/{organization_id}/invite", auth: AuthSession)]
@@ -203,22 +168,14 @@ pub async fn invite_member(
         ));
     }
 
-    let connection = &mut get_postgres_connection()
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
-
-    let invitation = NewInvitation::new(
+    create_invitation(
         organization_id,
         request.email,
         request.role,
         session.user_id,
-    );
-
-    diesel::insert_into(invitations::table)
-        .values(&invitation)
-        .execute(connection)
-        .await
-        .map_err(|error| ServerFnError::new(format!("Failed to create invitation: {}", error)))?;
+    )
+    .await
+    .map_err(|error| ServerFnError::new(error.to_string()))?;
 
     Ok(())
 }

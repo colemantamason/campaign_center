@@ -8,10 +8,10 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn CreateAccount() -> Element {
-    let mut first_name = use_signal(String::new);
-    let mut last_name = use_signal(String::new);
     let mut email = use_signal(String::new);
     let mut password = use_signal(String::new);
+    let mut first_name = use_signal(String::new);
+    let mut last_name = use_signal(String::new);
     let mut create_error = use_signal(|| None::<String>);
     let mut is_loading = use_signal(|| false);
     let auth_context = use_context::<AuthContext>();
@@ -28,6 +28,7 @@ pub fn CreateAccount() -> Element {
                 password: password.read().clone(),
                 first_name: first_name.read().clone(),
                 last_name: last_name.read().clone(),
+                is_staff: false,
                 platform: Platform::Web,
             };
 

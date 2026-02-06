@@ -247,6 +247,35 @@ Cache invalidation is called from:
 
 ---
 
+## API Audit & Fixes (7 February 2026)
+
+### Auth Audit
+
+Full endpoint-by-endpoint auth review completed. All endpoints that should require authentication use `auth.require_auth()`. The only unauthenticated endpoints (besides `register` and `login`) are:
+
+- `get_published_article` — intentionally public (serves blog/support articles to marketing, support, and events websites)
+- `list_published_articles` — intentionally public (same as above)
+
+Organization endpoints additionally verify membership and role where appropriate (view, invite, remove, update-role).
+
+### Bug: `publish_article` Missing `updated_at`
+
+The `publish_article` service set `status` and `published_at` but did **not** set `updated_at`. Fixed to include `updated_at: Some(now)` in the `ArticleUpdate` changeset, consistent with `update_article`.
+
+### Bug: `restore_revision` Missing `updated_at`
+
+The `restore_revision` service restored title/excerpt/content/status but did **not** set `updated_at`. Fixed to include `updated_at: Some(Utc::now())`.
+
+### Bug: `update_redis_cached_session_active_organization_membership_id` Resetting TTL
+
+When a user switched their active organization, this function re-cached the session with `None` expiry, which reset the Redis TTL to the full `SESSION_EXPIRY_SECONDS` (7 days). This bypassed the middleware's sliding session threshold logic. Fixed to preserve the remaining TTL by calling `get_redis_session_expiry()` before re-caching. The sliding session extension is now handled exclusively by the middleware.
+
+### Fix: `search_tags` ILIKE Wildcard Escaping
+
+The `search_tags` service used user input directly in an ILIKE pattern without escaping `%`, `_`, and `\` characters. A search for `%` would match all tags. Fixed to escape ILIKE special characters before constructing the pattern.
+
+---
+
 ## Recent Fixes (7 February 2026)
 
 ### N+1 Queries Resolved — Batch Loading
@@ -285,8 +314,6 @@ The `upload_media` provider currently passes empty bytes — actual file upload 
 |------|-------|
 | **Input length validation** | Article titles, slugs, tag/category names — no max length checks. DB constraints will catch overflows with cryptic errors. Add validation when building frontend forms. |
 | **TOCTOU slug uniqueness** | Slug check-then-insert is not atomic for articles, tags, categories, and orgs. DB unique constraints catch duplicates, but error messages fall back to generic Diesel `UniqueViolation`. Consider catching `UniqueViolation` and returning friendly errors. |
-| **Non-transactional `delete_article`** | Tag links, revisions, and article are deleted in 3 separate queries. If a middle query fails, orphaned data is left. Consider wrapping in a transaction or adding `ON DELETE CASCADE` to FKs. |
-| **`build_public_article_response` (single)** | Makes 4 separate DB queries for a single article (author, category, tag IDs, tags). Acceptable for single-article views; use batch version for lists. |
 | **`SESSION_COOKIE_DOMAIN` placeholder** | Hardcoded to `.domain.com` — must be replaced before production deployment. Has existing TODO. |
 | **No rate limiting** | Auth endpoints (`register`, `login`, `change_password`) have no brute-force protection. Already on roadmap (Phase 2). |
 | **No CSRF protection** | Cookie-based sessions use `SameSite=Lax` but no CSRF token validation. Already on roadmap (Phase 2). |
@@ -294,6 +321,7 @@ The `upload_media` provider currently passes empty bytes — actual file upload 
 | **No scheduled article publishing** | `scheduled_publish_at` field exists but nothing checks/triggers it. Needs a background worker. |
 | **No email sending for invitations** | Invitation records are created but no email is dispatched. |
 | **Media file validation** | No max file size or allowlisted MIME type checks in `upload_media`. |
+| **Unused `get_article_by_slug` service** | Defined in `services/cms/article.rs` but not called by any provider. Remove or wire up when needed. |
 
 ---
 
@@ -317,9 +345,9 @@ Comprehensive code review identified and fixed the following issues across the A
 - **`get_current_user`** — replaced per-organization `count_members` loop with `batch_count_members` (single `GROUP BY` query). New function added to `services/shared/organization.rs`.
 - **`list_article_revisions`** — replaced per-revision `get_article_author_info` loop with `batch_get_author_infos`.
 
-#### Note: Redis Session TTL Reset Is Intentional
+#### Fixed: Redis Session TTL Now Preserved on Metadata Updates
 
-The auth flow should reset the TTL to the full `SESSION_EXPIRY_SECONDS` when re-caching. This is by design — the app uses a sliding session model where any user activity resets the expiry clock. Sessions only expire after a period of inactivity, not after a fixed time from creation. Users can manage/revoke sessions manually. (e.g. - `update_redis_cached_session_active_organization_membership_id`)
+`update_redis_cached_session_active_organization_membership_id` previously reset the Redis TTL to the full `SESSION_EXPIRY_SECONDS` when re-caching session data. This was updated on 7 February 2026 to preserve the remaining TTL instead. Sliding session extension is now handled exclusively by the session middleware, not by metadata update functions.
 
 #### Medium: Silenced Redis Errors Now Logged
 
@@ -340,6 +368,68 @@ The auth flow should reset the TTL to the full `SESSION_EXPIRY_SECONDS` when re-
 #### Low: `avatar_url` Always `None`
 
 `get_current_user` in `providers/shared/auth.rs` hardcoded `avatar_url: None` instead of using `user.avatar_url`. Fixed.
+
+---
+
+## Fixes — Known Issues Resolution (6 February 2026, Part 2)
+
+Resolved the remaining known issues identified during prior code review.
+
+### Staff Authorization for CMS Endpoints
+
+**Migration:** `2026-02-06-000001_add_is_staff_to_users` adds `is_staff BOOLEAN NOT NULL DEFAULT false` to the `users` table.
+
+**Schema / Models:**
+- `schema.rs` — added `is_staff -> Bool` to the `users` table definition.
+- `models/user.rs` — `User` struct gains `pub is_staff: bool`; `UserUpdate` gains `pub is_staff: Option<bool>`.
+
+**Session Caching:**
+- `redis.rs` — `CachedSession` gains `#[serde(default)] pub is_staff: bool` (backward-compatible with existing cached sessions that lack the field).
+- `http/middleware.rs` — `ValidatedSession` gains `pub is_staff: bool`. Both the Redis cache path and the Postgres fallback path now populate `is_staff`.
+- `providers/shared/auth.rs` — `register` and `login` include `is_staff: user.is_staff` in the `CachedSession`.
+
+**Authorization:**
+- `http/middleware.rs` — new `AuthSession::require_staff()` method returns `ServerFnError` if `!session.is_staff`.
+- All CMS providers (`providers/cms/article.rs`, `article_category.rs`, `article_tag.rs`, `media.rs`) changed from `auth.require_auth()` to `auth.require_staff()`.
+
+### Transactional Deletes
+
+- **`delete_article`** (`services/cms/article.rs`) — wrapped in `connection.transaction()`. Explicitly deletes `articles_tags` rows, then `article_revisions`, then the article. `ON DELETE CASCADE` (already in the initial migration) provides a safety net.
+- **`delete_tag`** (`services/cms/article_tag.rs`) — wrapped in `connection.transaction()`. Deletes `articles_tags` links, then the tag.
+
+### `delete_media` — DB-First with MinIO Retry
+
+`services/cms/media.rs` — deletes the DB record first, then retries MinIO deletion up to 3 times (`MINIO_DELETE_MAX_RETRIES`). On retry failure, logs an error about an orphaned S3 object but returns `Ok` (the DB record is already removed). Rationale: an orphaned file in S3 is preferable to a DB record pointing at a deleted file.
+
+### `invite_member` Duplicate Check & Service Extraction
+
+New service function `create_invitation(org_id, email, role, invited_by)` in `services/shared/organization.rs`:
+- Checks for an existing pending (non-expired) invitation to the same email/org → returns an error if found.
+- Checks if the user is already a member of the organization → returns an error if found.
+- Deletes expired pending invitations for the same email/org before inserting a new one.
+
+`providers/web_app/organization.rs` — `invite_member` now delegates to `create_invitation` instead of containing inline Diesel queries.
+
+### `get_organization_members` Service Extraction
+
+New service function `get_members_with_user_info(org_id)` in `services/shared/organization.rs`:
+- Returns `Vec<(OrganizationMember, String, String, String)>` (member + email, first name, last name) via an inner join with `users`.
+
+`providers/web_app/organization.rs` — `get_organization_members` now delegates to this service function.
+
+### `CreateOrganizationRequest.description` Passed Through
+
+- `providers/web_app/organization.rs` — `create_organization` now passes `request.description` to the service.
+- `services/shared/organization.rs` — `create_organization` accepts `description: Option<String>` and calls `new_org.set_description(desc)` when present.
+- `models/organization.rs` — added `set_description()` method to `NewOrganization`.
+
+### Unified `build_public_article_responses`
+
+`services/shared/article.rs` — replaced the single-article `build_public_article_response` and the batch `batch_build_public_article_responses` with a single unified function:
+```rust
+pub async fn build_public_article_responses(articles: &[Article]) -> Result<Vec<PublicArticleResponse>, ServerFnError>
+```
+Both `get_published_article_by_slug` and `list_published_articles` now call this single batch function. The single-article case passes a one-element slice.
 
 ---
 

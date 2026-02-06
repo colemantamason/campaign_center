@@ -9,7 +9,7 @@ use dioxus::prelude::*;
 
 #[post("/api/cms/tags", auth: AuthSession)]
 pub async fn create_tag(request: CreateTagRequest) -> Result<TagResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let tag = create_tag_service(request.name, request.slug)
         .await
@@ -22,7 +22,7 @@ pub async fn create_tag(request: CreateTagRequest) -> Result<TagResponse, Server
 pub async fn search_tags(
     request: SearchTagsRequest,
 ) -> Result<Vec<TagResponse>, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let limit = request.limit.unwrap_or(20).clamp(1, 100);
 
@@ -35,7 +35,7 @@ pub async fn search_tags(
 
 #[post("/api/cms/tags/delete", auth: AuthSession)]
 pub async fn delete_tag(tag_id: i32) -> Result<(), ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     delete_tag_service(tag_id)
         .await

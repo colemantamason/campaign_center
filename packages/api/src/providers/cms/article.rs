@@ -20,7 +20,7 @@ use dioxus::prelude::*;
 pub async fn create_article(
     request: CreateArticleRequest,
 ) -> Result<ArticleResponse, ServerFnError> {
-    let session = auth.require_auth()?;
+    let session = auth.require_staff()?;
 
     let article = create_article_service(
         session.user_id,
@@ -44,7 +44,7 @@ pub async fn update_article(
     article_id: i32,
     request: UpdateArticleRequest,
 ) -> Result<ArticleResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let article = update_article_service(
         article_id,
@@ -65,7 +65,7 @@ pub async fn update_article(
 
 #[post("/api/cms/articles/publish", auth: AuthSession)]
 pub async fn publish_article(article_id: i32) -> Result<ArticleResponse, ServerFnError> {
-    let session = auth.require_auth()?;
+    let session = auth.require_staff()?;
 
     let article = publish_article_service(article_id, session.user_id)
         .await
@@ -76,7 +76,7 @@ pub async fn publish_article(article_id: i32) -> Result<ArticleResponse, ServerF
 
 #[get("/api/cms/articles/get", auth: AuthSession)]
 pub async fn get_article(article_id: i32) -> Result<ArticleResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let article = get_article_service(article_id)
         .await
@@ -89,7 +89,7 @@ pub async fn get_article(article_id: i32) -> Result<ArticleResponse, ServerFnErr
 pub async fn list_articles(
     request: ListArticlesRequest,
 ) -> Result<ArticleListResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let page = request.page.unwrap_or(1).max(1);
     let per_page = request.per_page.unwrap_or(20).clamp(1, 100);
@@ -118,7 +118,7 @@ pub async fn list_articles(
 
 #[post("/api/cms/articles/delete", auth: AuthSession)]
 pub async fn delete_article(article_id: i32) -> Result<(), ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     delete_article_service(article_id)
         .await
@@ -129,7 +129,7 @@ pub async fn delete_article(article_id: i32) -> Result<(), ServerFnError> {
 
 #[post("/api/cms/articles/auto-save", auth: AuthSession)]
 pub async fn auto_save(article_id: i32, content: serde_json::Value) -> Result<(), ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     auto_save_article(article_id, content)
         .await
@@ -142,7 +142,7 @@ pub async fn auto_save(article_id: i32, content: serde_json::Value) -> Result<()
 pub async fn list_article_revisions(
     article_id: i32,
 ) -> Result<Vec<ArticleRevisionResponse>, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let revisions = list_revisions(article_id)
         .await
@@ -187,7 +187,7 @@ pub async fn list_article_revisions(
 
 #[post("/api/cms/articles/revisions/restore", auth: AuthSession)]
 pub async fn restore_revision(revision_id: i32) -> Result<ArticleResponse, ServerFnError> {
-    let _session = auth.require_auth()?;
+    let _session = auth.require_staff()?;
 
     let article = crate::services::cms::article_revision::restore_revision(revision_id)
         .await

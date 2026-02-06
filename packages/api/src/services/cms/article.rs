@@ -3,11 +3,14 @@ use crate::error::AppError;
 use crate::models::{Article, ArticleUpdate, NewArticle, NewArticleRevision};
 use crate::postgres::get_postgres_connection;
 use crate::redis::invalidate_redis_cached_article;
-use crate::schema::{article_categories, article_tags, articles, articles_tags, users};
+use crate::schema::{
+    article_categories, article_revisions, article_tags, articles, articles_tags, users,
+};
+
 use crate::services::cms::article_tag::sync_article_tags;
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use slug::slugify;
 use std::collections::HashMap;
 
@@ -225,11 +228,12 @@ pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Artic
             message: error.to_string(),
         })?;
 
-    // update article status and published_at
     let now = Utc::now();
+
     let update = ArticleUpdate {
         status: Some(ArticleStatus::Published.as_str().to_string()),
         published_at: Some(Some(now)),
+        updated_at: Some(now),
         ..Default::default()
     };
 
@@ -242,7 +246,6 @@ pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Artic
             message: error.to_string(),
         })?;
 
-    // invalidate redis cache for this article slug
     invalidate_redis_cached_article(&updated_article.slug)
         .await
         .ok();
@@ -348,35 +351,42 @@ pub async fn delete_article(article_id: i32) -> Result<(), AppError> {
         })?
         .ok_or_else(|| AppError::not_found("Article"))?;
 
-    // delete tag links
-    diesel::delete(articles_tags::table.filter(articles_tags::article_id.eq(article_id)))
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+    connection
+        .transaction::<_, AppError, _>(|connection| {
+            Box::pin(async move {
+                diesel::delete(
+                    articles_tags::table.filter(articles_tags::article_id.eq(article_id)),
+                )
+                .execute(connection)
+                .await
+                .map_err(|error| AppError::ExternalServiceError {
+                    service: "Postgres".to_string(),
+                    message: error.to_string(),
+                })?;
 
-    // delete revisions
-    use crate::schema::article_revisions;
-    diesel::delete(article_revisions::table.filter(article_revisions::article_id.eq(article_id)))
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+                diesel::delete(
+                    article_revisions::table.filter(article_revisions::article_id.eq(article_id)),
+                )
+                .execute(connection)
+                .await
+                .map_err(|error| AppError::ExternalServiceError {
+                    service: "Postgres".to_string(),
+                    message: error.to_string(),
+                })?;
 
-    // delete article
-    diesel::delete(articles::table.find(article_id))
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+                diesel::delete(articles::table.find(article_id))
+                    .execute(connection)
+                    .await
+                    .map_err(|error| AppError::ExternalServiceError {
+                        service: "Postgres".to_string(),
+                        message: error.to_string(),
+                    })?;
 
-    // invalidate cache if article was published
+                Ok(())
+            })
+        })
+        .await?;
+
     if article.is_published() {
         invalidate_redis_cached_article(&article.slug).await.ok();
     }
