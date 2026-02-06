@@ -1,14 +1,17 @@
 #[cfg(feature = "server")]
-use crate::enums::{Platform, DEFAULT_SESSION_EXPIRY_SECONDS};
+use crate::enums::{Platform, SESSION_EXPIRY_SECONDS};
 #[cfg(feature = "server")]
 use axum::http::{header::SET_COOKIE, HeaderName, HeaderValue};
 #[cfg(feature = "server")]
 pub use dioxus::fullstack::{FullstackContext, HeaderMap};
 use serde::{Deserialize, Serialize};
+use std::env;
 
 // web uses a cookie for session token
 #[cfg(feature = "server")]
 const SESSION_COOKIE_NAME: &str = "session_token";
+#[cfg(feature = "server")]
+const SESSION_COOKIE_DOMAIN: &str = ".domain.com"; // TODO: replace this once we have a domain
 
 // mobile uses a custom header for session token
 #[cfg(feature = "server")]
@@ -42,33 +45,29 @@ pub fn is_secure_request(headers: &HeaderMap) -> bool {
     }
 
     // fallback if x-forwarded-proto is not set in production
-    std::env::var("ENVIRONMENT")
+    env::var("ENVIRONMENT")
         .map(|value| value != "development")
         .unwrap_or(true)
 }
 
 #[cfg(feature = "server")]
-pub fn get_cookie_domain() -> Option<String> {
-    std::env::var("COOKIE_DOMAIN").ok()
-}
-
-#[cfg(feature = "server")]
-fn create_session_cookie(token: &str, secure: bool, domain: Option<&str>) -> String {
+fn create_session_cookie(token: &str, secure: bool) -> String {
     let mut parts = vec![
         format!("{}={}", SESSION_COOKIE_NAME, token),
         "Path=/".to_string(),
         "HttpOnly".to_string(),
         "SameSite=Lax".to_string(),
-        format!("Max-Age={}", DEFAULT_SESSION_EXPIRY_SECONDS),
+        format!("Max-Age={}", SESSION_EXPIRY_SECONDS),
     ];
 
     if secure {
         parts.push("Secure".to_string());
     }
 
-    if let Some(domain) = domain {
-        if !domain.is_empty() {
-            parts.push(format!("Domain={}", domain));
+    // only set domain in production when we have a real domain to use
+    if let Some(environment) = env::var("ENVIRONMENT").ok() {
+        if environment != "development" {
+            parts.push(format!("Domain={}", SESSION_COOKIE_DOMAIN));
         }
     }
 
@@ -76,7 +75,7 @@ fn create_session_cookie(token: &str, secure: bool, domain: Option<&str>) -> Str
 }
 
 #[cfg(feature = "server")]
-fn create_clear_cookie(domain: Option<&str>) -> String {
+fn create_clear_cookie() -> String {
     let mut parts = vec![
         format!("{}=", SESSION_COOKIE_NAME),
         "Path=/".to_string(),
@@ -85,9 +84,9 @@ fn create_clear_cookie(domain: Option<&str>) -> String {
         "Max-Age=0".to_string(),
     ];
 
-    if let Some(domain) = domain {
-        if !domain.is_empty() {
-            parts.push(format!("Domain={}", domain));
+    if let Some(environment) = env::var("ENVIRONMENT").ok() {
+        if environment != "development" {
+            parts.push(format!("Domain={}", SESSION_COOKIE_DOMAIN));
         }
     }
 
@@ -103,8 +102,7 @@ pub fn set_session_token_response(token: &str, platform: Platform, headers: &Hea
     match platform {
         Platform::Web => {
             let secure = is_secure_request(headers);
-            let domain = get_cookie_domain();
-            let cookie = create_session_cookie(token, secure, domain.as_deref());
+            let cookie = create_session_cookie(token, secure);
             if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
                 context.add_response_header(SET_COOKIE, cookie_value);
             }
@@ -128,8 +126,7 @@ pub fn clear_session_token_response(platform: Platform) {
 
     match platform {
         Platform::Web => {
-            let domain = get_cookie_domain();
-            let cookie = create_clear_cookie(domain.as_deref());
+            let cookie = create_clear_cookie();
             if let Ok(cookie_value) = cookie.parse::<HeaderValue>() {
                 context.add_response_header(SET_COOKIE, cookie_value);
             }
@@ -174,7 +171,7 @@ pub fn get_session_token_from_headers(headers: &HeaderMap) -> Option<String> {
 #[cfg(feature = "server")]
 pub fn extract_client_ip(headers: &HeaderMap) -> Option<String> {
     // only trust forwarded headers in production when running behind nginx/load balancer
-    let trust_proxy = std::env::var("ENVIRONMENT")
+    let trust_proxy = env::var("ENVIRONMENT")
         .map(|value| value != "development")
         .unwrap_or(true);
 

@@ -6,7 +6,7 @@ use diesel_async::{
     },
     AsyncPgConnection,
 };
-use std::sync::OnceLock;
+use std::{env, sync::OnceLock};
 
 static POSTGRES_POOL: OnceLock<Pool<AsyncPgConnection>> = OnceLock::new();
 
@@ -15,7 +15,7 @@ pub fn is_postgres_initialized() -> bool {
 }
 
 pub fn initialize_postgres_pool() -> Result<(), AppError> {
-    let postgres_url = std::env::var("DATABASE_URL")
+    let postgres_url = env::var("DATABASE_URL")
         .map_err(|_| AppError::ConfigError("DATABASE_URL not set".to_string()))?;
 
     let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(&postgres_url);

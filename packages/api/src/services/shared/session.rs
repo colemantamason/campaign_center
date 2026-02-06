@@ -1,10 +1,10 @@
-use crate::enums::{Platform, DEFAULT_SESSION_EXPIRY_SECONDS};
+use crate::enums::{Platform, SESSION_EXPIRY_SECONDS, SLIDING_SESSION_THRESHOLD_SECONDS};
 use crate::error::AppError;
 use crate::models::{NewSession, Session, SessionUpdate};
 use crate::postgres::get_postgres_connection;
-use crate::redis::invalidate_cached_session;
+use crate::redis::invalidate_redis_cached_session;
 use crate::schema::sessions;
-use chrono::Utc;
+use chrono::{Duration, Utc};
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
@@ -17,12 +17,7 @@ pub async fn create_session(
 ) -> Result<Session, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    let expiry_seconds = std::env::var("SESSION_EXPIRY_SECONDS")
-        .ok()
-        .and_then(|string| string.parse().ok())
-        .unwrap_or(DEFAULT_SESSION_EXPIRY_SECONDS);
-
-    let mut new_session = NewSession::new(user_id, expiry_seconds, platform);
+    let mut new_session = NewSession::new(user_id, SESSION_EXPIRY_SECONDS as i64, platform);
 
     if let Some(ua) = user_agent {
         new_session = new_session.set_user_agent(ua);
@@ -73,6 +68,11 @@ pub async fn get_session_by_token(token: Uuid) -> Result<Session, AppError> {
 pub async fn validate_session(token: Uuid) -> Result<Session, AppError> {
     let session = get_session_by_token(token).await?;
 
+    if should_extend_session(&session) {
+        return extend_session_expiry(session.id).await;
+    }
+
+    // otherwise just update last_accessed_at
     let connection = &mut get_postgres_connection().await?;
     diesel::update(sessions::table.find(session.id))
         .set(sessions::last_accessed_at.eq(Utc::now()))
@@ -84,6 +84,31 @@ pub async fn validate_session(token: Uuid) -> Result<Session, AppError> {
         })?;
 
     Ok(session)
+}
+
+pub fn should_extend_session(session: &Session) -> bool {
+    let elapsed = Utc::now() - session.last_accessed_at;
+    elapsed.num_seconds() >= SLIDING_SESSION_THRESHOLD_SECONDS as i64
+}
+
+pub async fn extend_session_expiry(session_id: i32) -> Result<Session, AppError> {
+    let connection = &mut get_postgres_connection().await?;
+
+    let now = Utc::now();
+    let new_expires_at = now + Duration::seconds(SESSION_EXPIRY_SECONDS as i64);
+
+    diesel::update(sessions::table.find(session_id))
+        .set(SessionUpdate {
+            last_accessed_at: Some(now),
+            expires_at: Some(new_expires_at),
+            ..Default::default()
+        })
+        .get_result::<Session>(connection)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })
 }
 
 pub async fn set_active_organization(
@@ -135,7 +160,7 @@ pub async fn delete_all_user_sessions(user_id: i32) -> Result<i32, AppError> {
 
     // invalidate each session in redis cache and postgres
     for token in &tokens {
-        if let Err(error) = invalidate_cached_session(&token.to_string()).await {
+        if let Err(error) = invalidate_redis_cached_session(&token.to_string()).await {
             tracing::warn!(
                 "failed to invalidate redis cache for session {} during delete_all_user_sessions: {}",
                 token,
@@ -209,7 +234,7 @@ pub async fn delete_user_sessions_by_platform(
 
     // invalidate each session in redis cache and postgres
     for token in &tokens {
-        if let Err(error) = invalidate_cached_session(&token.to_string()).await {
+        if let Err(error) = invalidate_redis_cached_session(&token.to_string()).await {
             tracing::warn!(
                 "failed to invalidate redis cache for session {} during delete_user_sessions_by_platform: {}",
                 token,

@@ -3,7 +3,7 @@ pub mod gate;
 pub mod routes;
 
 #[cfg(feature = "server")]
-use api::{http::session_middleware, initialize_databases};
+use api::{http::session_middleware, initialize_services};
 #[cfg(feature = "server")]
 use axum::middleware;
 use dioxus::prelude::*;
@@ -20,7 +20,7 @@ fn main() {
     #[cfg(feature = "server")]
     dioxus::serve(|| async {
         dotenv().ok();
-        initialize_databases().map_err(|error| ServerFnError::new(error.to_string()))?;
+        initialize_services().map_err(|error| ServerFnError::new(error.to_string()))?;
 
         Ok(router(App).layer(middleware::from_fn(session_middleware)))
     });

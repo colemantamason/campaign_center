@@ -324,3 +324,32 @@ pub async fn count_members(organization_id: i32) -> Result<i32, AppError> {
             message: error.to_string(),
         })
 }
+
+pub async fn batch_count_members(
+    organization_ids: &[i32],
+) -> Result<std::collections::HashMap<i32, i32>, AppError> {
+    if organization_ids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let connection = &mut get_postgres_connection().await?;
+
+    let counts: Vec<(i32, i64)> = organization_members::table
+        .filter(organization_members::organization_id.eq_any(organization_ids))
+        .group_by(organization_members::organization_id)
+        .select((
+            organization_members::organization_id,
+            diesel::dsl::count(organization_members::id),
+        ))
+        .load(connection)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?;
+
+    Ok(counts
+        .into_iter()
+        .map(|(org_id, count)| (org_id, count as i32))
+        .collect())
+}

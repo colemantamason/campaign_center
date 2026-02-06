@@ -21,6 +21,7 @@ Our codebase also contains hand-made websites (`packages/websites/*`) - but it w
 ### Related Documentation
 
 - [ROADMAP.md](docs/ROADMAP.md) - Development timeline and feature planning
+- [API_CHANGES.md](docs/API_CHANGES.md) - CMS/Blog/Support API implementation tracking
 
 ### Tech Stack
 
@@ -49,10 +50,11 @@ campaign_center/
 ├── packages/
 │   ├── api/                   # Backend API layer
 │   │   └── src/
-│   │       ├── lib.rs         # Module exports, feature gates, initialize_databases()
+│   │       ├── lib.rs         # Module exports, feature gates, initialize_services()
 │   │       ├── error.rs       # Error types
+│   │       ├── minio.rs       # MinIO S3 client (server-only)
 │   │       ├── postgres.rs    # PostgreSQL connection pool (server-only)
-│   │       ├── redis.rs       # Redis session cache pool (server-only)
+│   │       ├── redis.rs       # Redis cache pool (server-only)
 │   │       ├── schema.rs      # Diesel schema (auto-generated, server-only)
 │   │       ├── enums.rs       # Enum module exports
 │   │       ├── enums/         # Project enums
@@ -66,6 +68,8 @@ campaign_center/
 │   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, cms/
 │   │       ├── models.rs      # Model module exports
 │   │       ├── models/        # Diesel ORM models (server-only)
+│   │       │   ├── article.rs, article_category.rs, article_tag.rs
+│   │       │   ├── article_revision.rs, media_asset.rs
 │   │       │   ├── event.rs, invitation.rs, notification.rs
 │   │       │   ├── organization.rs, organization_member.rs
 │   │       │   └── session.rs, user.rs
@@ -157,7 +161,7 @@ The `api` package follows a layered architecture:
        ▼
 ┌─────────────┐
 │    HTTP     │
-│  (tokens)   │
+│ (utilities) │
 └─────────────┘
 ```
 
@@ -183,8 +187,14 @@ Session tokens are delivered securely:
 - Attaches `Option<ValidatedSession>` to the request extensions
 - Server functions extract the session via `session: Option<ValidatedSession>` in the attribute
 - Use `require_auth(session)?` helper in endpoints that require authentication
+- Performs **sliding session expiry**: if more than `SLIDING_SESSION_THRESHOLD_SECONDS` (1 hour) has passed since `last_accessed_at`, spawns an async task to extend `expires_at` in Postgres and reset the Redis expiry — this keeps active sessions alive without a DB write on every request
 
-**Server Initialization**: Database pools (Postgres + Redis) and the session middleware are initialized once at server startup via `dioxus::serve` in `web_app/src/main.rs`.
+**Server Initialization**: Service connections (Postgres, Redis, MinIO) and the session middleware are initialized once at server startup via `initialize_services()` in `api/src/lib.rs`, called from each app's `main.rs`.
+
+**Redis Caching**: Beyond sessions, Redis is used for:
+- CMS content cache (serialized article JSON by slug, 24h TTL, invalidated on publish/update/delete)
+- Chat real-time state (Pub/Sub for message routing, sorted sets for presence/typing) — planned
+- Rate limiting (sliding window counters for auth endpoints) — planned
 
 **Platform Tracking**: Sessions include a `platform` field (`Platform` enum: `Web`, `Mobile`) that:
 - Enables "Active Sessions" UI to show device types clearly
@@ -200,9 +210,15 @@ Session tokens are delivered securely:
 - Token delivery mechanism (cookie for web, `X-Session-Token` header for mobile)
 - Platform value passed in request payloads (determines which token mechanism to use)
 
+### Database Architecture
+
+**Single PostgreSQL instance**, single `public` schema, with table naming conventions for logical grouping. All tables live in the same database — content and chat tables reference core table (users) via standard foreign key.
+
 ### Database Tables (Diesel Schema)
 
 Current tables defined in `schema.rs`:
+
+**Core Tables:**
 
 | Table | Description |
 |-------|-------------|
@@ -211,31 +227,39 @@ Current tables defined in `schema.rs`:
 | `organizations` | Organizations/campaigns |
 | `organization_members` | User-to-org membership with roles |
 | `invitations` | Team member invitation tokens |
+| `password_reset_tokens` | Password reset flow tokens |
+
+**Event Tables:**
+
+| Table | Description |
+|-------|-------------|
 | `events` | Campaign events |
 | `event_shifts` | Time slots for events |
 | `event_signups` | User RSVPs to event shifts |
 | `notifications` | User notification records |
-| `password_reset_tokens` | Password reset flow tokens |
+
+**Content Tables (CMS):**
+
+| Table | Description |
+|-------|-------------|
+| `article_categories` | Categories scoped by article_type (blog/support), with sort_order |
+| `articles` | Blog posts and support articles; WYSIWYG content stored as JSONB; FK to users (author) and article_categories |
+| `article_tags` | Tags with unique slugs for article discovery and filtering |
+| `articles_tags` | Join table for many-to-many articles-to-tags relationship |
+| `article_revisions` | Published version snapshots (created on publish, not on every save); numbered per article |
+| `media_assets` | Metadata for images/files uploaded to MinIO; tracks file size, MIME type, storage key |
+
+**Chat Tables (Support):**
+
+| Table | Description |
+|-------|-------------|
+| `chat_conversations` | Support chat threads; FK to users (customer); status tracks open/assigned/resolved/closed |
+| `chat_participants` | Users in a conversation with role (customer/agent) and last_read_at for unread tracking |
+| `chat_messages` | Individual messages; supports text, system, and attachment types |
 
 ### Web App Routes
 
 Current routes defined in `web_app/src/routes.rs`:
-
-| Route | Component | Description |
-|-------|-----------|-------------|
-| `/login` | Login | Authentication page |
-| `/` | Dashboard | Main dashboard |
-| `/events` | Events | Event management |
-| `/actions` | Actions | Action pages |
-| `/groups` | Groups | Contact groups |
-| `/analytics` | Analytics | Analytics dashboard |
-| `/exports` | Exports | Data exports |
-| `/team` | Team | Team management |
-| `/settings` | Settings | Organization settings |
-| `/account` | Account | User account settings |
-| `/account/devices` | DeviceSessions | Active sessions management |
-| `/account/notifications` | NotificationPreferences | Notification settings |
-| `/account/organizations` | OrganizationManagement | Manage orgs |
 
 ### State Management Pattern
 
@@ -316,6 +340,14 @@ ALWAYS: Update this document when relevant lessons are learned or structural cha
 ALWAYS: Ignore TODO comments unless explicitly asked to address them
 ALWAYS: Add comments in lowercase
 NEVER: Add comments when the code is easily readable
+
+### API Development Guidelines
+ALWAYS: Use batch queries (`.eq_any()`, `GROUP BY`) for list endpoints — never loop individual queries (N+1)
+ALWAYS: Verify resource ownership/org-scoping in provider endpoints before operating on resources
+ALWAYS: Use typed enums (e.g., `MemberRole`, `ArticleType`) for comparisons — never raw string matching
+ALWAYS: Use `.unwrap_or_else()` with logging instead of `.expect()` in production paths
+ALWAYS: Log silenced Redis/cache errors with `tracing::warn!()` instead of `.ok()`
+ALWAYS: Reset Redis session TTL to full duration on any session update — active users should never expire mid-session (sliding window model)
 
 ### Rust/Dioxus Guidelines
 ALWAYS: Gate web-specific code with `#[cfg(feature = "web")]`

@@ -23,5 +23,7 @@ pub use shared::*;
 // pub use support::*;
 // #[cfg(feature = "surveys")]
 // pub use surveys::*;
+#[cfg(feature = "cms")]
+pub use cms::*;
 #[cfg(feature = "web_app")]
 pub use web_app::*;

@@ -1,8 +1,8 @@
-use crate::enums::DEFAULT_SESSION_EXPIRY_SECONDS;
+use crate::enums::{ARTICLE_CACHE_EXPIRY_SECONDS, SESSION_EXPIRY_SECONDS};
 use crate::error::AppError;
-use deadpool_redis::{redis::AsyncCommands, Config, Connection, Pool, Runtime::Tokio1};
+use deadpool_redis::{redis, redis::AsyncCommands, Config, Connection, Pool, Runtime::Tokio1};
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
+use std::{env, sync::OnceLock};
 
 static REDIS_POOL: OnceLock<Pool> = OnceLock::new();
 
@@ -18,7 +18,7 @@ pub fn is_redis_initialized() -> bool {
 }
 
 pub fn initialize_redis_pool() -> Result<(), AppError> {
-    let redis_url = std::env::var("REDIS_URL")
+    let redis_url = env::var("REDIS_URL")
         .map_err(|_| AppError::ConfigError("REDIS_URL not set".to_string()))?;
 
     let config = Config::from_url(&redis_url);
@@ -49,20 +49,20 @@ async fn get_redis_connection() -> Result<Connection, AppError> {
         })
 }
 
-pub async fn cache_session(token: &str, session: &CachedSession) -> Result<(), AppError> {
+pub async fn redis_cache_session(
+    token: &str,
+    session: &CachedSession,
+    expiry: Option<u64>,
+) -> Result<(), AppError> {
     let mut connection = get_redis_connection().await?;
 
     let key = format!("session:{}", token);
+
     let value = serde_json::to_string(session)
         .map_err(|error| AppError::InternalError(error.to_string()))?;
 
-    let expiry_seconds = std::env::var("SESSION_EXPIRY_SECONDS")
-        .ok()
-        .and_then(|string| string.parse().ok())
-        .unwrap_or(DEFAULT_SESSION_EXPIRY_SECONDS);
-
     connection
-        .set_ex::<&str, &str, ()>(&key, &value, expiry_seconds as u64)
+        .set_ex::<&str, &str, ()>(&key, &value, expiry.unwrap_or(SESSION_EXPIRY_SECONDS))
         .await
         .map_err(|error| AppError::ExternalServiceError {
             service: "Redis".to_string(),
@@ -72,10 +72,11 @@ pub async fn cache_session(token: &str, session: &CachedSession) -> Result<(), A
     Ok(())
 }
 
-pub async fn get_cached_session(token: &str) -> Result<Option<CachedSession>, AppError> {
+pub async fn get_redis_cached_session(token: &str) -> Result<Option<CachedSession>, AppError> {
     let mut connection = get_redis_connection().await?;
 
     let key = format!("session:{}", token);
+
     let value: Option<String> =
         connection
             .get(&key)
@@ -95,10 +96,11 @@ pub async fn get_cached_session(token: &str) -> Result<Option<CachedSession>, Ap
     }
 }
 
-pub async fn invalidate_cached_session(token: &str) -> Result<(), AppError> {
+pub async fn invalidate_redis_cached_session(token: &str) -> Result<(), AppError> {
     let mut connection = get_redis_connection().await?;
 
     let key = format!("session:{}", token);
+
     connection
         .del::<&str, ()>(&key)
         .await
@@ -110,13 +112,81 @@ pub async fn invalidate_cached_session(token: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-pub async fn update_cached_session_active_organization_membership_id(
+pub async fn get_redis_session_expiry(token: &str) -> Result<u64, AppError> {
+    let mut connection = get_redis_connection().await?;
+
+    let key = format!("session:{}", token);
+
+    let expiry: i64 = redis::cmd("TTL")
+        .arg(&key)
+        .query_async(&mut *connection)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Redis".to_string(),
+            message: error.to_string(),
+        })?;
+
+    // TTL returns -2 if key doesn't exist, -1 if no expiry set
+    Ok(expiry.max(0) as u64)
+}
+
+pub async fn update_redis_cached_session_active_organization_membership_id(
     token: &str,
     organization_id: Option<i32>,
 ) -> Result<(), AppError> {
-    if let Some(mut session) = get_cached_session(token).await? {
+    if let Some(mut session) = get_redis_cached_session(token).await? {
         session.active_organization_membership_id = organization_id;
-        cache_session(token, &session).await?;
+        redis_cache_session(token, &session, None).await?;
     }
+
+    Ok(())
+}
+
+pub async fn redis_cache_article_by_slug(slug: &str, json: &str) -> Result<(), AppError> {
+    let mut connection = get_redis_connection().await?;
+
+    let key = format!("article:{}", slug);
+
+    connection
+        .set_ex::<&str, &str, ()>(&key, json, ARTICLE_CACHE_EXPIRY_SECONDS)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Redis".to_string(),
+            message: error.to_string(),
+        })?;
+
+    Ok(())
+}
+
+pub async fn get_redis_cached_article_by_slug(slug: &str) -> Result<Option<String>, AppError> {
+    let mut connection = get_redis_connection().await?;
+
+    let key = format!("article:{}", slug);
+
+    let value: Option<String> =
+        connection
+            .get(&key)
+            .await
+            .map_err(|error| AppError::ExternalServiceError {
+                service: "Redis".to_string(),
+                message: error.to_string(),
+            })?;
+
+    Ok(value)
+}
+
+pub async fn invalidate_redis_cached_article(slug: &str) -> Result<(), AppError> {
+    let mut connection = get_redis_connection().await?;
+
+    let key = format!("article:{}", slug);
+
+    connection
+        .del::<&str, ()>(&key)
+        .await
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Redis".to_string(),
+            message: error.to_string(),
+        })?;
+
     Ok(())
 }

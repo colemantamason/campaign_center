@@ -50,13 +50,22 @@ Phases are listed in priority order. Each phase should be fully complete before 
   - [x] User-Agent and IP capture on login
   - [x] Login timing attack mitigation
   - [x] Subdomain cookie configuration support
+  - [x] Sliding session expiration (extends session on activity, threshold-based to avoid DB writes per request)
+- [x] CMS content backend (articles, categories, tags, revisions, media)
+  - [x] Full CRUD for articles with draft/publish workflow
+  - [x] Article categories and tags with slug-based lookups
+  - [x] Article revision history with restore capability
+  - [x] Media asset management with MinIO storage
+  - [x] Redis caching for published articles (24h TTL, auto-invalidation)
+  - [x] Public article API (cached reads, pagination, category/tag filtering)
+  - [x] Batch loading for N+1-free list endpoints
+  - [x] MinIO S3-compatible file storage integration
 
 ## Future Improvements (Added from plan)
 
 - **Rate limiting on auth endpoints**: Prevent brute force attacks (consider tower-governor or similar)
 - **CSRF tokens**: For authenticated endpoints, implement Double Submit Cookie pattern
 - **Scheduled session cleanup**: Run `cleanup_expired_sessions()` periodically (cron job or tokio task)
-- **Sliding session expiration**: Extend session on activity (update both Redis TTL and Postgres expires_at)
 - **Audit logging**: Log all auth events (login, logout, failed attempts) with IP and User-Agent
 
 ### Remaining
@@ -136,9 +145,16 @@ This is the initial product launch. All features in this phase are part of the "
 
 ### Support System
 
-- Help center with articles
+- Help center with articles (served from CMS content tables, cached in Redis)
 - Knowledge base / FAQ
-- Chat widget and agent inbox
+- Live chat widget (customer-facing, WebSocket-based)
+  - Real-time messaging via WebSockets on support app server
+  - Redis Pub/Sub for routing messages between customer widget and agent CMS app
+  - PostgreSQL persistence for message history and conversation search
+  - Redis sorted sets for agent presence/availability and typing indicators
+  - Chat tables
+  - File attachments via MinIO
+- Agent inbox in CMS app for responding to conversations
 
 ### Marketing Website
 
@@ -155,13 +171,17 @@ This is the initial product launch. All features in this phase are part of the "
 ### CMS App
 
 - Internal content management system for team use
-- Support article creation and editing (WYSIWYG editor)
+- Support article creation and editing (WYSIWYG editor, stored as JSON/HTML)
 - Blog article creation and editing
 - Article categorization and tagging
-- Draft/publish workflow
-- Media library for images and assets
+- Draft/publish workflow with Redis cache invalidation on publish
+- Media library for images and assets (MinIO bucket)
 - Content scheduling for future publication
 - Article versioning and revision history
+- Content tables
+- All content tables live in the same PostgreSQL instance as core tables (single `public` schema)
+- Articles reference `users` (author) via standard foreign key
+- Support chat agent inbox (responds to live chat conversations from the support widget)
 
 ### Deliverables
 
@@ -196,7 +216,8 @@ After the Events Platform launches, this phase focuses on making the system prod
   - Read replica configuration for analytics queries
 - **Caching Strategy**
   - Redis caching layer for frequently accessed data
-  - Cache invalidation patterns and TTL policies
+  - CMS content caching: rendered article HTML cached by slug with long expiry, invalidated on publish from CMS app
+  - Cache invalidation patterns and expiry policies
   - Session and rate limit data in Redis
   - Static asset caching headers
 - **Application Performance**

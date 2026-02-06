@@ -1,20 +1,19 @@
 use crate::enums::SubscriptionType;
-use crate::http::{AuthSession, WithToken};
 #[cfg(feature = "server")]
 use crate::http::{
-    clear_session_token_response, extract_client_ip, extract_user_agent,
-    set_session_token_response,
+    clear_session_token_response, extract_client_ip, extract_user_agent, set_session_token_response,
 };
+use crate::http::{AuthSession, WithToken};
 use crate::interfaces::{
     AuthResponse, LoginRequest, LogoutRequest, LogoutResponse, OrganizationInfo,
     OrganizationMembershipInfo, RegisterRequest, UserAccountResponse,
 };
 #[cfg(feature = "server")]
-use crate::redis::{cache_session, invalidate_cached_session, CachedSession};
+use crate::redis::{invalidate_redis_cached_session, redis_cache_session, CachedSession};
 #[cfg(feature = "server")]
 use crate::services::{
-    authenticate_user, change_password as change_password_service, count_members, create_session,
-    delete_session, get_user_by_id, list_user_organizations, register_user,
+    authenticate_user, batch_count_members, change_password as change_password_service,
+    create_session, delete_session, get_user_by_id, list_user_organizations, register_user,
 };
 use dioxus::fullstack::HeaderMap;
 use dioxus::prelude::*;
@@ -49,7 +48,12 @@ pub async fn register(request: RegisterRequest) -> Result<WithToken<AuthResponse
         active_organization_membership_id: None,
     };
 
-    cache_session(&token, &cached).await.ok();
+    if let Err(error) = redis_cache_session(&token, &cached, None).await {
+        tracing::warn!(
+            "failed to cache session in Redis during register: {}",
+            error
+        );
+    }
 
     set_session_token_response(&token, request.platform, &headers);
 
@@ -84,7 +88,9 @@ pub async fn login(request: LoginRequest) -> Result<WithToken<AuthResponse>, Ser
         active_organization_membership_id: session.active_organization_membership_id,
     };
 
-    cache_session(&token, &cached).await.ok();
+    if let Err(error) = redis_cache_session(&token, &cached, None).await {
+        tracing::warn!("failed to cache session in Redis during login: {}", error);
+    }
 
     set_session_token_response(&token, request.platform, &headers);
 
@@ -102,7 +108,7 @@ pub async fn login(request: LoginRequest) -> Result<WithToken<AuthResponse>, Ser
 pub async fn logout(request: LogoutRequest) -> Result<WithToken<LogoutResponse>, ServerFnError> {
     if let Some(ref session) = auth.current {
         // invalidate redis cache first (before postgres, to ensure consistency)
-        if let Err(error) = invalidate_cached_session(&session.token).await {
+        if let Err(error) = invalidate_redis_cached_session(&session.token).await {
             tracing::warn!(
                 "failed to invalidate redis session cache during logout: {}",
                 error
@@ -135,10 +141,15 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
+    let org_ids: Vec<i32> = organizations.iter().map(|(org, _)| org.id).collect();
+    let member_counts = batch_count_members(&org_ids)
+        .await
+        .map_err(|error| ServerFnError::new(error.to_string()))?;
+
     let mut organization_memberships = HashMap::new();
 
     for (organization, member) in organizations {
-        let member_count = count_members(organization.id).await.unwrap_or(0);
+        let member_count = member_counts.get(&organization.id).copied().unwrap_or(0);
 
         let mut permissions = HashMap::new();
         for subscription in &organization.subscriptions {
@@ -169,7 +180,7 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
         id: user.id,
         first_name: user.first_name,
         last_name: user.last_name,
-        avatar_url: None,
+        avatar_url: user.avatar_url,
         active_organization_membership_id: session.active_organization_membership_id,
         organization_memberships,
     }))

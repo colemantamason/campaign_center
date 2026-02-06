@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(PartialEq)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub enum EventType {
     Canvassing,
     PhoneBanking,
@@ -84,7 +85,7 @@ impl Display for EventType {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum EventVisibility {
     Public,
     Private,
@@ -124,7 +125,7 @@ impl Display for EventVisibility {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub enum SignupStatus {
     SignedUp,
     CheckedIn,

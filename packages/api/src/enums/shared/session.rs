@@ -1,8 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-// used by both redis cache TTL and postgres session expiry (7 days in seconds)
-pub const DEFAULT_SESSION_EXPIRY_SECONDS: i64 = 604800;
+// used by both redis and postgres for session expiry (7 days in seconds)
+pub const SESSION_EXPIRY_SECONDS: u64 = 604800;
+
+// minimum time between sliding expiry extensions (1 hour in seconds)
+// prevents a postgres write on every single request while still keeping active sessions alive
+pub const SLIDING_SESSION_THRESHOLD_SECONDS: u64 = 3600;
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub enum Platform {

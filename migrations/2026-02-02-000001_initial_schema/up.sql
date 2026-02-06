@@ -291,6 +291,214 @@ CREATE INDEX idx_notifications_org ON notifications(organization_id);
 CREATE INDEX idx_notifications_unread ON notifications(user_id, read) WHERE read = false;
 
 -------------------------------------------------------------------------------
+-- ARTICLE CATEGORIES
+-------------------------------------------------------------------------------
+CREATE TABLE article_categories (
+    id SERIAL PRIMARY KEY,
+    
+    -- Info
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) NOT NULL,
+    description TEXT,
+    
+    -- Scoping: 'blog' or 'support'
+    article_type VARCHAR(20) NOT NULL,
+    
+    -- Display
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    -- slugs are unique within the same article type (blog vs support can share slugs)
+    UNIQUE(slug, article_type)
+);
+
+CREATE INDEX idx_article_categories_type ON article_categories(article_type);
+CREATE INDEX idx_article_categories_slug ON article_categories(slug);
+
+-------------------------------------------------------------------------------
+-- ARTICLES
+-------------------------------------------------------------------------------
+CREATE TABLE articles (
+    id SERIAL PRIMARY KEY,
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    category_id INTEGER REFERENCES article_categories(id) ON DELETE SET NULL,
+    
+    -- Type: 'blog' or 'support'
+    article_type VARCHAR(20) NOT NULL,
+    
+    -- Content
+    title VARCHAR(500) NOT NULL,
+    slug VARCHAR(500) UNIQUE NOT NULL,
+    excerpt TEXT,
+    content JSONB NOT NULL DEFAULT '{}',
+    cover_image_url TEXT,
+    
+    -- Status: 'draft', 'published', 'archived'
+    status VARCHAR(20) NOT NULL DEFAULT 'draft',
+    
+    -- Publishing
+    published_at TIMESTAMPTZ,
+    scheduled_publish_at TIMESTAMPTZ,
+    
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_articles_author ON articles(author_id);
+CREATE INDEX idx_articles_category ON articles(category_id);
+CREATE INDEX idx_articles_type ON articles(article_type);
+CREATE INDEX idx_articles_slug ON articles(slug);
+CREATE INDEX idx_articles_status ON articles(status);
+CREATE INDEX idx_articles_published ON articles(published_at) WHERE status = 'published';
+
+-------------------------------------------------------------------------------
+-- ARTICLE TAGS
+-------------------------------------------------------------------------------
+CREATE TABLE article_tags (
+    id SERIAL PRIMARY KEY,
+    
+    name VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_article_tags_slug ON article_tags(slug);
+
+-------------------------------------------------------------------------------
+-- ARTICLES TAGS (join table)
+-------------------------------------------------------------------------------
+CREATE TABLE articles_tags (
+    article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES article_tags(id) ON DELETE CASCADE,
+    
+    PRIMARY KEY (article_id, tag_id)
+);
+
+CREATE INDEX idx_articles_tags_article ON articles_tags(article_id);
+CREATE INDEX idx_articles_tags_tag ON articles_tags(tag_id);
+
+-------------------------------------------------------------------------------
+-- ARTICLE REVISIONS (snapshots created on publish)
+-------------------------------------------------------------------------------
+CREATE TABLE article_revisions (
+    id SERIAL PRIMARY KEY,
+    article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    
+    -- Snapshot
+    title VARCHAR(500) NOT NULL,
+    excerpt TEXT,
+    content JSONB NOT NULL,
+    
+    -- Revision info
+    revision_number INTEGER NOT NULL,
+    published_by INTEGER NOT NULL REFERENCES users(id),
+    
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(article_id, revision_number)
+);
+
+CREATE INDEX idx_article_revisions_article ON article_revisions(article_id);
+
+-------------------------------------------------------------------------------
+-- MEDIA ASSETS
+-------------------------------------------------------------------------------
+CREATE TABLE media_assets (
+    id SERIAL PRIMARY KEY,
+    uploaded_by INTEGER NOT NULL REFERENCES users(id),
+    
+    -- File info
+    filename VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    file_size_bytes BIGINT NOT NULL,
+    
+    -- Storage
+    storage_key TEXT NOT NULL,
+    
+    -- Display
+    alt_text TEXT,
+    
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_media_assets_uploaded_by ON media_assets(uploaded_by);
+
+-------------------------------------------------------------------------------
+-- CHAT CONVERSATIONS
+-------------------------------------------------------------------------------
+CREATE TABLE chat_conversations (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    
+    -- Info
+    subject VARCHAR(255),
+    
+    -- Status: 'open', 'assigned', 'resolved', 'closed'
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
+    
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_chat_conversations_user ON chat_conversations(user_id);
+CREATE INDEX idx_chat_conversations_status ON chat_conversations(status);
+
+-------------------------------------------------------------------------------
+-- CHAT PARTICIPANTS
+-------------------------------------------------------------------------------
+CREATE TABLE chat_participants (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    
+    -- Role: 'customer', 'agent'
+    role VARCHAR(20) NOT NULL,
+    
+    -- Tracking
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_read_at TIMESTAMPTZ,
+    
+    UNIQUE(conversation_id, user_id)
+);
+
+CREATE INDEX idx_chat_participants_conversation ON chat_participants(conversation_id);
+CREATE INDEX idx_chat_participants_user ON chat_participants(user_id);
+
+-------------------------------------------------------------------------------
+-- CHAT MESSAGES
+-------------------------------------------------------------------------------
+CREATE TABLE chat_messages (
+    id SERIAL PRIMARY KEY,
+    conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+    sender_id INTEGER NOT NULL REFERENCES users(id),
+    
+    -- Message type: 'text', 'system', 'attachment'
+    message_type VARCHAR(20) NOT NULL DEFAULT 'text',
+    
+    -- Content
+    content TEXT NOT NULL,
+    attachment_url TEXT,
+    
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    edited_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_chat_messages_conversation ON chat_messages(conversation_id);
+CREATE INDEX idx_chat_messages_sender ON chat_messages(sender_id);
+CREATE INDEX idx_chat_messages_created ON chat_messages(conversation_id, created_at);
+
+-------------------------------------------------------------------------------
 -- TRIGGER: Update updated_at timestamp
 -------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -315,4 +523,16 @@ CREATE TRIGGER update_events_updated_at
 
 CREATE TRIGGER update_event_shifts_updated_at
     BEFORE UPDATE ON event_shifts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_articles_updated_at
+    BEFORE UPDATE ON articles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_article_categories_updated_at
+    BEFORE UPDATE ON article_categories
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_chat_conversations_updated_at
+    BEFORE UPDATE ON chat_conversations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

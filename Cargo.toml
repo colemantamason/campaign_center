@@ -28,6 +28,9 @@ ui = { path = "packages/ui" }
 web_app = { path = "packages/web_app" }
 
 argon2 = { version = "0.5.3" }
+aws-config = { version = "1.8.13", features = ["behavior-version-latest"] }
+aws-credential-types = { version = "1.2.11" }
+aws-sdk-s3 = { version = "1.121" }
 axum = { version = "0.8.8" }
 bigdecimal = { version = "0.4.10" }
 chrono = { version = "0.4.43", features = ["serde"] }

@@ -1,13 +1,23 @@
+mod article;
+mod article_category;
+mod article_revision;
+mod article_tag;
 mod event;
 mod invitation;
+mod media_asset;
 mod notification;
 mod organization;
 mod organization_member;
 mod session;
 mod user;
 
+pub use article::*;
+pub use article_category::*;
+pub use article_revision::*;
+pub use article_tag::*;
 pub use event::*;
 pub use invitation::*;
+pub use media_asset::*;
 pub use notification::*;
 pub use organization::*;
 pub use organization_member::*;
