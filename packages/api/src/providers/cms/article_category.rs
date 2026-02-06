@@ -3,6 +3,7 @@ use crate::http::AuthSession;
 use crate::interfaces::{
     CategoryResponse, CreateCategoryRequest, ReorderCategoriesRequest, UpdateCategoryRequest,
 };
+#[cfg(feature = "server")]
 use crate::models::ArticleCategory;
 #[cfg(feature = "server")]
 use crate::services::cms::article_category::{
