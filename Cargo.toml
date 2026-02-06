@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "packages/api",
-    "packages/blog",
     "packages/cms",
     "packages/events",
     "packages/marketing",
@@ -17,7 +16,6 @@ resolver = "2"
 
 [workspace.dependencies]
 api = { path = "packages/api" }
-blog = { path = "packages/blog" }
 cms = { path = "packages/cms" }
 events = { path = "packages/events" }
 marketing = { path = "packages/marketing" }

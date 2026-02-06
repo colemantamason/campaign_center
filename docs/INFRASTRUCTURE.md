@@ -9,22 +9,18 @@ Each Dioxus fullstack app compiles to a **single server binary** that:
 - Handles `#[server]` functions (API endpoints)
 - Performs SSR (server-side rendering)
 
-**Production** (7-8 VPS servers):
+**Production** (8-12 VPS servers):
 
 | Server | Services | Notes |
 |--------|----------|-------|
 | Database | PostgreSQL | Dedicated for data isolation, backups, and performance tuning |
 | Cache & Storage | Redis + MinIO | Co-located lightweight services; split MinIO out if storage grows significantly |
 | Web App | web_app binary | Primary SaaS application (Dioxus fullstack); scale horizontally later |
-| Mobile App | mobile_app binary | Mobile backend (Dioxus fullstack); separate for fault isolation and independent scaling |
-| Events Website | events binary | Public event discovery (Dioxus fullstack); needs DB access for event data |
-| Surveys Website | surveys binary | Public survey/polling response platform (Dioxus fullstack); needs DB access for questionnaire data |
-| Content & Support | support + blog + cms binaries | Help center, blog, and CMS (Dioxus fullstack); co-located as they share content data and have similar traffic patterns |
-| Marketing + Workers | nginx + workers binary | Marketing is static (nginx serves pre-built WASM/HTML); workers binary handles background jobs |
-
-**Application Types**:
-- **Fullstack apps** (web_app, mobile_app, events, surveys, support, blog, cms): Each produces its own server binary with bundled WASM client
-- **Static sites** (marketing): Pre-built WASM/HTML served by nginx - no Dioxus server needed
+| Mobile App | mobile_app binary | Mobile backend (Dioxus fullstack - Native); separate for fault isolation and independent scaling |
+| Events Website | events binary | Public event discovery (Dioxus fullstack - SSR); needs DB access for event data |
+| Surveys Website | surveys binary | Public survey/polling response platform (Dioxus fullstack - SSR); needs DB access for questionnaire data |
+| Marketing & Support Websites | marketing + support binaries | Marketing (Dioxus fullstack - SSR) and Help center (Dioxus fullstack); co-located as they share content data and have similar traffic patterns |
+| CMS App + Workers Server | cms + workers binaries | CMS (Dioxus fullstack); workers binary (Axum) handles background jobs |
 
 **Background Workers**:
 Workers are a **separate Rust binary** (not the Dioxus server binary). They:

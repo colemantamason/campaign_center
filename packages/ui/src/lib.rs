@@ -1,5 +1,3 @@
-#[cfg(feature = "blog")]
-pub mod blog;
 #[cfg(feature = "cms")]
 pub mod cms;
 #[cfg(feature = "events")]
