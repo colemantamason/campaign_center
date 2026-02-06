@@ -166,11 +166,11 @@ diesel::table! {
         active_organization_membership_id -> Nullable<Int4>,
         user_agent -> Nullable<Text>,
         ip_address -> Nullable<Inet>,
+        #[max_length = 20]
+        platform -> Varchar,
         created_at -> Timestamptz,
         expires_at -> Timestamptz,
         last_accessed_at -> Timestamptz,
-        #[max_length = 20]
-        platform -> Varchar,
     }
 }
 

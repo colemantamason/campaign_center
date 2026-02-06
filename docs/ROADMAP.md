@@ -101,6 +101,15 @@ This is the initial product launch. All features in this phase are part of the "
 - Organization profiles
 - Embeddable event widgets
 
+### Surveys Website
+
+- Public survey/poll response platform for voters
+- Survey detail pages with response submission
+- No authentication required
+- Duplicate response prevention (IP/fingerprint-based)
+- Progress saving for multi-page surveys
+- Organization branding on surveys
+
 ### Groups
 
 - Contact group management
@@ -142,6 +151,7 @@ This is the initial product launch. All features in this phase are part of the "
 
 - Complete event creation and management system
 - Public event discovery website
+- Public surveys website for poll responses
 - Action pages (petitions, signups)
 - Groups and contact organization
 - Full notification system (email + SMS)
@@ -300,12 +310,14 @@ Grouped together as they share infrastructure (phone number management, complian
   - Response tracking and conversation sync
   - Opt-out compliance (TCPA, carrier requirements)
   - Broadcast and targeted messaging
+  
 - **Polling**
-  - Survey builder
+  - Survey/poll builder (creates surveys displayed on surveys website)
   - IVR (phone) polling
-  - Online polling
+  - Online polling (via surveys website)
   - Results analysis with crosstabs
   - Weighting and demographic adjustments
+  - Response tracking and analytics
 
 ### Communications Platform
 

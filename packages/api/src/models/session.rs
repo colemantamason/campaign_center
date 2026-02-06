@@ -15,10 +15,10 @@ pub struct Session {
     pub active_organization_membership_id: Option<i32>,
     pub user_agent: Option<String>,
     pub ip_address: Option<IpNetwork>,
+    pub platform: String,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub last_accessed_at: DateTime<Utc>,
-    pub platform: String,
 }
 
 impl Session {

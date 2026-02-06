@@ -5,6 +5,8 @@ pub mod mobile_app;
 pub mod shared;
 #[cfg(feature = "support")]
 pub mod support;
+#[cfg(feature = "surveys")]
+pub mod surveys;
 #[cfg(feature = "web_app")]
 pub mod web_app;
 
@@ -15,5 +17,7 @@ pub mod web_app;
 pub use shared::*;
 // #[cfg(feature = "support")]
 // pub use support::*;
+// #[cfg(feature = "surveys")]
+// pub use surveys::*;
 #[cfg(feature = "web_app")]
 pub use web_app::*;

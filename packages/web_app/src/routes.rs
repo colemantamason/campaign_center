@@ -100,21 +100,53 @@ fn Layout() -> Element {
             .unwrap_or(empty_user_account.clone());
 
         // Update the store with new data
-        user_account_context.user_account.id().set(updated_account.id);
-        user_account_context.user_account.first_name().set(updated_account.first_name);
-        user_account_context.user_account.last_name().set(updated_account.last_name);
-        user_account_context.user_account.avatar_url().set(updated_account.avatar_url);
-        user_account_context.user_account.active_organization_membership_id().set(updated_account.active_organization_membership_id);
-        user_account_context.user_account.organization_memberships().set(updated_account.organization_memberships);
-        user_account_context.user_account.notifications().set(updated_account.notifications);
+        user_account_context
+            .user_account
+            .id()
+            .set(updated_account.id);
+        user_account_context
+            .user_account
+            .first_name()
+            .set(updated_account.first_name);
+        user_account_context
+            .user_account
+            .last_name()
+            .set(updated_account.last_name);
+        user_account_context
+            .user_account
+            .avatar_url()
+            .set(updated_account.avatar_url);
+        user_account_context
+            .user_account
+            .active_organization_membership_id()
+            .set(updated_account.active_organization_membership_id);
+        user_account_context
+            .user_account
+            .organization_memberships()
+            .set(updated_account.organization_memberships);
+        user_account_context
+            .user_account
+            .notifications()
+            .set(updated_account.notifications);
     });
 
-    let current_route = router().full_route_string();
-    let is_main_sidebar = !current_route.ends_with(&Routes::Login {}.to_string())
-        || !current_route.ends_with(&Routes::CreateAccount {}.to_string())
-        || !current_route.ends_with(&Routes::CreateOrganization {}.to_string())
-        || !current_route.starts_with(&Routes::Account {}.to_string());
-    let is_account_sidebar = current_route.starts_with(&Routes::Account {}.to_string());
+    // use_memo to make current_route reactive to route changes
+    let current_route = use_memo(move || router().full_route_string());
+    let is_main_sidebar = !current_route
+        .read()
+        .ends_with(&Routes::Login {}.to_string())
+        || !current_route
+            .read()
+            .ends_with(&Routes::CreateAccount {}.to_string())
+        || !current_route
+            .read()
+            .ends_with(&Routes::CreateOrganization {}.to_string())
+        || !current_route
+            .read()
+            .starts_with(&Routes::Account {}.to_string());
+    let is_account_sidebar = current_route
+        .read()
+        .starts_with(&Routes::Account {}.to_string());
 
     let mut main_menu_routes = NavRoutes::new();
     let mut tools_routes = NavRoutes::new();
@@ -269,7 +301,7 @@ fn Layout() -> Element {
                         Sidebar {
                             r#type: SidebarType::Main,
                             active_organization_membership,
-                            current_route,
+                            current_route: current_route.read().clone(),
                             main_menu_routes,
                             tools_routes,
                             support_link,
@@ -279,7 +311,7 @@ fn Layout() -> Element {
                         Sidebar {
                             r#type: SidebarType::UserAccount,
                             active_organization_membership,
-                            current_route,
+                            current_route: current_route.read().clone(),
                             dashboard_route,
                             account_settings_routes,
                         }

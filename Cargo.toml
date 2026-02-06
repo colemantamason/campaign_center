@@ -1,24 +1,26 @@
 [workspace]
 members = [
     "packages/api",
+    "packages/events",
+    "packages/marketing",
     "packages/mobile_app",
+    "packages/support",
+    "packages/surveys",
     "packages/tooling",
     "packages/ui",
     "packages/web_app",
-    "packages/websites/events",
-    "packages/websites/external/stop_communism",
-    "packages/websites/marketing",
-    "packages/websites/support",
+    "packages/websites/stop_communism",
 ]
 resolver = "2"
 
 [workspace.dependencies]
 api = { path = "packages/api" }
-events = { path = "packages/websites/events" }
-marketing = { path = "packages/websites/marketing" }
+events = { path = "packages/events" }
+marketing = { path = "packages/marketing" }
 mobile_app = { path = "packages/mobile_app" }
-stop_communism = { path = "packages/websites/external/stop_communism" }
-support = { path = "packages/websites/support" }
+stop_communism = { path = "packages/websites/stop_communism" }
+support = { path = "packages/support" }
+surveys = { path = "packages/surveys" }
 tooling = { path = "packages/tooling" }
 ui = { path = "packages/ui" }
 web_app = { path = "packages/web_app" }

@@ -9,12 +9,13 @@ Purpose: This document provides comprehensive context for AI coding assistants w
 Campaign Center will be a full-stack political campaign management platform that includes:
 
 - Web App (`packages/web_app`): Primary SaaS application for campaign/organization management
-- Events Website (`packages/websites/events`): Public-facing event discovery platform (like Mobilize.us)
-- Marketing Website (`packages/websites/marketing`): Landing pages and marketing content
-- Support Website (`packages/websites/support`): Help center and Intercom-style chat widget
+- Events Website (`packages/events`): Public-facing event discovery platform
+- Marketing Website (`packages/marketing`): Landing pages and marketing content
+- Support Website (`packages/support`): Help center and Intercom-style chat widget
+- Surveys Website (`packages/surveys`): Public-facing survey/polling response platform for voters
 - Mobile App (`packages/mobile_app`): Native app for notifications and fieldwork (post-Dioxus 1.0)
 
-Our codebase also contains External Websites (`packages/websites/external/*`) - but it will only be included temporarily.
+Our codebase also contains hand-made websites (`packages/websites/*`) - but it will only be included temporarily.
 
 ### Related Documentation
 
@@ -54,13 +55,13 @@ campaign_center/
 │   │       ├── schema.rs      # Diesel schema (auto-generated, server-only)
 │   │       ├── enums.rs       # Enum module exports
 │   │       ├── enums/         # Project enums
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
 │   │       ├── http.rs        # HTTP module exports
 │   │       ├── http/          # HTTP utilities (server-only)
 │   │       │   └── token.rs   # Session token handling, platform-aware auth
 │   │       ├── interfaces.rs  # Interface module exports
 │   │       ├── interfaces/    # DTOs for API requests/responses
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
 │   │       ├── models.rs      # Model module exports
 │   │       ├── models/        # Diesel ORM models (server-only)
 │   │       │   ├── event.rs, invitation.rs, notification.rs
@@ -68,13 +69,31 @@ campaign_center/
 │   │       │   └── session.rs, user.rs
 │   │       ├── providers.rs   # Provider module exports
 │   │       ├── providers/     # Dioxus #[server] functions
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
 │   │       ├── services.rs    # Service module exports
 │   │       ├── services/      # Business logic (server-only)
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
 │   │       ├── state.rs       # State module exports
 │   │       └── state/         # Client-side state types with #[derive(Store)]
-│   │           └── shared/, web_app/, events/, mobile_app/, support/
+│   │           └── shared/, web_app/, events/, mobile_app/, support/, surveys/
+│   ├── events/                # Event discovery platform (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
+│   ├── marketing/             # Marketing website (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
+│   ├── mobile_app/            # Mobile application (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
+│   ├── support/               # Help center (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
+│   ├── surveys/               # Online survey platform (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
+│   ├── tooling/               # Build tools (CSS processing)
+│   │   └── src/
+│   │       └── main.rs
 │   ├── ui/                    # Shared UI components
 │   │   └── src/
 │   │       ├── lib.rs         # Feature-gated module exports
@@ -88,8 +107,10 @@ campaign_center/
 │   │       ├── marketing/     # Marketing website components (scaffold)
 │   │       ├── mobile_app.rs  # Mobile app module exports (scaffold)
 │   │       ├── mobile_app/    # Mobile app components (scaffold)
-│   │       ├── support.rs     # Support app components (scaffold)
-│   │       └── support/       # Support app components (scaffold)
+│   │       ├── support.rs     # Support app module exports (scaffold)
+│   │       ├── support/       # Support app components (scaffold)
+│   │       ├── surveys.rs     # Surveys app module exports (scaffold)
+│   │       └── surveys/       # Surveys app components (scaffold)
 │   ├── web_app/               # Main SaaS application (WIP)
 │   │   ├── Dioxus.toml        # Dioxus configuration
 │   │   ├── assets/style.css   # Compiled Tailwind CSS
@@ -99,23 +120,7 @@ campaign_center/
 │   │       ├── gate.rs        # Permission-based route guards
 │   │       ├── routes.rs      # Route definitions + Layout component
 │   │       └── routes/        # Route page components
-│   ├── mobile_app/            # Mobile application (scaffold)
-│   │   └── src/
-│   │       └── lib.rs
-│   ├── tooling/               # Build tools (CSS processing)
-│   │   └── src/
-│   │       └── main.rs
-│   └── websites/              # Public-facing websites
-│       ├── events             # Event discovery platform (scaffold)
-│       │   └── src/
-│       │       └── lib.rs
-│       ├── marketing          # Marketing website (scaffold)
-│       │   └── src/
-│       │       └── lib.rs
-│       ├── support            # Help center (scaffold)
-│       │   └── src/
-│       │       └── lib.rs
-│       └── external/          # Temporary external projects
+│   └── websites/              # Temporary hand-made websites
 ├── docs/                      # Documentation
 │   ├── AGENTS.md              # This file
 │   ├── INFRASTRUCTURE.md      # Hosting infrastructure plan
@@ -263,6 +268,7 @@ server = [
     # ... more server deps,
 ]
 support = []
+surveys = []
 web_app = []
 
 # ui/Cargo.toml  
@@ -272,6 +278,7 @@ marketing = []
 mobile_app = []
 server = ["api/server"]
 support = []
+surveys = []
 web = [
     "dioxus/web", 
     # ... more web deps,
@@ -285,11 +292,14 @@ This ensures each app only includes relevant code for smaller bundles. Make sure
 
 ## Coding Conventions
 
-### Rust/Dioxus Guidelines
+### Execution Guidelines
+ALWAYS: Feel free to ask questions before proceeding with implementing changes.
 ALWAYS: Update this document when relevant lessons are learned or structural changes are made that require an update
 ALWAYS: Ignore TODO comments unless explicitly asked to address them
 ALWAYS: Add comments in lowercase
 NEVER: Add comments when the code is easily readable
+
+### Rust/Dioxus Guidelines
 ALWAYS: Gate web-specific code with `#[cfg(feature = "web")]`
 ALWAYS: Gate server-specific code with `#[cfg(feature = "server")]`
 ALWAYS: Check existing patterns in similar components before implementing new ones

@@ -8,6 +8,7 @@ api = { workspace = true, features = [
     "events",
     "mobile_app",
     "support",
+    "surveys",
     "web_app",
 ] }
 
@@ -23,5 +24,6 @@ marketing = []
 mobile_app = []
 server = ["api/server"]
 support = []
+surveys = []
 web = ["dep:gloo", "dep:wasm-bindgen", "dep:web-sys", "dioxus/web"]
 web_app = []

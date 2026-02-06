@@ -1,10 +1,12 @@
-use crate::auth::AuthContext;
+use crate::auth::{user_response_to_account, AuthContext};
 use crate::gate::Gate;
 use crate::routes::Routes;
 use api::enums::OrganizationType;
 use api::interfaces::CreateOrganizationRequest;
 use api::providers::{create_organization, get_current_user};
+use api::state::UserAccountStoreExt;
 use dioxus::prelude::*;
+use ui::web_app::UserAccountContext;
 
 #[component]
 pub fn CreateOrganization() -> Element {
@@ -13,6 +15,7 @@ pub fn CreateOrganization() -> Element {
     let mut create_error = use_signal(|| None::<String>);
     let mut is_loading = use_signal(|| false);
     let auth_context = use_context::<AuthContext>();
+    let user_account_context = use_context::<UserAccountContext>();
 
     let handle_submit = move |evt: FormEvent| {
         evt.prevent_default();
@@ -33,6 +36,38 @@ pub fn CreateOrganization() -> Element {
                     // refresh the user account to include the new organization
                     match get_current_user().await {
                         Ok(Some(user)) => {
+                            // update UserAccountContext BEFORE navigation so Gate sees the new org
+                            let updated_account = user_response_to_account(&user);
+                            user_account_context
+                                .user_account
+                                .id()
+                                .set(updated_account.id);
+                            user_account_context
+                                .user_account
+                                .first_name()
+                                .set(updated_account.first_name);
+                            user_account_context
+                                .user_account
+                                .last_name()
+                                .set(updated_account.last_name);
+                            user_account_context
+                                .user_account
+                                .avatar_url()
+                                .set(updated_account.avatar_url);
+                            user_account_context
+                                .user_account
+                                .active_organization_membership_id()
+                                .set(updated_account.active_organization_membership_id);
+                            user_account_context
+                                .user_account
+                                .organization_memberships()
+                                .set(updated_account.organization_memberships);
+                            user_account_context
+                                .user_account
+                                .notifications()
+                                .set(updated_account.notifications);
+
+                            // update auth context
                             auth_context_spawn.set_authenticated(user);
                             // redirect to dashboard
                             router().push(Routes::Dashboard {}.to_string());
@@ -85,8 +120,16 @@ pub fn CreateOrganization() -> Element {
                                         organization_type.set(org_type);
                                     }
                                 },
-                                option { value: "campaign", selected: *organization_type.read() == OrganizationType::Campaign, "Campaign" }
-                                option { value: "organization", selected: *organization_type.read() == OrganizationType::Organization, "Organization" }
+                                option {
+                                    value: "campaign",
+                                    selected: *organization_type.read() == OrganizationType::Campaign,
+                                    "Campaign"
+                                }
+                                option {
+                                    value: "organization",
+                                    selected: *organization_type.read() == OrganizationType::Organization,
+                                    "Organization"
+                                }
                             }
                         }
 
