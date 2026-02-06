@@ -147,6 +147,26 @@ This is the initial product launch. All features in this phase are part of the "
 - Contact form
 - Blog
 
+### Blog Website
+
+- Public-facing blog displaying articles created in the CMS
+- Article listings with filtering and search
+- Individual article pages with rich formatting
+- Author information and publication dates
+- Social sharing functionality
+- SEO optimization for blog content
+
+### CMS App
+
+- Internal content management system for team use
+- Support article creation and editing (WYSIWYG editor)
+- Blog article creation and editing
+- Article categorization and tagging
+- Draft/publish workflow
+- Media library for images and assets
+- Content scheduling for future publication
+- Article versioning and revision history
+
 ### Deliverables
 
 - Complete event creation and management system
@@ -158,6 +178,8 @@ This is the initial product launch. All features in this phase are part of the "
 - Ticketing and payment processing
 - Analytics dashboard
 - Support website with help center
+- CMS for support and blog content management
+- Blog website with articles
 - Marketing website
 - **Ready for public launch**
 

@@ -19,11 +19,11 @@ Each Dioxus fullstack app compiles to a **single server binary** that:
 | Mobile App | mobile_app binary | Mobile backend (Dioxus fullstack); separate for fault isolation and independent scaling |
 | Events Website | events binary | Public event discovery (Dioxus fullstack); needs DB access for event data |
 | Surveys Website | surveys binary | Public survey/polling response platform (Dioxus fullstack); needs DB access for questionnaire data |
-| Support Website | support binary | Help center + chat widget (Dioxus fullstack); can co-locate with Events initially if traffic is low |
+| Content & Support | support + blog + cms binaries | Help center, blog, and CMS (Dioxus fullstack); co-located as they share content data and have similar traffic patterns |
 | Marketing + Workers | nginx + workers binary | Marketing is static (nginx serves pre-built WASM/HTML); workers binary handles background jobs |
 
 **Application Types**:
-- **Fullstack apps** (web_app, mobile_app, events, surveys, support): Each produces its own server binary with bundled WASM client
+- **Fullstack apps** (web_app, mobile_app, events, surveys, support, blog, cms): Each produces its own server binary with bundled WASM client
 - **Static sites** (marketing): Pre-built WASM/HTML served by nginx - no Dioxus server needed
 
 **Background Workers**:

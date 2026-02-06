@@ -5,6 +5,8 @@ version = "0.1.0"
 
 [dependencies]
 api = { workspace = true, features = [
+    "blog",
+    "cms",
     "events",
     "mobile_app",
     "support",
@@ -19,6 +21,8 @@ wasm-bindgen = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
 
 [features]
+blog = []
+cms = []
 events = []
 marketing = []
 mobile_app = []

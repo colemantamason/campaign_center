@@ -1,3 +1,7 @@
+#[cfg(feature = "blog")]
+pub mod blog;
+#[cfg(feature = "cms")]
+pub mod cms;
 #[cfg(feature = "events")]
 pub mod events;
 #[cfg(feature = "marketing")]

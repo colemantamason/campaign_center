@@ -11,8 +11,10 @@ Campaign Center will be a full-stack political campaign management platform that
 - Web App (`packages/web_app`): Primary SaaS application for campaign/organization management
 - Events Website (`packages/events`): Public-facing event discovery platform
 - Marketing Website (`packages/marketing`): Landing pages and marketing content
+- Blog Website (`packages/blog`): Public-facing blog for articles and updates
 - Support Website (`packages/support`): Help center and Intercom-style chat widget
 - Surveys Website (`packages/surveys`): Public-facing survey/polling response platform for voters
+- CMS App (`packages/cms`): Internal content management for support articles and blog posts
 - Mobile App (`packages/mobile_app`): Native app for notifications and fieldwork (post-Dioxus 1.0)
 
 Our codebase also contains hand-made websites (`packages/websites/*`) - but it will only be included temporarily.
@@ -55,13 +57,13 @@ campaign_center/
 │   │       ├── schema.rs      # Diesel schema (auto-generated, server-only)
 │   │       ├── enums.rs       # Enum module exports
 │   │       ├── enums/         # Project enums
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, blog/, cms/
 │   │       ├── http.rs        # HTTP module exports
 │   │       ├── http/          # HTTP utilities (server-only)
 │   │       │   └── token.rs   # Session token handling, platform-aware auth
 │   │       ├── interfaces.rs  # Interface module exports
 │   │       ├── interfaces/    # DTOs for API requests/responses
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, blog/, cms/
 │   │       ├── models.rs      # Model module exports
 │   │       ├── models/        # Diesel ORM models (server-only)
 │   │       │   ├── event.rs, invitation.rs, notification.rs
@@ -69,13 +71,19 @@ campaign_center/
 │   │       │   └── session.rs, user.rs
 │   │       ├── providers.rs   # Provider module exports
 │   │       ├── providers/     # Dioxus #[server] functions
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, blog/, cms/
 │   │       ├── services.rs    # Service module exports
 │   │       ├── services/      # Business logic (server-only)
-│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/
+│   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, blog/, cms/
 │   │       ├── state.rs       # State module exports
 │   │       └── state/         # Client-side state types with #[derive(Store)]
-│   │           └── shared/, web_app/, events/, mobile_app/, support/, surveys/
+│   │           └── shared/, web_app/, events/, mobile_app/, support/, surveys/, blog/, cms/
+│   ├── blog/                  # Public blog website (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
+│   ├── cms/                   # Content management system (scaffold)
+│   │   └── src/
+│   │       └── lib.rs
 │   ├── events/                # Event discovery platform (scaffold)
 │   │   └── src/
 │   │       └── lib.rs
@@ -101,6 +109,10 @@ campaign_center/
 │   │       ├── shared/        # Cross-project shared components (WIP)
 │   │       ├── web_app.rs     # Web app module exports (WIP)
 │   │       ├── web_app/       # Web app components (WIP)
+│   │       ├── blog.rs        # Blog website module exports (scaffold)
+│   │       ├── blog/          # Blog website components (scaffold)
+│   │       ├── cms.rs         # CMS app module exports (scaffold)
+│   │       ├── cms/           # CMS app components (scaffold)
 │   │       ├── events.rs      # Events app module exports (scaffold)
 │   │       ├── events/        # Events app components (scaffold)
 │   │       ├── marketing.rs   # Marketing website module exports (scaffold)
@@ -261,6 +273,8 @@ The project uses Cargo features in our ui & api packages to gate code per-applic
 ```toml
 # api/Cargo.toml
 [features]
+blog = []
+cms = []
 events = []
 mobile_app = []
 server = [
@@ -273,6 +287,8 @@ web_app = []
 
 # ui/Cargo.toml  
 [features]
+blog = []
+cms = []
 events = []
 marketing = []
 mobile_app = []
