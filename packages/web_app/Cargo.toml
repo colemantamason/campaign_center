@@ -7,6 +7,7 @@ version = "0.1.0"
 api = { workspace = true, features = ["web_app"] }
 ui = { workspace = true, features = ["web_app"] }
 
+axum = { workspace = true, optional = true }
 chrono = { workspace = true }
 dioxus = { workspace = true, features = ["fullstack", "router"] }
 dotenvy = { workspace = true, optional = true }
@@ -18,7 +19,7 @@ web-sys = { workspace = true, optional = true }
 
 [features]
 default = []
-server = ["dep:dotenvy", "ui/server"]
+server = ["dep:axum", "dep:dotenvy", "ui/server"]
 web = ["ui/web"]
 
 # wasm optimizations

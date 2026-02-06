@@ -58,8 +58,9 @@ campaign_center/
 │   │       ├── enums/         # Project enums
 │   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, cms/
 │   │       ├── http.rs        # HTTP module exports
-│   │       ├── http/          # HTTP utilities (server-only)
-│   │       │   └── token.rs   # Session token handling, platform-aware auth
+│   │       ├── http/          # HTTP utilities
+│   │       │   ├── token.rs   # Session token handling, platform-aware auth
+│   │       │   └── middleware.rs # Session validation middleware + ValidatedSession extractor
 │   │       ├── interfaces.rs  # Interface module exports
 │   │       ├── interfaces/    # DTOs for API requests/responses
 │   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, cms/
@@ -161,7 +162,7 @@ The `api` package follows a layered architecture:
 ```
 
 - enums/ - Shared enums used across providers, services, models, and interfaces
-- http/ - HTTP utilities (session token handling, platform-aware)
+- http/ - HTTP utilities (session token handling, session middleware, platform-aware auth)
 - interfaces/ - Request/Response DTOs for API communication
 - models/ - Diesel ORM models (database rows) and relevant Enums
 - providers/ - Dioxus `#[server]` functions (API endpoints)
@@ -175,6 +176,15 @@ Session tokens are delivered securely:
 - **Mobile apps**: `X-Session-Token` response header (stored in secure native storage)
 - **Security**: Session tokens are NOT included in JSON response bodies (prevents XSS token theft)
 - **Cookie configuration**: Supports subdomain sharing via `COOKIE_DOMAIN` environment variable.
+
+**Session Middleware**: An axum middleware (`api/src/http/middleware.rs`) runs on every request and:
+- Extracts the session token from cookies (web) or `X-Session-Token` header (mobile)
+- Validates the session via Redis cache (fast path) or PostgreSQL (fallback)
+- Attaches `Option<ValidatedSession>` to the request extensions
+- Server functions extract the session via `session: Option<ValidatedSession>` in the attribute
+- Use `require_auth(session)?` helper in endpoints that require authentication
+
+**Server Initialization**: Database pools (Postgres + Redis) and the session middleware are initialized once at server startup via `dioxus::serve` in `web_app/src/main.rs`.
 
 **Platform Tracking**: Sessions include a `platform` field (`Platform` enum: `Web`, `Mobile`) that:
 - Enables "Active Sessions" UI to show device types clearly
