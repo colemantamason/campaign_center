@@ -396,13 +396,26 @@ pub struct MemberWithUserInfo {
 
 pub async fn get_members_with_user_info(
     organization_id: i32,
-) -> Result<Vec<MemberWithUserInfo>, AppError> {
+    page: i64,
+    per_page: i64,
+) -> Result<(Vec<MemberWithUserInfo>, i64), AppError> {
     let connection = &mut get_postgres_connection().await?;
+
+    let total: i64 = organization_members::table
+        .filter(organization_members::organization_id.eq(organization_id))
+        .count()
+        .get_result(connection)
+        .await
+        .map_err(postgres_error)?;
+
+    let offset = (page - 1) * per_page;
 
     let rows: Vec<(OrganizationMember, String, String, String)> = organization_members::table
         .inner_join(users::table.on(users::id.eq(organization_members::user_id)))
         .filter(organization_members::organization_id.eq(organization_id))
         .order(organization_members::joined_at.asc())
+        .offset(offset)
+        .limit(per_page)
         .select((
             organization_members::all_columns,
             users::email,
@@ -413,7 +426,7 @@ pub async fn get_members_with_user_info(
         .await
         .map_err(postgres_error)?;
 
-    Ok(rows
+    let members = rows
         .into_iter()
         .map(
             |(member, email, first_name, last_name)| MemberWithUserInfo {
@@ -423,7 +436,9 @@ pub async fn get_members_with_user_info(
                 last_name,
             },
         )
-        .collect())
+        .collect();
+
+    Ok((members, total))
 }
 
 pub async fn create_invitation(

@@ -1,9 +1,10 @@
 use crate::enums::MemberRole;
 use crate::http::AuthSession;
 use crate::interfaces::{
-    CreateOrganizationRequest, InviteMemberRequest, OrganizationMemberResponse,
-    OrganizationResponse, UpdateOrganizationRequest,
+    CreateOrganizationRequest, InviteMemberRequest, OrganizationMemberListResponse,
+    OrganizationMemberResponse, OrganizationResponse, PaginationParams, UpdateOrganizationRequest,
 };
+#[cfg(feature = "server")]
 use crate::models::OrganizationMember;
 #[cfg(feature = "server")]
 use crate::redis::update_redis_cached_session_active_organization_membership_id;
@@ -152,13 +153,17 @@ pub async fn update_organization(
 #[get("/api/org/{organization_id}/members", auth: AuthSession)]
 pub async fn get_organization_members(
     organization_id: i32,
-) -> Result<Vec<OrganizationMemberResponse>, ServerFnError> {
+    page: Option<i64>,
+    per_page: Option<i64>,
+) -> Result<OrganizationMemberListResponse, ServerFnError> {
     let session = auth.require_auth()?;
     require_membership(organization_id, session.user_id).await?;
 
-    let members_with_info = get_members_with_user_info(organization_id).await?;
+    let (page, per_page) = PaginationParams::resolve(page, per_page);
+    let (members_with_info, total) =
+        get_members_with_user_info(organization_id, page, per_page).await?;
 
-    Ok(members_with_info
+    let members = members_with_info
         .into_iter()
         .map(|info| OrganizationMemberResponse {
             user_id: info.member.user_id,
@@ -168,7 +173,14 @@ pub async fn get_organization_members(
             first_name: info.first_name,
             last_name: info.last_name,
         })
-        .collect())
+        .collect();
+
+    Ok(OrganizationMemberListResponse {
+        members,
+        total,
+        page,
+        per_page,
+    })
 }
 
 #[post("/api/org/{organization_id}/invite", auth: AuthSession)]

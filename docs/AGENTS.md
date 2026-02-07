@@ -56,8 +56,8 @@ campaign_center/
 │   │       ├── postgres.rs    # PostgreSQL connection pool (server-only)
 │   │       ├── redis.rs       # Redis cache pool (server-only)
 │   │       ├── schema.rs      # Diesel schema (auto-generated, server-only)
-│   │       ├── enums.rs       # Enum module exports
-│   │       ├── enums/         # Project enums
+│   │       ├── enums.rs       # Enum module exports + `define_enum!` macro
+│   │       ├── enums/         # Project enums (use `define_enum!` macro)
 │   │       │   └── shared/, web_app/, events/, mobile_app/, support/, surveys/, cms/
 │   │       ├── http.rs        # HTTP module exports
 │   │       ├── http/          # HTTP utilities
@@ -348,10 +348,12 @@ NEVER: Add comments when the code is easily readable
 ALWAYS: Use batch queries (`.eq_any()`, `GROUP BY`) for list endpoints — never loop individual queries (N+1)
 ALWAYS: Verify resource ownership/org-scoping in provider endpoints before operating on resources
 ALWAYS: Use typed enums (e.g., `MemberRole`, `ArticleType`) for comparisons — never raw string matching
+ALWAYS: Define new enums using the `define_enum!` macro in `enums.rs` — it generates `as_str`, `from_str`, `display_name`, and `Display`. Add extra derives (e.g. `#[derive(Eq, Hash)]`) or methods in separate blocks
 ALWAYS: Use `.unwrap_or_else()` with logging instead of `.expect()` in production paths
 ALWAYS: Log silenced Redis/cache errors with `tracing::warn!()` instead of `.ok()`
 ALWAYS: Reset Redis session TTL to full duration on any session update — active users should never expire mid-session (sliding window model)
-ALWAYS: Wrap multi-table deletes in `connection.transaction()` — even with ON DELETE CASCADE as a safety net
+ALWAYS: Rely on `ON DELETE CASCADE` for child-table cleanup — do not manually delete from cascaded tables
+ALWAYS: Use `connection.transaction()` when multiple independent (non-cascaded) tables must be modified atomically
 ALWAYS: Use `auth.require_staff()` (not `auth.require_auth()`) for CMS endpoints
 ALWAYS: Keep DB logic in services, not providers — providers should delegate to service functions
 

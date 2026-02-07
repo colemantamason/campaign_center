@@ -78,7 +78,7 @@ impl From<Organization> for OrganizationResponse {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct OrganizationMemberResponse {
     pub user_id: i32,
     pub organization_id: i32,
@@ -92,4 +92,12 @@ pub struct OrganizationMemberResponse {
 pub struct InviteMemberRequest {
     pub email: String,
     pub role: String,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct OrganizationMemberListResponse {
+    pub members: Vec<OrganizationMemberResponse>,
+    pub total: i64,
+    pub page: i64,
+    pub per_page: i64,
 }

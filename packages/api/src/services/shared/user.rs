@@ -87,7 +87,13 @@ pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppE
 
             Ok(valid_user)
         }
-        _ => Err(AppError::InvalidCredentials),
+        _ => {
+            tracing::warn!(
+                "Failed login attempt for email: {}",
+                email.to_lowercase()
+            );
+            Err(AppError::InvalidCredentials)
+        }
     }
 }
 
