@@ -2,7 +2,7 @@
 
 > **Last Updated**: 6 February 2026
 
-Tracks implementation of the support chat as well as assorted API issues. Each item is marked with its completion status.
+Tracks implementation of the support chat as well as assorted API issues and audit findings. Each item is marked with its completion status.
 
 ## Status Legend
 
@@ -69,6 +69,10 @@ Tracks implementation of the support chat as well as assorted API issues. Each i
 | ✅ **Organization avatar_url fix** | `get_current_user` now returns the actual `organization.avatar_url` instead of hardcoded `None`. |
 | ✅ **`publish_article` wrapped in transaction** | The revision insert + status update are now atomic. |
 | ✅ **`sync_article_tags` wrapped in transaction** | The delete + insert for tag associations are now atomic. |
+| ✅ **Org member operations used full list scan** | `remove_organization_member` and `update_organization_member_role` now use a direct `get_member_by_id()` service instead of loading all members. Provider also validates `organization_id` ownership. |
+| ✅ **Sequential MinIO presigned URL generation** | `list_media` now uses `futures::try_join_all()` to generate presigned URLs concurrently instead of one at a time. |
+| ✅ **Event shift no time validation** | `NewEventShift::new()` now returns `Result<Self, AppError>` and validates `end_time > start_time`. |
+| ✅ **`update_organization` input validation** | `update_organization` service now validates all string field lengths against DB column limits before writing. Also rejects empty name. |
 
 ---
 
@@ -89,14 +93,23 @@ The `upload_media` provider currently passes empty bytes — actual file upload 
 | **No scheduled article publishing** | Low | `scheduled_publish_at` field exists but nothing checks/triggers it. Needs a background worker. |
 | **No email sending** | Medium | Invitations and password reset tokens are created but no emails are dispatched. Requires AWS SES integration. Password reset tokens are logged in development. |
 | **Unused `get_article_by_slug` service** | Low | Defined in `services/cms/article.rs` but not called by any provider. Remove or wire up when needed. |
-| **Org member operations use full list scan** | Low | `remove_organization_member` and `update_organization_member_role` load all org members to find one. Add a direct `get_member_by_id()` service. |
 | **No pagination on `get_organization_members`** | Low | Returns all members with no limit. Add `page`/`per_page` parameters. |
-| **Sequential MinIO presigned URL generation** | Low | `list_media` generates presigned URLs one at a time. Use `try_join_all()` for concurrency. |
-| **Event shift no time validation** | Low | `NewEventShift::new()` doesn't validate `end_time > start_time`. |
-| **No `update_organization` input validation** | Low | `OrganizationUpdate` fields are not validated for length before DB write. |
 | **Periodic cleanup not scheduled** | Medium | `cleanup_expired_sessions()` and `cleanup_expired_reset_tokens()` exist but are never called. Need a background worker or startup task. |
 | **Hardcoded timezone defaults** | Low | New users and organizations default to `"America/New_York"`. Has existing TODOs. |
 | **Hardcoded subscription defaults** | Low | New organizations always get `Events` subscription. Has existing TODO. |
+| **`batch_reorder_categories` uses raw SQL string interpolation** | Medium | `batch_reorder_categories` builds a raw SQL query via `format!()`. While inputs are typed as `i32`, this bypasses Diesel's parameterized query protection. Refactor to use parameterized updates in a loop within a transaction. |
+| **`batch_reorder_categories` has no scope check** | Low | The raw SQL update applies to any category IDs passed. No validation that all IDs belong to the same `article_type` (blog vs. support). |
+| **CMS article mutations lack ownership check** | Medium | All CMS article mutations (`update`, `publish`, `delete`, `auto_save`) only check `require_staff()`. Any staff user can modify any other staff user's articles. Consider adding an ownership or editor role check. |
+| **`restore_revision` does not invalidate Redis cache** | Medium | Restoring a revision sets status to `Draft` but doesn't clear the Redis cache for the slug. If the article was previously published, stale content is served until 24h TTL expires. |
+| **`auto_save_article` does not update `updated_at`** | Low | Only sets `articles::content` but never updates `articles::updated_at`, so the "last modified" timestamp becomes stale after auto-saves. |
+| **`publish_article` always overwrites `published_at`** | Low | Re-publishing an edited article sets `published_at` to now, losing the original publication date. Should only set `published_at` if it is currently `None`. |
+| **Orphaned MinIO files on DB insert failure** | Medium | `upload_media` uploads to MinIO first, then inserts the DB record. If the DB insert fails, the MinIO object is orphaned. Add a compensating delete in the error path. |
+| **`create_invitation` does not validate email format** | Medium | The `email` parameter is stored without calling `validate_email()`. The function exists in `auth.rs` but is not invoked for invitations. |
+| **Redis session update is not atomic (read-modify-write race)** | Medium | `update_redis_cached_session_active_organization_membership_id` reads, modifies, and writes back. A concurrent sliding session extension could overwrite the change. Also, parameter is named `organization_id` but receives a `membership_id`. |
+| **`delete_all_user_sessions` uses sequential Redis invalidation** | Low | Each session token's Redis cache is invalidated in a serial loop. For users with many sessions, this creates N sequential round-trips. Use a Redis pipeline or multi-key `DEL`. |
+| **`validate_media_file` trusts client-provided MIME type** | Medium | MIME type check relies on the client-provided string. A malicious user could upload an executable with `mime_type: "image/png"`. After real upload is wired, verify MIME via file magic bytes. Also add `.html`, `.js`, `.htm` to dangerous extensions. |
+| **`change_password` invalidates the caller's own session** | Low | `delete_all_user_sessions()` invalidates all sessions including the current one. Consider excluding the current session token so the user isn't logged out. Also `.ok()` swallows session deletion errors. |
+| **Tag filter loads all article IDs into memory** | Low | When filtering public articles by tag, all matching `article_id`s are loaded into a `Vec<i32>` then passed to `eq_any()`. Use a subquery or JOIN instead for large datasets. |
 
 ---
 

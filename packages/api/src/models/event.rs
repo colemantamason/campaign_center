@@ -151,15 +151,22 @@ impl NewEventShift {
         start_time: DateTime<Utc>,
         end_time: DateTime<Utc>,
         timezone: String,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, crate::error::AppError> {
+        if end_time <= start_time {
+            return Err(crate::error::AppError::validation(
+                "end_time",
+                "End time must be after start time",
+            ));
+        }
+
+        Ok(Self {
             event_id,
             start_time,
             end_time,
             timezone,
             capacity: None,
             notes: None,
-        }
+        })
     }
 
     pub fn set_capacity(mut self, capacity: i32) -> Self {

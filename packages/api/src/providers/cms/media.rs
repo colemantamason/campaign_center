@@ -10,6 +10,8 @@ use crate::services::cms::media::{
     upload_media as upload_media_service,
 };
 use dioxus::prelude::*;
+#[cfg(feature = "server")]
+use futures::future::try_join_all;
 
 #[post("/api/cms/media/upload", auth: AuthSession)]
 pub async fn upload_media(
@@ -58,14 +60,19 @@ pub async fn list_media(request: ListMediaRequest) -> Result<MediaListResponse, 
         .await
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-    let mut responses = Vec::with_capacity(assets.len());
+    let url_futures: Vec<_> = assets
+        .iter()
+        .map(|asset| get_minio_media_url(&asset.storage_key))
+        .collect();
 
-    for asset in assets {
-        let url = get_minio_media_url(&asset.storage_key)
-            .await
-            .map_err(|error| ServerFnError::new(error.to_string()))?;
+    let urls = try_join_all(url_futures)
+        .await
+        .map_err(|error| ServerFnError::new(error.to_string()))?;
 
-        responses.push(MediaAssetResponse {
+    let responses: Vec<MediaAssetResponse> = assets
+        .into_iter()
+        .zip(urls)
+        .map(|(asset, url)| MediaAssetResponse {
             id: asset.id,
             filename: asset.filename,
             original_filename: asset.original_filename,
@@ -74,8 +81,8 @@ pub async fn list_media(request: ListMediaRequest) -> Result<MediaListResponse, 
             url,
             alt_text: asset.alt_text,
             created_at: asset.created_at,
-        });
-    }
+        })
+        .collect();
 
     Ok(MediaListResponse {
         assets: responses,

@@ -7,12 +7,23 @@ use crate::models::{
 use crate::postgres::get_postgres_connection;
 use crate::schema::{invitations, organization_members, organizations, users};
 use crate::services::{
-    validate_optional_slug, validate_required_string, MAX_ORGANIZATION_NAME_LENGTH,
-    MAX_ORGANIZATION_SLUG_LENGTH,
+    validate_optional_slug, validate_optional_string, validate_required_string,
+    MAX_ORGANIZATION_NAME_LENGTH, MAX_ORGANIZATION_SLUG_LENGTH,
 };
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use slug::slugify;
+
+// validation constants based on database column limits
+pub const MAX_ORGANIZATION_WEBSITE_URL_LENGTH: usize = 2048;
+pub const MAX_ORGANIZATION_EMAIL_LENGTH: usize = 255;
+pub const MAX_ORGANIZATION_PHONE_LENGTH: usize = 20;
+pub const MAX_ORGANIZATION_ADDRESS_LENGTH: usize = 255;
+pub const MAX_ORGANIZATION_CITY_LENGTH: usize = 100;
+pub const MAX_ORGANIZATION_STATE_LENGTH: usize = 50;
+pub const MAX_ORGANIZATION_ZIP_LENGTH: usize = 20;
+pub const MAX_ORGANIZATION_COUNTRY_LENGTH: usize = 2;
+pub const MAX_ORGANIZATION_TIMEZONE_LENGTH: usize = 50;
 
 pub async fn create_organization(
     name: String,
@@ -132,6 +143,51 @@ pub async fn update_organization(
     organization_id: i32,
     update: OrganizationUpdate,
 ) -> Result<Organization, AppError> {
+    // reject empty name if provided
+    if let Some(ref name) = update.name {
+        if name.trim().is_empty() {
+            return Err(AppError::validation("name", "name is required"));
+        }
+    }
+
+    validate_optional_string("name", &update.name, MAX_ORGANIZATION_NAME_LENGTH)?;
+    validate_optional_string("description", &update.description, 10_000)?;
+    validate_optional_string(
+        "avatar_url",
+        &update.avatar_url,
+        MAX_ORGANIZATION_WEBSITE_URL_LENGTH,
+    )?;
+    validate_optional_string(
+        "website_url",
+        &update.website_url,
+        MAX_ORGANIZATION_WEBSITE_URL_LENGTH,
+    )?;
+    validate_optional_string("email", &update.email, MAX_ORGANIZATION_EMAIL_LENGTH)?;
+    validate_optional_string(
+        "phone_number",
+        &update.phone_number,
+        MAX_ORGANIZATION_PHONE_LENGTH,
+    )?;
+    validate_optional_string(
+        "address_line_1",
+        &update.address_line_1,
+        MAX_ORGANIZATION_ADDRESS_LENGTH,
+    )?;
+    validate_optional_string(
+        "address_line_2",
+        &update.address_line_2,
+        MAX_ORGANIZATION_ADDRESS_LENGTH,
+    )?;
+    validate_optional_string("city", &update.city, MAX_ORGANIZATION_CITY_LENGTH)?;
+    validate_optional_string("state", &update.state, MAX_ORGANIZATION_STATE_LENGTH)?;
+    validate_optional_string("zip_code", &update.zip_code, MAX_ORGANIZATION_ZIP_LENGTH)?;
+    validate_optional_string("country", &update.country, MAX_ORGANIZATION_COUNTRY_LENGTH)?;
+    validate_optional_string(
+        "timezone",
+        &update.timezone,
+        MAX_ORGANIZATION_TIMEZONE_LENGTH,
+    )?;
+
     let connection = &mut get_postgres_connection().await?;
 
     diesel::update(organizations::table.find(organization_id))
@@ -197,6 +253,21 @@ pub async fn list_organization_members(
             service: "Postgres".to_string(),
             message: error.to_string(),
         })
+}
+
+pub async fn get_member_by_id(member_id: i32) -> Result<OrganizationMember, AppError> {
+    let connection = &mut get_postgres_connection().await?;
+
+    organization_members::table
+        .find(member_id)
+        .first(connection)
+        .await
+        .optional()
+        .map_err(|error| AppError::ExternalServiceError {
+            service: "Postgres".to_string(),
+            message: error.to_string(),
+        })?
+        .ok_or_else(|| AppError::not_found("Member"))
 }
 
 pub async fn add_member(

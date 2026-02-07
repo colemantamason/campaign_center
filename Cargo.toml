@@ -46,6 +46,7 @@ diesel = { version = "2.3.6", features = [
 diesel-async = { version = "0.7.4", features = ["deadpool", "postgres"] }
 dioxus = { version = "0.7.3" }
 dotenvy = { version = "0.15.7" }
+futures = { version = "0.3.31" }
 gloo = { version = "0.11.0" }
 ipnetwork = { version = "0.21.1" }
 lucide-dioxus = { version = "2.563.0", features = ["all-icons"] }

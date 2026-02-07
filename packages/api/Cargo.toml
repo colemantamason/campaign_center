@@ -15,6 +15,7 @@ deadpool-redis = { workspace = true, optional = true }
 diesel = { workspace = true, optional = true }
 diesel-async = { workspace = true, optional = true }
 dioxus = { workspace = true }
+futures = { workspace = true, optional = true }
 ipnetwork = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 serde = { workspace = true }
@@ -40,6 +41,7 @@ server = [
     "dep:diesel-async",
     "dep:ipnetwork",
     "dep:rand",
+    "dep:futures",
     "dep:slug",
     "dep:tracing",
     "dioxus/server",

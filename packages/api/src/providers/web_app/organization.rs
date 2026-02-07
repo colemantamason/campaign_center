@@ -9,7 +9,7 @@ use crate::redis::update_redis_cached_session_active_organization_membership_id;
 #[cfg(feature = "server")]
 use crate::services::{
     create_invitation, create_organization as create_organization_service,
-    get_members_with_user_info, get_membership, get_organization_by_id, list_organization_members,
+    get_member_by_id, get_members_with_user_info, get_membership, get_organization_by_id,
     list_user_organizations, remove_member,
     set_active_organization as set_active_organization_service, update_member_role,
 };
@@ -206,12 +206,13 @@ pub async fn remove_organization_member(
         ));
     }
 
-    let target_member = list_organization_members(organization_id)
+    let target_member = get_member_by_id(member_id)
         .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?
-        .into_iter()
-        .find(|member| member.id == member_id)
-        .ok_or_else(|| ServerFnError::new("Member not found in this organization"))?;
+        .map_err(|error| ServerFnError::new(error.to_string()))?;
+
+    if target_member.organization_id != organization_id {
+        return Err(ServerFnError::new("Member not found in this organization"));
+    }
 
     remove_member(target_member.id)
         .await
@@ -237,12 +238,13 @@ pub async fn update_organization_member_role(
         return Err(ServerFnError::new("Only owners can change member roles"));
     }
 
-    let target_member = list_organization_members(organization_id)
+    let target_member = get_member_by_id(member_id)
         .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?
-        .into_iter()
-        .find(|member| member.id == member_id)
-        .ok_or_else(|| ServerFnError::new("Member not found in this organization"))?;
+        .map_err(|error| ServerFnError::new(error.to_string()))?;
+
+    if target_member.organization_id != organization_id {
+        return Err(ServerFnError::new("Member not found in this organization"));
+    }
 
     let role = MemberRole::from_str(&new_role).ok_or_else(|| ServerFnError::new("Invalid role"))?;
 
