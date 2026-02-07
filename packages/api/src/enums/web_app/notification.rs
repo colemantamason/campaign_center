@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub enum NotificationType {
     Info,
     EventReminder,

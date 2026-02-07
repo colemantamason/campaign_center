@@ -89,8 +89,6 @@ The `upload_media` provider currently passes empty bytes — actual file upload 
 | **No scheduled article publishing** | Low | `scheduled_publish_at` field exists but nothing checks/triggers it. Needs a background worker. |
 | **No email sending** | Medium | Invitations and password reset tokens are created but no emails are dispatched. Requires AWS SES integration. Password reset tokens are logged in development. |
 | **Unused `get_article_by_slug` service** | Low | Defined in `services/cms/article.rs` but not called by any provider. Remove or wire up when needed. |
-| **`NotificationType` feature gate issue** | Medium | `NotificationType` is in `enums/web_app/` (gated behind `web_app` feature) but is used by `models/notification.rs` (gated behind `server`). Will fail to compile if `server` is enabled without `web_app`. Move to `enums/shared/`. |
-| **`NotificationType` missing serde derives** | Low | Only derives `Clone, PartialEq` — needs `Serialize, Deserialize` for consistency with other enums. |
 | **Org member operations use full list scan** | Low | `remove_organization_member` and `update_organization_member_role` load all org members to find one. Add a direct `get_member_by_id()` service. |
 | **No pagination on `get_organization_members`** | Low | Returns all members with no limit. Add `page`/`per_page` parameters. |
 | **Sequential MinIO presigned URL generation** | Low | `list_media` generates presigned URLs one at a time. Use `try_join_all()` for concurrency. |

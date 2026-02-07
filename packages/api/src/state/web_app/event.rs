@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use dioxus::prelude::*;
 use std::collections::HashMap;
 
-#[derive(Store)]
+#[derive(Clone, Store)]
 pub struct Event {
     pub id: i32,
     pub name: String,

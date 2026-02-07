@@ -113,6 +113,7 @@ pub async fn validate_reset_token(token: Uuid) -> Result<bool, AppError> {
     Ok(reset_token.map(|t| t.is_valid()).unwrap_or(false))
 }
 
+// TODO: schedule this to run periodically
 pub async fn cleanup_expired_reset_tokens() -> Result<i32, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
