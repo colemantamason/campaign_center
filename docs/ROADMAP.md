@@ -51,6 +51,8 @@ Phases are listed in priority order. Each phase should be fully complete before 
   - [x] Login timing attack mitigation
   - [x] Subdomain cookie configuration support
   - [x] Sliding session expiration (extends session on activity, threshold-based to avoid DB writes per request)
+  - [x] Password reset flow (request, validate, reset with token expiry)
+  - [x] Session invalidation on password change/reset
 - [x] CMS content backend (articles, categories, tags, revisions, media)
   - [x] Full CRUD for articles with draft/publish workflow
   - [x] Article categories and tags with slug-based lookups
@@ -60,6 +62,10 @@ Phases are listed in priority order. Each phase should be fully complete before 
   - [x] Public article API (cached reads, pagination, category/tag filtering)
   - [x] Batch loading for N+1-free list endpoints
   - [x] MinIO S3-compatible file storage integration
+- [x] Input validation layer
+  - [x] Centralized validation module with length checks matching DB column limits
+  - [x] Media file validation (size limits, MIME type allowlist, dangerous extension blocklist)
+  - [x] Applied to all user-facing services (articles, categories, tags, orgs, users, media)
 
 ## Future Improvements (Added from plan)
 

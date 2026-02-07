@@ -28,7 +28,8 @@ CREATE TABLE users (
     -- Metadata
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_login_at TIMESTAMPTZ
+    last_login_at TIMESTAMPTZ,
+    is_staff BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE INDEX idx_users_email ON users(email);

@@ -47,12 +47,11 @@ pub async fn upload_media(
 }
 
 #[post("/api/cms/media/list", auth: AuthSession)]
-pub async fn list_media(
-    request: ListMediaRequest,
-) -> Result<MediaListResponse, ServerFnError> {
+pub async fn list_media(request: ListMediaRequest) -> Result<MediaListResponse, ServerFnError> {
     let _session = auth.require_staff()?;
 
     let page = request.page.unwrap_or(1).max(1);
+
     let per_page = request.per_page.unwrap_or(20).clamp(1, 100);
 
     let (assets, total) = list_media_service(page, per_page)
@@ -60,6 +59,7 @@ pub async fn list_media(
         .map_err(|error| ServerFnError::new(error.to_string()))?;
 
     let mut responses = Vec::with_capacity(assets.len());
+
     for asset in assets {
         let url = get_minio_media_url(&asset.storage_key)
             .await

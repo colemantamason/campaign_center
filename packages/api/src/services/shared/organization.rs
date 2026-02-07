@@ -6,6 +6,10 @@ use crate::models::{
 };
 use crate::postgres::get_postgres_connection;
 use crate::schema::{invitations, organization_members, organizations, users};
+use crate::services::{
+    validate_optional_slug, validate_required_string, MAX_ORGANIZATION_NAME_LENGTH,
+    MAX_ORGANIZATION_SLUG_LENGTH,
+};
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use slug::slugify;
@@ -17,12 +21,8 @@ pub async fn create_organization(
     slug_override: Option<String>,
     user_id: i32,
 ) -> Result<(Organization, OrganizationMember), AppError> {
-    if name.trim().is_empty() {
-        return Err(AppError::validation(
-            "name",
-            "Organization name is required",
-        ));
-    }
+    validate_required_string("name", &name, MAX_ORGANIZATION_NAME_LENGTH)?;
+    validate_optional_slug("slug", &slug_override, MAX_ORGANIZATION_SLUG_LENGTH)?;
 
     let connection = &mut get_postgres_connection().await?;
 

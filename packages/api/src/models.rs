@@ -8,6 +8,7 @@ mod media_asset;
 mod notification;
 mod organization;
 mod organization_member;
+mod password_reset_token;
 mod session;
 mod user;
 
@@ -21,5 +22,6 @@ pub use media_asset::*;
 pub use notification::*;
 pub use organization::*;
 pub use organization_member::*;
+pub use password_reset_token::*;
 pub use session::*;
 pub use user::*;

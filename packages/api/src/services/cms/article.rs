@@ -6,8 +6,11 @@ use crate::redis::invalidate_redis_cached_article;
 use crate::schema::{
     article_categories, article_revisions, article_tags, articles, articles_tags, users,
 };
-
 use crate::services::cms::article_tag::sync_article_tags;
+use crate::services::{
+    validate_optional_slug, validate_optional_string, validate_required_string,
+    MAX_ARTICLE_SLUG_LENGTH, MAX_ARTICLE_TITLE_LENGTH,
+};
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel_async::{AsyncConnection, RunQueryDsl};
@@ -25,9 +28,8 @@ pub async fn create_article(
     category_id: Option<i32>,
     tag_ids: Option<Vec<i32>>,
 ) -> Result<Article, AppError> {
-    if title.trim().is_empty() {
-        return Err(AppError::validation("title", "Title is required"));
-    }
+    validate_required_string("title", &title, MAX_ARTICLE_TITLE_LENGTH)?;
+    validate_optional_slug("slug", &slug, MAX_ARTICLE_SLUG_LENGTH)?;
 
     let slug = slug.unwrap_or_else(|| slugify(&title));
 
@@ -111,6 +113,9 @@ pub async fn update_article(
     tag_ids: Option<Vec<i32>>,
     scheduled_publish_at: Option<DateTime<Utc>>,
 ) -> Result<Article, AppError> {
+    validate_optional_string("title", &title, MAX_ARTICLE_TITLE_LENGTH)?;
+    validate_optional_slug("slug", &slug, MAX_ARTICLE_SLUG_LENGTH)?;
+
     let connection = &mut get_postgres_connection().await?;
 
     let existing: Article = articles::table
@@ -180,71 +185,76 @@ pub async fn update_article(
 pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Article, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    let article: Article = articles::table
-        .find(article_id)
-        .first(connection)
-        .await
-        .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
-        .ok_or_else(|| AppError::not_found("Article"))?;
+    let updated_article = connection
+        .transaction::<_, AppError, _>(|connection| {
+            Box::pin(async move {
+                let article: Article = articles::table
+                    .find(article_id)
+                    .first(connection)
+                    .await
+                    .optional()
+                    .map_err(|error| AppError::ExternalServiceError {
+                        service: "Postgres".to_string(),
+                        message: error.to_string(),
+                    })?
+                    .ok_or_else(|| AppError::not_found("Article"))?;
 
-    // determine next revision number
-    use crate::schema::article_revisions;
-    let max_revision: Option<i32> = article_revisions::table
-        .filter(article_revisions::article_id.eq(article_id))
-        .select(diesel::dsl::max(article_revisions::revision_number))
-        .first(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+                let max_revision: Option<i32> = article_revisions::table
+                    .filter(article_revisions::article_id.eq(article_id))
+                    .select(diesel::dsl::max(article_revisions::revision_number))
+                    .first(connection)
+                    .await
+                    .map_err(|error| AppError::ExternalServiceError {
+                        service: "Postgres".to_string(),
+                        message: error.to_string(),
+                    })?;
 
-    let next_revision = max_revision.unwrap_or(0) + 1;
+                let next_revision = max_revision.unwrap_or(0) + 1;
 
-    // create revision snapshot
-    let new_revision = NewArticleRevision::new(
-        article_id,
-        article.title.clone(),
-        article.content.clone(),
-        next_revision,
-        published_by,
-    );
-    let new_revision = if let Some(ref excerpt) = article.excerpt {
-        new_revision.set_excerpt(excerpt.clone())
-    } else {
-        new_revision
-    };
+                let new_revision = NewArticleRevision::new(
+                    article_id,
+                    article.title.clone(),
+                    article.content.clone(),
+                    next_revision,
+                    published_by,
+                );
+                let new_revision = if let Some(ref excerpt) = article.excerpt {
+                    new_revision.set_excerpt(excerpt.clone())
+                } else {
+                    new_revision
+                };
 
-    diesel::insert_into(article_revisions::table)
-        .values(&new_revision)
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+                diesel::insert_into(article_revisions::table)
+                    .values(&new_revision)
+                    .execute(connection)
+                    .await
+                    .map_err(|error| AppError::ExternalServiceError {
+                        service: "Postgres".to_string(),
+                        message: error.to_string(),
+                    })?;
 
-    let now = Utc::now();
+                let now = Utc::now();
 
-    let update = ArticleUpdate {
-        status: Some(ArticleStatus::Published.as_str().to_string()),
-        published_at: Some(Some(now)),
-        updated_at: Some(now),
-        ..Default::default()
-    };
+                let update = ArticleUpdate {
+                    status: Some(ArticleStatus::Published.as_str().to_string()),
+                    published_at: Some(Some(now)),
+                    updated_at: Some(now),
+                    ..Default::default()
+                };
 
-    let updated_article: Article = diesel::update(articles::table.find(article_id))
-        .set(&update)
-        .get_result(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+                let updated: Article = diesel::update(articles::table.find(article_id))
+                    .set(&update)
+                    .get_result(connection)
+                    .await
+                    .map_err(|error| AppError::ExternalServiceError {
+                        service: "Postgres".to_string(),
+                        message: error.to_string(),
+                    })?;
+
+                Ok(updated)
+            })
+        })
+        .await?;
 
     invalidate_redis_cached_article(&updated_article.slug)
         .await

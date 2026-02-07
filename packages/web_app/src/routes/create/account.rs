@@ -28,7 +28,6 @@ pub fn CreateAccount() -> Element {
                 password: password.read().clone(),
                 first_name: first_name.read().clone(),
                 last_name: last_name.read().clone(),
-                is_staff: false,
                 platform: Platform::Web,
             };
 

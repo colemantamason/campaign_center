@@ -8,7 +8,6 @@ pub struct RegisterRequest {
     pub password: String,
     pub first_name: String,
     pub last_name: String,
-    pub is_staff: bool,
     pub platform: Platform,
 }
 

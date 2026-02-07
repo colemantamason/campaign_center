@@ -3,6 +3,7 @@ use crate::minio::{minio_delete_media, minio_upload_media};
 use crate::models::{MediaAsset, NewMediaAsset};
 use crate::postgres::get_postgres_connection;
 use crate::schema::media_assets;
+use crate::services::{validate_media_file, validate_required_string, MAX_FILENAME_LENGTH};
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
@@ -17,22 +18,16 @@ pub async fn upload_media(
     data: Vec<u8>,
     alt_text: Option<String>,
 ) -> Result<MediaAsset, AppError> {
-    if original_filename.trim().is_empty() {
-        return Err(AppError::validation(
-            "original_filename",
-            "Filename is required",
-        ));
-    }
+    validate_required_string("original_filename", &original_filename, MAX_FILENAME_LENGTH)?;
+    validate_media_file(&original_filename, &mime_type, file_size_bytes)?;
 
     // generate a unique storage key preserving file extension
     let extension = original_filename.rsplit('.').next().unwrap_or("bin");
     let unique_filename = format!("{}.{}", Uuid::new_v4(), extension);
     let storage_key = format!("uploads/{}", unique_filename);
 
-    // upload to minio
     minio_upload_media(&storage_key, data, &mime_type).await?;
 
-    // create database record
     let connection = &mut get_postgres_connection().await?;
 
     let mut new_asset = NewMediaAsset::new(

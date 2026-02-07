@@ -32,7 +32,7 @@ pub async fn register(request: RegisterRequest) -> Result<WithToken<AuthResponse
         request.password,
         request.first_name,
         request.last_name,
-        request.is_staff,
+        false, // is_staff can only bet set manually in the database, not through registration
     )
     .await
     .map_err(|error| ServerFnError::new(error.to_string()))?;
@@ -171,7 +171,7 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
             organization: OrganizationInfo {
                 id: organization.id,
                 name: organization.name.clone(),
-                avatar_url: None,
+                avatar_url: organization.avatar_url.clone(),
                 member_count,
             },
             user_role: member.get_role(),

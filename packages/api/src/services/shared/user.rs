@@ -2,7 +2,10 @@ use crate::error::AppError;
 use crate::models::{NewUser, User, UserUpdate};
 use crate::postgres::get_postgres_connection;
 use crate::schema::users;
-use crate::services::{hash_password, validate_email, validate_password, verify_password};
+use crate::services::{
+    delete_all_user_sessions, hash_password, validate_email, validate_password,
+    validate_required_string, verify_password, MAX_USER_NAME_LENGTH,
+};
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
@@ -16,14 +19,8 @@ pub async fn register_user(
 ) -> Result<User, AppError> {
     validate_email(&email)?;
     validate_password(&password)?;
-
-    if first_name.trim().is_empty() {
-        return Err(AppError::validation("first_name", "First name is required"));
-    }
-
-    if last_name.trim().is_empty() {
-        return Err(AppError::validation("last_name", "Last name is required"));
-    }
+    validate_required_string("first_name", &first_name, MAX_USER_NAME_LENGTH)?;
+    validate_required_string("last_name", &last_name, MAX_USER_NAME_LENGTH)?;
 
     let connection = &mut get_postgres_connection().await?;
 
@@ -175,6 +172,9 @@ pub async fn change_password(
             service: "Postgres".to_string(),
             message: error.to_string(),
         })?;
+
+    // invalidate all other sessions after password change
+    delete_all_user_sessions(user_id).await.ok();
 
     Ok(())
 }

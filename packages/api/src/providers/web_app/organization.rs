@@ -168,10 +168,17 @@ pub async fn invite_member(
         ));
     }
 
+    let role =
+        MemberRole::from_str(&request.role).ok_or_else(|| ServerFnError::new("Invalid role"))?;
+
+    if role == MemberRole::Owner {
+        return Err(ServerFnError::new("Cannot invite as owner"));
+    }
+
     create_invitation(
         organization_id,
         request.email,
-        request.role,
+        role.as_str().to_string(),
         session.user_id,
     )
     .await

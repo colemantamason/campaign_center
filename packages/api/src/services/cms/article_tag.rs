@@ -2,14 +2,16 @@ use crate::error::AppError;
 use crate::models::{ArticleTag, ArticleTagLink, NewArticleTag};
 use crate::postgres::get_postgres_connection;
 use crate::schema::{article_tags, articles_tags};
+use crate::services::{
+    validate_optional_slug, validate_required_string, MAX_TAG_NAME_LENGTH, MAX_TAG_SLUG_LENGTH,
+};
 use diesel::prelude::*;
 use diesel_async::{AsyncConnection, RunQueryDsl};
 use slug::slugify;
 
 pub async fn create_tag(name: String, slug: Option<String>) -> Result<ArticleTag, AppError> {
-    if name.trim().is_empty() {
-        return Err(AppError::validation("name", "Name is required"));
-    }
+    validate_required_string("name", &name, MAX_TAG_NAME_LENGTH)?;
+    validate_optional_slug("slug", &slug, MAX_TAG_SLUG_LENGTH)?;
 
     let slug = slug.unwrap_or_else(|| slugify(&name));
 
@@ -101,29 +103,40 @@ pub async fn delete_tag(tag_id: i32) -> Result<(), AppError> {
 pub async fn sync_article_tags(article_id: i32, tag_ids: &[i32]) -> Result<(), AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    diesel::delete(articles_tags::table.filter(articles_tags::article_id.eq(article_id)))
-        .execute(connection)
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+    connection
+        .transaction::<_, AppError, _>(|connection| {
+            let tag_ids = tag_ids.to_vec();
+            Box::pin(async move {
+                diesel::delete(
+                    articles_tags::table.filter(articles_tags::article_id.eq(article_id)),
+                )
+                .execute(connection)
+                .await
+                .map_err(|error| AppError::ExternalServiceError {
+                    service: "Postgres".to_string(),
+                    message: error.to_string(),
+                })?;
 
-    if !tag_ids.is_empty() {
-        let links: Vec<ArticleTagLink> = tag_ids
-            .iter()
-            .map(|tag_id| ArticleTagLink::new(article_id, *tag_id))
-            .collect();
+                if !tag_ids.is_empty() {
+                    let links: Vec<ArticleTagLink> = tag_ids
+                        .iter()
+                        .map(|tag_id| ArticleTagLink::new(article_id, *tag_id))
+                        .collect();
 
-        diesel::insert_into(articles_tags::table)
-            .values(&links)
-            .execute(connection)
-            .await
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
-    }
+                    diesel::insert_into(articles_tags::table)
+                        .values(&links)
+                        .execute(connection)
+                        .await
+                        .map_err(|error| AppError::ExternalServiceError {
+                            service: "Postgres".to_string(),
+                            message: error.to_string(),
+                        })?;
+                }
+
+                Ok(())
+            })
+        })
+        .await?;
 
     Ok(())
 }

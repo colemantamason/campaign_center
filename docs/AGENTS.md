@@ -72,6 +72,7 @@ campaign_center/
 │   │       │   ├── article_revision.rs, media_asset.rs
 │   │       │   ├── event.rs, invitation.rs, notification.rs
 │   │       │   ├── organization.rs, organization_member.rs
+│   │       │   ├── password_reset_token.rs
 │   │       │   └── session.rs, user.rs
 │   │       ├── providers.rs   # Provider module exports
 │   │       ├── providers/     # Dioxus #[server] functions

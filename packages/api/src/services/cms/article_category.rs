@@ -3,6 +3,10 @@ use crate::error::AppError;
 use crate::models::{ArticleCategory, ArticleCategoryUpdate, NewArticleCategory};
 use crate::postgres::get_postgres_connection;
 use crate::schema::article_categories;
+use crate::services::{
+    validate_optional_slug, validate_optional_string, validate_required_string,
+    MAX_CATEGORY_NAME_LENGTH, MAX_CATEGORY_SLUG_LENGTH,
+};
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use slug::slugify;
@@ -14,9 +18,8 @@ pub async fn create_category(
     article_type: ArticleType,
     sort_order: Option<i32>,
 ) -> Result<ArticleCategory, AppError> {
-    if name.trim().is_empty() {
-        return Err(AppError::validation("name", "Name is required"));
-    }
+    validate_required_string("name", &name, MAX_CATEGORY_NAME_LENGTH)?;
+    validate_optional_slug("slug", &slug, MAX_CATEGORY_SLUG_LENGTH)?;
 
     let slug = slug.unwrap_or_else(|| slugify(&name));
 
@@ -77,6 +80,9 @@ pub async fn update_category(
     description: Option<String>,
     sort_order: Option<i32>,
 ) -> Result<ArticleCategory, AppError> {
+    validate_optional_string("name", &name, MAX_CATEGORY_NAME_LENGTH)?;
+    validate_optional_slug("slug", &slug, MAX_CATEGORY_SLUG_LENGTH)?;
+
     let connection = &mut get_postgres_connection().await?;
 
     let existing: ArticleCategory = article_categories::table

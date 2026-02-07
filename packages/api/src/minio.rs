@@ -7,6 +7,9 @@ use aws_sdk_s3::{
 };
 use std::{env, sync::OnceLock, time::Duration};
 
+const MINIO_MEDIA_URL_EXPIRY_SECONDS: u64 = 3600;
+const MINIO_MEDIA_BUCKET: &str = "media";
+
 static MINIO_CLIENT: OnceLock<Client> = OnceLock::new();
 
 pub fn is_minio_initialized() -> bool {
@@ -48,11 +51,6 @@ pub fn get_minio_client() -> Result<&'static Client, AppError> {
     MINIO_CLIENT
         .get()
         .ok_or_else(|| AppError::ConfigError("MinIO client not initialized".to_string()))
-}
-
-fn get_minio_media_bucket() -> Result<String, AppError> {
-    env::var("MINIO_BUCKET_MEDIA")
-        .map_err(|_| AppError::ConfigError("MINIO_BUCKET_MEDIA not set".to_string()))
 }
 
 pub async fn minio_upload_object(
@@ -153,16 +151,18 @@ pub async fn minio_upload_media(
     data: Vec<u8>,
     content_type: &str,
 ) -> Result<String, AppError> {
-    let bucket = get_minio_media_bucket()?;
-    minio_upload_object(&bucket, key, data, content_type).await
+    minio_upload_object(MINIO_MEDIA_BUCKET, key, data, content_type).await
 }
 
 pub async fn minio_delete_media(key: &str) -> Result<(), AppError> {
-    let bucket = get_minio_media_bucket()?;
-    minio_delete_object(&bucket, key).await
+    minio_delete_object(MINIO_MEDIA_BUCKET, key).await
 }
 
 pub async fn get_minio_media_url(key: &str) -> Result<String, AppError> {
-    let bucket = get_minio_media_bucket()?;
-    get_minio_presigned_url(&bucket, key, Duration::from_secs(3600)).await
+    get_minio_presigned_url(
+        MINIO_MEDIA_BUCKET,
+        key,
+        Duration::from_secs(MINIO_MEDIA_URL_EXPIRY_SECONDS),
+    )
+    .await
 }
