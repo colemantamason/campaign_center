@@ -387,12 +387,19 @@ pub async fn batch_count_members(
         .collect())
 }
 
+pub struct MemberWithUserInfo {
+    pub member: OrganizationMember,
+    pub email: String,
+    pub first_name: String,
+    pub last_name: String,
+}
+
 pub async fn get_members_with_user_info(
     organization_id: i32,
-) -> Result<Vec<(OrganizationMember, String, String, String)>, AppError> {
+) -> Result<Vec<MemberWithUserInfo>, AppError> {
     let connection = &mut get_postgres_connection().await?;
 
-    organization_members::table
+    let rows: Vec<(OrganizationMember, String, String, String)> = organization_members::table
         .inner_join(users::table.on(users::id.eq(organization_members::user_id)))
         .filter(organization_members::organization_id.eq(organization_id))
         .order(organization_members::joined_at.asc())
@@ -402,9 +409,21 @@ pub async fn get_members_with_user_info(
             users::first_name,
             users::last_name,
         ))
-        .load::<(OrganizationMember, String, String, String)>(connection)
+        .load(connection)
         .await
-        .map_err(postgres_error)
+        .map_err(postgres_error)?;
+
+    Ok(rows
+        .into_iter()
+        .map(
+            |(member, email, first_name, last_name)| MemberWithUserInfo {
+                member,
+                email,
+                first_name,
+                last_name,
+            },
+        )
+        .collect())
 }
 
 pub async fn create_invitation(
@@ -465,7 +484,22 @@ pub async fn create_invitation(
         }
     }
 
-    let invitation = NewInvitation::new(organization_id, email, role.as_str().to_string(), invited_by);
+    diesel::delete(
+        invitations::table
+            .filter(invitations::organization_id.eq(organization_id))
+            .filter(invitations::email.eq(&email))
+            .filter(invitations::status.ne(InvitationStatus::Pending.as_str())),
+    )
+    .execute(connection)
+    .await
+    .map_err(postgres_error)?;
+
+    let invitation = NewInvitation::new(
+        organization_id,
+        email,
+        role.as_str().to_string(),
+        invited_by,
+    );
 
     diesel::insert_into(invitations::table)
         .values(&invitation)

@@ -1,5 +1,5 @@
+use crate::define_enum;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter, Result as FmtResult};
 
 // used by both redis and postgres for session expiry (7 days in seconds)
 pub const SESSION_EXPIRY_SECONDS: u64 = 604800;
@@ -8,39 +8,10 @@ pub const SESSION_EXPIRY_SECONDS: u64 = 604800;
 // prevents a postgres write on every single request while still keeping active sessions alive
 pub const SLIDING_SESSION_THRESHOLD_SECONDS: u64 = 3600;
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-pub enum Platform {
-    Web,
-    Mobile,
-}
-
-impl Platform {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Platform::Web => "web",
-            Platform::Mobile => "mobile",
-        }
-    }
-
-    pub fn from_str(string: &str) -> Option<Self> {
-        match string {
-            "web" => Some(Platform::Web),
-            "mobile" => Some(Platform::Mobile),
-            _ => None,
-        }
-    }
-
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Platform::Web => "Web",
-            Platform::Mobile => "Mobile",
-        }
-    }
-}
-
-impl Display for Platform {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> FmtResult {
-        write!(formatter, "{}", self.as_str())
+define_enum! {
+    pub enum Platform {
+        Web => ("web", "Web"),
+        Mobile => ("mobile", "Mobile"),
     }
 }
 

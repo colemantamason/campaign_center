@@ -160,16 +160,14 @@ pub async fn get_organization_members(
 
     Ok(members_with_info
         .into_iter()
-        .map(
-            |(member, email, first_name, last_name)| OrganizationMemberResponse {
-                user_id: member.user_id,
-                organization_id: member.organization_id,
-                role: member.role,
-                email,
-                first_name,
-                last_name,
-            },
-        )
+        .map(|info| OrganizationMemberResponse {
+            user_id: info.member.user_id,
+            organization_id: info.member.organization_id,
+            role: info.member.role,
+            email: info.email,
+            first_name: info.first_name,
+            last_name: info.last_name,
+        })
         .collect())
 }
 

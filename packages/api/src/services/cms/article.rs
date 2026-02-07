@@ -319,32 +319,10 @@ pub async fn delete_article(article_id: i32) -> Result<(), AppError> {
         .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Article"))?;
 
-    connection
-        .transaction::<_, AppError, _>(|connection| {
-            Box::pin(async move {
-                diesel::delete(
-                    articles_tags::table.filter(articles_tags::article_id.eq(article_id)),
-                )
-                .execute(connection)
-                .await
-                .map_err(postgres_error)?;
-
-                diesel::delete(
-                    article_revisions::table.filter(article_revisions::article_id.eq(article_id)),
-                )
-                .execute(connection)
-                .await
-                .map_err(postgres_error)?;
-
-                diesel::delete(articles::table.find(article_id))
-                    .execute(connection)
-                    .await
-                    .map_err(postgres_error)?;
-
-                Ok(())
-            })
-        })
-        .await?;
+    diesel::delete(articles::table.find(article_id))
+        .execute(connection)
+        .await
+        .map_err(postgres_error)?;
 
     if article.is_published() {
         invalidate_redis_cached_article(&article.slug).await.ok();

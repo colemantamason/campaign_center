@@ -1,6 +1,6 @@
 # API Changes
 
-> **Last Updated**: 6 February 2026 (audit v2, Phase 3 complete)
+> **Last Updated**: 6 February 2026 (audit v2, Phase 4 complete)
 
 Tracks API issues, audit findings, and improvement plans. Each item is marked with its completion status.
 
@@ -73,7 +73,7 @@ These are the highest-value refactors. Each one eliminates a pattern that is rep
 | A3 | **Article ownership check duplicated in 5 CMS providers** | 5 | ✅ Extracted `require_article_ownership(article_id, user_id)` helper in `providers/cms/article.rs`. Applied to `update_article`, `publish_article`, `delete_article`, `auto_save`, and `restore_revision`. |
 | A4 | **Membership check + role guard duplicated in 6 org providers** | 6 | ✅ Extracted `require_membership(org_id, user_id)` and `require_membership_with_role(org_id, user_id, min_role)` helpers in `providers/web_app/organization.rs`. Applied to `set_active_organization`, `get_organization`, `get_organization_members`, `invite_member`, `remove_organization_member`, and `update_organization_member_role`. |
 | A5 | **Pagination defaults repeated in every list provider** | 5+ | ✅ Created `PaginationParams::resolve(page, per_page)` in `interfaces/shared/pagination.rs`. Applied to `list_articles`, `list_published_articles`, and `list_media` providers. |
-| A6 | **Enum `as_str` / `from_str` / `display_name` / `Display` boilerplate** | All 10+ enums | Every enum manually implements the same four items. Consider a declarative macro `define_enum!` that generates all four from a list of `(VariantName, "db_value", "Display Name")` tuples. This would cut ~500 lines of repetitive code and prevent inconsistencies when adding variants. |
+| A6 | **Enum `as_str` / `from_str` / `display_name` / `Display` boilerplate** | All 10+ enums | ✅ Created `define_enum!` macro in `enums.rs` that generates all four items from `(VariantName, "db_value", "Display Name")` tuples. Applied to all 10 enums across 7 files, cutting ~500 lines of repetitive code. Enums with extra methods (e.g. `MemberRole::can_manage`) or derives (e.g. `SubscriptionType: Eq, Hash`) keep those in separate `impl` blocks or `#[derive]` attributes passed through the macro. |
 | A7 | **`batch_build_article_responses` duplicated in two places** | 2 | ✅ Moved `batch_build_article_responses` and added `build_article_response` (single-article convenience wrapper) to `services/cms/article.rs`. The CMS provider now imports from the service layer instead of defining its own copy. `batch_build_public_article_responses` in `services/shared/article.rs` remains separate (different output type) but shares the same batch-load helpers. |
 | A8 | **Single-article `build_article_response` makes N+1 queries** | 1 | ✅ Replaced the N+1 `build_article_response` in the CMS provider with `build_article_response` in the service layer, which delegates to `batch_build_article_responses` with a single-element vec. All single-article endpoints now use batch-loading. |
 
@@ -88,8 +88,8 @@ These are the highest-value refactors. Each one eliminates a pattern that is rep
 | B3 | **`create_organization` not wrapped in a transaction** | Medium | Inserts the organization, then inserts the owner membership in separate queries. If the membership insert fails, an ownerless organization is left in the DB. | ✅ Wrapped both inserts in a `connection.transaction()` block. |
 | B4 | **`create_invitation` stores email without lowercase normalization** | Low | `create_invitation` validates the email but stores it with original casing. User registration normalizes to lowercase (`email.to_lowercase()`). The existing-member lookup in the same function does use `.to_lowercase()`, so the comparison works — but the stored invitation email casing is inconsistent with the users table. | ✅ Added `.to_lowercase()` to the email at the start of `create_invitation`, before any lookups or storage. |
 | B5 | **`reset_password` silently discards session deletion errors** | Low | Uses `delete_all_user_sessions(user_id, None).await.ok()` which swallows errors entirely. `change_password` in contrast logs failures with `tracing::warn!`. | ✅ Replaced `.ok()` with `tracing::warn!` log on error. |
-| B6 | **`delete_article` manually deletes from join tables despite `ON DELETE CASCADE`** | Low | The migration defines `ON DELETE CASCADE` on `articles_tags` and `article_revisions` foreign keys. The `delete_article` service manually deletes from both tables inside a transaction before deleting the article itself. The manual deletion is redundant. | Simplify `delete_article` to delete only from the `articles` table. The cascade will handle join table and revision cleanup. Keep the transaction if additional non-cascaded cleanup is added later. |
-| B7 | **`invitations` unique constraint blocks re-inviting previously accepted users** | Low | The DB has `UNIQUE(organization_id, email)` on invitations. The service only checks for and deletes *pending* expired invitations. If a user was previously invited and accepted, their accepted invitation row still occupies the unique slot — a new invitation for the same email to the same org will hit a `UniqueViolation`. | When creating a new invitation, also delete or archive any *accepted* or *expired* invitations for that email + org before inserting. Or scope the unique constraint to pending status only using a partial unique index. |
+| B6 | **`delete_article` manually deletes from join tables despite `ON DELETE CASCADE`** | Low | The migration defines `ON DELETE CASCADE` on `articles_tags` and `article_revisions` foreign keys. The `delete_article` service manually deletes from both tables inside a transaction before deleting the article itself. The manual deletion is redundant. | ✅ Simplified `delete_article` to delete only from the `articles` table. Removed the transaction wrapper and manual `articles_tags`/`article_revisions` deletes; the DB cascade handles cleanup. |
+| B7 | **`invitations` unique constraint blocks re-inviting previously accepted users** | Low | The DB has `UNIQUE(organization_id, email)` on invitations. The service only checks for and deletes *pending* expired invitations. If a user was previously invited and accepted, their accepted invitation row still occupies the unique slot — a new invitation for the same email to the same org will hit a `UniqueViolation`. | ✅ Added deletion of any non-pending (accepted/expired) invitations for the same email + org before inserting a new invitation, clearing the unique constraint. |
 
 ---
 
@@ -104,7 +104,7 @@ These are the highest-value refactors. Each one eliminates a pattern that is rep
 | C5 | **`update_organization` has no provider endpoint** | The service function exists and validates input, but there is no provider/endpoint to expose it. Organizations can be created but not updated via the API. | ✅ Added `update_organization` provider in `providers/web_app/organization.rs` with `require_membership_with_role(Admin)` auth check. Created `UpdateOrganizationRequest` DTO in `interfaces/web_app/organization.rs`. |
 | C6 | **`OrganizationResponse` omits most organization fields** | Only includes `id`, `name`, `slug`, `description`. Missing: `avatar_url`, `website_url`, `email`, `phone_number`, address fields, `timezone`, `organization_type`, `subscriptions`, `created_at`, `updated_at`. | ✅ Expanded `OrganizationResponse` with all fields (`organization_type`, `avatar_url`, `website_url`, `email`, `phone_number`, address fields, `timezone`, `created_at`, `updated_at`). Added `From<Organization>` impl for clean conversion. Updated all construction sites. |
 | C7 | **`UserAccountResponse` doesn't include email** | `AuthResponse` includes `email`, but `UserAccountResponse` (from `get_current_user`) does not. If the client needs the email after initial auth (e.g., for a settings page), there's no dedicated endpoint for it. | ✅ Added `email` field to `UserAccountResponse`. Updated `get_current_user` provider to populate it. |
-| C8 | **`get_members_with_user_info` returns unnamed tuple** | Returns `Vec<(OrganizationMember, String, String, String)>` — the three strings are `email`, `first_name`, `last_name` but this is not self-documenting. | Create a `MemberWithUserInfo` struct (or return a tuple of named fields) for clarity. |
+| C8 | **`get_members_with_user_info` returns unnamed tuple** | Returns `Vec<(OrganizationMember, String, String, String)>` — the three strings are `email`, `first_name`, `last_name` but this is not self-documenting. | ✅ Created `MemberWithUserInfo` struct in `services/shared/organization.rs` with named fields (`member`, `email`, `first_name`, `last_name`). Updated `get_members_with_user_info` and the `get_organization_members` provider. |
 | C9 | **MinIO reads `MINIO_ENDPOINT` and `MINIO_PUBLIC_URL` env vars on every presigned URL request** | `get_minio_presigned_url` reads both env vars per call. Other services (Postgres, Redis, MinIO client) cache their config at initialization. | ✅ Cached both URLs in `OnceLock` statics during `initialize_minio_client()`. Added `get_minio_endpoint()` and `get_minio_public_url()` getter functions. `get_minio_presigned_url` now reads from the cache instead of `env::var`. |
 
 ---
@@ -160,12 +160,12 @@ These are the highest-value refactors. Each one eliminates a pattern that is rep
 18. ✅ **C6: Expand `OrganizationResponse` fields** — added all organization fields + `From<Organization>` impl
 19. ✅ **C7: Add `email` to `UserAccountResponse`** — added `email` field and populated in `get_current_user`
 
-**Phase 4 — Larger Refactors**:
+**Phase 4 — Larger Refactors** ✅ (completed):
 
-20. **A6: Enum macro** — define `define_enum!` macro to generate all enum boilerplate
-21. **C8: Named struct for `get_members_with_user_info`**
-22. **B6: Simplify `delete_article`** — remove redundant manual cascade deletes
-23. **B7: Fix invitation re-invite constraint**
+20. ✅ **A6: Enum macro** — created `define_enum!` macro in `enums.rs`; applied to all 10 enums across 7 files
+21. ✅ **C8: Named struct for `get_members_with_user_info`** — created `MemberWithUserInfo` struct; updated service and provider
+22. ✅ **B6: Simplify `delete_article`** — removed redundant manual cascade deletes and transaction wrapper
+23. ✅ **B7: Fix invitation re-invite constraint** — added deletion of non-pending invitations before insert
 
 **Deferred** (Phase 2 roadmap / feature-dependent):
 
