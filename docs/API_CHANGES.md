@@ -1,6 +1,6 @@
 # API Changes
 
-> **Last Updated**: 6 February 2026 (audit v2, Phase 2 complete)
+> **Last Updated**: 6 February 2026 (audit v2, Phase 3 complete)
 
 Tracks API issues, audit findings, and improvement plans. Each item is marked with its completion status.
 
@@ -70,12 +70,12 @@ These are the highest-value refactors. Each one eliminates a pattern that is rep
 |---|------|-------------|------|
 | A1 | **Repetitive Postgres `.map_err` boilerplate** | ~40+ | ✅ Created `postgres_error`, `redis_error`, `minio_error` helpers in `error.rs`. Applied across all service files, `postgres.rs`, `redis.rs`, and `minio.rs`. |
 | A2 | **Repetitive `ServerFnError::new(error.to_string())` in providers** | ~30+ | ✅ Updated all providers to use `?` directly, leveraging the existing `impl From<AppError> for ServerFnError` which serializes errors as JSON. Clients now receive structured error types instead of display strings. |
-| A3 | **Article ownership check duplicated in 5 CMS providers** | 5 | `update_article`, `publish_article`, `delete_article`, `auto_save`, and `restore_revision` all repeat: fetch article → check `author_id != session.user_id` → return error. Extract to a helper: `async fn require_article_ownership(article_id: i32, user_id: i32) -> Result<Article, ServerFnError>`. |
-| A4 | **Membership check + role guard duplicated in 6 org providers** | 6 | `set_active_organization`, `get_organization`, `get_organization_members`, `invite_member`, `remove_organization_member`, `update_organization_member_role` all repeat: call `get_membership` → unwrap or error. Several also check role. Extract `async fn require_membership(org_id, user_id) -> Result<OrganizationMember, ServerFnError>` and `async fn require_membership_with_role(org_id, user_id, min_role) -> Result<OrganizationMember, ServerFnError>`. |
+| A3 | **Article ownership check duplicated in 5 CMS providers** | 5 | ✅ Extracted `require_article_ownership(article_id, user_id)` helper in `providers/cms/article.rs`. Applied to `update_article`, `publish_article`, `delete_article`, `auto_save`, and `restore_revision`. |
+| A4 | **Membership check + role guard duplicated in 6 org providers** | 6 | ✅ Extracted `require_membership(org_id, user_id)` and `require_membership_with_role(org_id, user_id, min_role)` helpers in `providers/web_app/organization.rs`. Applied to `set_active_organization`, `get_organization`, `get_organization_members`, `invite_member`, `remove_organization_member`, and `update_organization_member_role`. |
 | A5 | **Pagination defaults repeated in every list provider** | 5+ | ✅ Created `PaginationParams::resolve(page, per_page)` in `interfaces/shared/pagination.rs`. Applied to `list_articles`, `list_published_articles`, and `list_media` providers. |
 | A6 | **Enum `as_str` / `from_str` / `display_name` / `Display` boilerplate** | All 10+ enums | Every enum manually implements the same four items. Consider a declarative macro `define_enum!` that generates all four from a list of `(VariantName, "db_value", "Display Name")` tuples. This would cut ~500 lines of repetitive code and prevent inconsistencies when adding variants. |
-| A7 | **`batch_build_article_responses` duplicated in two places** | 2 | `services/shared/article.rs` has `batch_build_public_article_responses` and `providers/cms/article.rs` has `batch_build_article_responses`. Both collect unique author/category/tag IDs, batch-load, then assemble responses. Extract the shared "collect IDs + batch load" logic into a reusable helper, and have each call site map the loaded data to its specific response type. |
-| A8 | **Single-article `build_article_response` makes N+1 queries** | 1 | `build_article_response` in the CMS article provider makes 3 separate queries (author, category, tags) for a single article. Reuse `batch_build_article_responses` with a single-element vec instead. This path is hit on every create/update/publish/restore response. |
+| A7 | **`batch_build_article_responses` duplicated in two places** | 2 | ✅ Moved `batch_build_article_responses` and added `build_article_response` (single-article convenience wrapper) to `services/cms/article.rs`. The CMS provider now imports from the service layer instead of defining its own copy. `batch_build_public_article_responses` in `services/shared/article.rs` remains separate (different output type) but shares the same batch-load helpers. |
+| A8 | **Single-article `build_article_response` makes N+1 queries** | 1 | ✅ Replaced the N+1 `build_article_response` in the CMS provider with `build_article_response` in the service layer, which delegates to `batch_build_article_responses` with a single-element vec. All single-article endpoints now use batch-loading. |
 
 ---
 
@@ -98,12 +98,12 @@ These are the highest-value refactors. Each one eliminates a pattern that is rep
 | # | Item | Details | Fix |
 |---|------|---------|-----|
 | C1 | **Inconsistent `#[derive]` traits on enums** | Some enums derive `Debug` + `Copy` (e.g., `ArticleType`, `ArticleStatus`, `Platform`, `OrganizationType`, `InvitationStatus`) while others omit one or both (e.g., `EventType`, `MemberRole`, `SignupStatus`, `NotificationType`, `EventVisibility`). All are fieldless and can safely derive both. | ✅ Added `Copy` and `Debug` to all enums that were missing them: `EventType`, `EventVisibility`, `SignupStatus`, `MemberRole`, `SubscriptionType`, `NotificationType`. |
-| C2 | **Inconsistent membership check style in org providers** | Some providers use `if membership.is_none() { return Err(...); }` (e.g., `get_organization`, `get_organization_members`) while others use `.ok_or_else(\|\| ServerFnError::new(...))?` (e.g., `set_active_organization`, `invite_member`). | Standardize on `.ok_or_else()` chaining (more idiomatic). If A4 is implemented (helper function), this resolves itself. |
+| C2 | **Inconsistent membership check style in org providers** | Some providers use `if membership.is_none() { return Err(...); }` (e.g., `get_organization`, `get_organization_members`) while others use `.ok_or_else(\|\| ServerFnError::new(...))?` (e.g., `set_active_organization`, `invite_member`). | ✅ Resolved by A4: all providers now use `require_membership()` / `require_membership_with_role()` helpers. |
 | C3 | **Redundant `updated_at` setting in article services** | The migration defines an `update_articles_updated_at` trigger that sets `updated_at = NOW()` on every update. But `update_article`, `publish_article`, `auto_save_article`, and `restore_revision` also set `updated_at` manually. Other tables (organizations, categories) rely solely on the trigger. | ✅ Removed manual `updated_at` setting from `update_article`, `publish_article`, `auto_save_article`, and `restore_revision`. All tables now rely on the DB trigger consistently. |
 | C4 | **`create_invitation` role not validated at service layer** | The provider (`invite_member`) validates the role string via `MemberRole::from_str()`, but the service function (`create_invitation`) accepts a raw `String` role and stores it without validation. Any direct caller of the service could insert an invalid role. | ✅ Changed `create_invitation` to accept `MemberRole` instead of `String`. The service now converts to string internally via `role.as_str()`. Updated the `invite_member` provider to pass the typed enum directly. |
-| C5 | **`update_organization` has no provider endpoint** | The service function exists and validates input, but there is no provider/endpoint to expose it. Organizations can be created but not updated via the API. | Add an `update_organization` provider in `providers/web_app/organization.rs` with appropriate auth + membership checks. |
-| C6 | **`OrganizationResponse` omits most organization fields** | Only includes `id`, `name`, `slug`, `description`. Missing: `avatar_url`, `website_url`, `email`, `phone_number`, address fields, `timezone`, `organization_type`, `subscriptions`, `created_at`, `updated_at`. | Add missing fields to `OrganizationResponse`, or create a `DetailedOrganizationResponse` for the single-org endpoint while keeping the slim version for lists. |
-| C7 | **`UserAccountResponse` doesn't include email** | `AuthResponse` includes `email`, but `UserAccountResponse` (from `get_current_user`) does not. If the client needs the email after initial auth (e.g., for a settings page), there's no dedicated endpoint for it. | Add `email` to `UserAccountResponse`. |
+| C5 | **`update_organization` has no provider endpoint** | The service function exists and validates input, but there is no provider/endpoint to expose it. Organizations can be created but not updated via the API. | ✅ Added `update_organization` provider in `providers/web_app/organization.rs` with `require_membership_with_role(Admin)` auth check. Created `UpdateOrganizationRequest` DTO in `interfaces/web_app/organization.rs`. |
+| C6 | **`OrganizationResponse` omits most organization fields** | Only includes `id`, `name`, `slug`, `description`. Missing: `avatar_url`, `website_url`, `email`, `phone_number`, address fields, `timezone`, `organization_type`, `subscriptions`, `created_at`, `updated_at`. | ✅ Expanded `OrganizationResponse` with all fields (`organization_type`, `avatar_url`, `website_url`, `email`, `phone_number`, address fields, `timezone`, `created_at`, `updated_at`). Added `From<Organization>` impl for clean conversion. Updated all construction sites. |
+| C7 | **`UserAccountResponse` doesn't include email** | `AuthResponse` includes `email`, but `UserAccountResponse` (from `get_current_user`) does not. If the client needs the email after initial auth (e.g., for a settings page), there's no dedicated endpoint for it. | ✅ Added `email` field to `UserAccountResponse`. Updated `get_current_user` provider to populate it. |
 | C8 | **`get_members_with_user_info` returns unnamed tuple** | Returns `Vec<(OrganizationMember, String, String, String)>` — the three strings are `email`, `first_name`, `last_name` but this is not self-documenting. | Create a `MemberWithUserInfo` struct (or return a tuple of named fields) for clarity. |
 | C9 | **MinIO reads `MINIO_ENDPOINT` and `MINIO_PUBLIC_URL` env vars on every presigned URL request** | `get_minio_presigned_url` reads both env vars per call. Other services (Postgres, Redis, MinIO client) cache their config at initialization. | ✅ Cached both URLs in `OnceLock` statics during `initialize_minio_client()`. Added `get_minio_endpoint()` and `get_minio_public_url()` getter functions. `get_minio_presigned_url` now reads from the cache instead of `env::var`. |
 
@@ -150,17 +150,17 @@ These are the highest-value refactors. Each one eliminates a pattern that is rep
 11. ✅ **C4: Type `create_invitation` role parameter** — changed from `String` to `MemberRole`; updated provider caller
 12. ✅ **C9: Cache MinIO env vars at init** — cached `MINIO_ENDPOINT` and `MINIO_PUBLIC_URL` in `OnceLock` statics during initialization
 
-**Phase 3 — Provider-Level Improvements**:
+**Phase 3 — Provider-Level Improvements** ✅ (completed):
 
-13. **A3: Extract article ownership helper**
-14. **A4: Extract membership check helper**
-15. **A7/A8: Consolidate article response building**
-16. **C2: Standardize membership check style** (resolved by A4)
-17. **C5: Add `update_organization` provider**
-18. **C6: Expand `OrganizationResponse` fields**
-19. **C7: Add `email` to `UserAccountResponse`**
+13. ✅ **A3: Extract article ownership helper** — created `require_article_ownership(article_id, user_id)` in `providers/cms/article.rs`; applied to 5 CMS providers
+14. ✅ **A4: Extract membership check helper** — created `require_membership(org_id, user_id)` and `require_membership_with_role(org_id, user_id, min_role)` in `providers/web_app/organization.rs`; applied to 6 org providers
+15. ✅ **A7/A8: Consolidate article response building** — moved `batch_build_article_responses` + added `build_article_response` to `services/cms/article.rs`; single-article endpoints now use batch-loading (eliminates N+1)
+16. ✅ **C2: Standardize membership check style** — resolved by A4 helpers
+17. ✅ **C5: Add `update_organization` provider** — added endpoint with `UpdateOrganizationRequest` DTO and Admin role guard
+18. ✅ **C6: Expand `OrganizationResponse` fields** — added all organization fields + `From<Organization>` impl
+19. ✅ **C7: Add `email` to `UserAccountResponse`** — added `email` field and populated in `get_current_user`
 
-**Phase 4 — Larger Refactors** (optional, lower priority):
+**Phase 4 — Larger Refactors**:
 
 20. **A6: Enum macro** — define `define_enum!` macro to generate all enum boilerplate
 21. **C8: Named struct for `get_members_with_user_info`**

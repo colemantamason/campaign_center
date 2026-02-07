@@ -176,6 +176,7 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
 
     Ok(Some(UserAccountResponse {
         id: user.id,
+        email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
         avatar_url: user.avatar_url,

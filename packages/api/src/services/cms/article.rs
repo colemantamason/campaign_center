@@ -1,5 +1,6 @@
 use crate::enums::{ArticleStatus, ArticleType};
 use crate::error::{postgres_error, AppError};
+use crate::interfaces::ArticleResponse;
 use crate::models::{Article, ArticleUpdate, NewArticle, NewArticleRevision};
 use crate::postgres::get_postgres_connection;
 use crate::redis::invalidate_redis_cached_article;
@@ -549,4 +550,78 @@ pub async fn batch_get_tag_infos(
     }
 
     Ok(result)
+}
+
+pub async fn batch_build_article_responses(
+    articles: Vec<Article>,
+) -> Result<Vec<ArticleResponse>, AppError> {
+    if articles.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let author_ids: Vec<i32> = articles
+        .iter()
+        .map(|article| article.author_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let category_ids: Vec<i32> = articles
+        .iter()
+        .filter_map(|article| article.category_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let article_ids: Vec<i32> = articles.iter().map(|article| article.id).collect();
+
+    let authors = batch_get_author_infos(&author_ids).await?;
+    let categories = batch_get_category_infos(&category_ids).await?;
+    let tags = batch_get_tag_infos(&article_ids).await?;
+
+    let mut responses = Vec::with_capacity(articles.len());
+
+    for article in articles {
+        let author = authors
+            .get(&article.author_id)
+            .cloned()
+            .ok_or_else(|| AppError::not_found("Author"))?;
+
+        let category = article
+            .category_id
+            .and_then(|category_id| categories.get(&category_id).cloned());
+
+        let article_tags = tags.get(&article.id).cloned().unwrap_or_default();
+
+        let article_type = article.get_article_type();
+        let status = article.get_status();
+
+        responses.push(ArticleResponse {
+            id: article.id,
+            article_type,
+            title: article.title,
+            slug: article.slug,
+            excerpt: article.excerpt,
+            content: article.content,
+            cover_image_url: article.cover_image_url,
+            status,
+            author,
+            category,
+            tags: article_tags,
+            published_at: article.published_at,
+            scheduled_publish_at: article.scheduled_publish_at,
+            created_at: article.created_at,
+            updated_at: article.updated_at,
+        });
+    }
+
+    Ok(responses)
+}
+
+pub async fn build_article_response(article: Article) -> Result<ArticleResponse, AppError> {
+    batch_build_article_responses(vec![article])
+        .await?
+        .into_iter()
+        .next()
+        .ok_or_else(|| AppError::InternalError("Failed to build article response".to_string()))
 }

@@ -57,6 +57,7 @@ pub struct OrganizationMembershipInfo {
 #[derive(Clone, Deserialize, Serialize)]
 pub struct UserAccountResponse {
     pub id: i32,
+    pub email: String,
     pub first_name: String,
     pub last_name: String,
     pub avatar_url: Option<String>,
