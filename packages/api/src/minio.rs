@@ -11,6 +11,8 @@ const MINIO_MEDIA_URL_EXPIRY_SECONDS: u64 = 3600;
 const MINIO_MEDIA_BUCKET: &str = "media";
 
 static MINIO_CLIENT: OnceLock<Client> = OnceLock::new();
+static MINIO_ENDPOINT_URL: OnceLock<String> = OnceLock::new();
+static MINIO_PUBLIC_URL_CACHED: OnceLock<String> = OnceLock::new();
 
 pub fn is_minio_initialized() -> bool {
     MINIO_CLIENT.get().is_some()
@@ -19,6 +21,9 @@ pub fn is_minio_initialized() -> bool {
 pub fn initialize_minio_client() -> Result<(), AppError> {
     let endpoint = env::var("MINIO_ENDPOINT")
         .map_err(|_| AppError::ConfigError("MINIO_ENDPOINT not set".to_string()))?;
+
+    let public_url = env::var("MINIO_PUBLIC_URL")
+        .map_err(|_| AppError::ConfigError("MINIO_PUBLIC_URL not set".to_string()))?;
 
     let access_key = env::var("MINIO_ACCESS_KEY")
         .map_err(|_| AppError::ConfigError("MINIO_ACCESS_KEY not set".to_string()))?;
@@ -42,6 +47,14 @@ pub fn initialize_minio_client() -> Result<(), AppError> {
         .set(client)
         .map_err(|_| AppError::ConfigError("MinIO client already initialized".to_string()))?;
 
+    MINIO_ENDPOINT_URL
+        .set(endpoint)
+        .map_err(|_| AppError::ConfigError("MinIO endpoint URL already set".to_string()))?;
+
+    MINIO_PUBLIC_URL_CACHED
+        .set(public_url)
+        .map_err(|_| AppError::ConfigError("MinIO public URL already set".to_string()))?;
+
     tracing::info!("MinIO client initialized");
 
     Ok(())
@@ -51,6 +64,20 @@ pub fn get_minio_client() -> Result<&'static Client, AppError> {
     MINIO_CLIENT
         .get()
         .ok_or_else(|| AppError::ConfigError("MinIO client not initialized".to_string()))
+}
+
+fn get_minio_endpoint() -> Result<&'static str, AppError> {
+    MINIO_ENDPOINT_URL
+        .get()
+        .map(|string| string.as_str())
+        .ok_or_else(|| AppError::ConfigError("MinIO endpoint URL not initialized".to_string()))
+}
+
+fn get_minio_public_url() -> Result<&'static str, AppError> {
+    MINIO_PUBLIC_URL_CACHED
+        .get()
+        .map(|string| string.as_str())
+        .ok_or_else(|| AppError::ConfigError("MinIO public URL not initialized".to_string()))
 }
 
 pub async fn minio_upload_object(
@@ -110,12 +137,10 @@ pub async fn get_minio_presigned_url(
 
     // replace the internal minio endpoint with the public-facing URL
     let url = presigned.uri().to_string();
-    let endpoint = env::var("MINIO_ENDPOINT")
-        .map_err(|_| AppError::ConfigError("MINIO_ENDPOINT not set".to_string()))?;
-    let public_url = env::var("MINIO_PUBLIC_URL")
-        .map_err(|_| AppError::ConfigError("MINIO_PUBLIC_URL not set".to_string()))?;
+    let endpoint = get_minio_endpoint()?;
+    let public_url = get_minio_public_url()?;
 
-    Ok(url.replace(&endpoint, &public_url))
+    Ok(url.replace(endpoint, public_url))
 }
 
 pub async fn object_exists(bucket: &str, key: &str) -> Result<bool, AppError> {

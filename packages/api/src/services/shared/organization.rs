@@ -7,11 +7,12 @@ use crate::models::{
 use crate::postgres::get_postgres_connection;
 use crate::schema::{invitations, organization_members, organizations, users};
 use crate::services::{
-    validate_email, validate_optional_slug, validate_optional_string, validate_required_string,
-    MAX_ORGANIZATION_NAME_LENGTH, MAX_ORGANIZATION_SLUG_LENGTH,
+    validate_email, validate_nested_optional_string, validate_optional_slug,
+    validate_optional_string, validate_required_string, MAX_ORGANIZATION_NAME_LENGTH,
+    MAX_ORGANIZATION_SLUG_LENGTH,
 };
 use diesel::prelude::*;
-use diesel_async::{AsyncPgConnection, RunQueryDsl};
+use diesel_async::{AsyncConnection, AsyncPgConnection, RunQueryDsl};
 use slug::slugify;
 
 // validation constants based on database column limits
@@ -53,19 +54,29 @@ pub async fn create_organization(
         user_id,
     );
 
-    let organization: Organization = diesel::insert_into(organizations::table)
-        .values(&new_organization)
-        .get_result(connection)
-        .await
-        .map_err(postgres_error)?;
+    let (organization, membership) = connection
+        .transaction::<_, AppError, _>(|connection| {
+            Box::pin(async move {
+                let organization: Organization = diesel::insert_into(organizations::table)
+                    .values(&new_organization)
+                    .get_result(connection)
+                    .await
+                    .map_err(postgres_error)?;
 
-    let owner_member = NewOrganizationMember::new(organization.id, user_id, MemberRole::Owner);
+                let owner_member =
+                    NewOrganizationMember::new(organization.id, user_id, MemberRole::Owner);
 
-    let membership: OrganizationMember = diesel::insert_into(organization_members::table)
-        .values(&owner_member)
-        .get_result(connection)
-        .await
-        .map_err(postgres_error)?;
+                let membership: OrganizationMember =
+                    diesel::insert_into(organization_members::table)
+                        .values(&owner_member)
+                        .get_result(connection)
+                        .await
+                        .map_err(postgres_error)?;
+
+                Ok((organization, membership))
+            })
+        })
+        .await?;
 
     Ok((organization, membership))
 }
@@ -136,37 +147,37 @@ pub async fn update_organization(
     }
 
     validate_optional_string("name", &update.name, MAX_ORGANIZATION_NAME_LENGTH)?;
-    validate_optional_string("description", &update.description, 10_000)?;
-    validate_optional_string(
+    validate_nested_optional_string("description", &update.description, 10_000)?;
+    validate_nested_optional_string(
         "avatar_url",
         &update.avatar_url,
         MAX_ORGANIZATION_WEBSITE_URL_LENGTH,
     )?;
-    validate_optional_string(
+    validate_nested_optional_string(
         "website_url",
         &update.website_url,
         MAX_ORGANIZATION_WEBSITE_URL_LENGTH,
     )?;
-    validate_optional_string("email", &update.email, MAX_ORGANIZATION_EMAIL_LENGTH)?;
-    validate_optional_string(
+    validate_nested_optional_string("email", &update.email, MAX_ORGANIZATION_EMAIL_LENGTH)?;
+    validate_nested_optional_string(
         "phone_number",
         &update.phone_number,
         MAX_ORGANIZATION_PHONE_LENGTH,
     )?;
-    validate_optional_string(
+    validate_nested_optional_string(
         "address_line_1",
         &update.address_line_1,
         MAX_ORGANIZATION_ADDRESS_LENGTH,
     )?;
-    validate_optional_string(
+    validate_nested_optional_string(
         "address_line_2",
         &update.address_line_2,
         MAX_ORGANIZATION_ADDRESS_LENGTH,
     )?;
-    validate_optional_string("city", &update.city, MAX_ORGANIZATION_CITY_LENGTH)?;
-    validate_optional_string("state", &update.state, MAX_ORGANIZATION_STATE_LENGTH)?;
-    validate_optional_string("zip_code", &update.zip_code, MAX_ORGANIZATION_ZIP_LENGTH)?;
-    validate_optional_string("country", &update.country, MAX_ORGANIZATION_COUNTRY_LENGTH)?;
+    validate_nested_optional_string("city", &update.city, MAX_ORGANIZATION_CITY_LENGTH)?;
+    validate_nested_optional_string("state", &update.state, MAX_ORGANIZATION_STATE_LENGTH)?;
+    validate_nested_optional_string("zip_code", &update.zip_code, MAX_ORGANIZATION_ZIP_LENGTH)?;
+    validate_nested_optional_string("country", &update.country, MAX_ORGANIZATION_COUNTRY_LENGTH)?;
     validate_optional_string(
         "timezone",
         &update.timezone,
@@ -399,10 +410,12 @@ pub async fn get_members_with_user_info(
 pub async fn create_invitation(
     organization_id: i32,
     email: String,
-    role: String,
+    role: MemberRole,
     invited_by: i32,
 ) -> Result<(), AppError> {
     validate_email(&email)?;
+
+    let email = email.to_lowercase();
 
     let connection = &mut get_postgres_connection().await?;
 
@@ -429,7 +442,7 @@ pub async fn create_invitation(
     }
 
     let user_with_email = users::table
-        .filter(users::email.eq(&email.to_lowercase()))
+        .filter(users::email.eq(&email))
         .select(users::id)
         .first::<i32>(connection)
         .await
@@ -452,7 +465,7 @@ pub async fn create_invitation(
         }
     }
 
-    let invitation = NewInvitation::new(organization_id, email, role, invited_by);
+    let invitation = NewInvitation::new(organization_id, email, role.as_str().to_string(), invited_by);
 
     diesel::insert_into(invitations::table)
         .values(&invitation)

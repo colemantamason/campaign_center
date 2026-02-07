@@ -51,5 +51,5 @@ impl NewOrganizationMember {
 #[diesel(table_name = organization_members)]
 pub struct OrganizationMemberUpdate {
     pub role: Option<String>,
-    pub last_active_at: Option<DateTime<Utc>>,
+    pub last_active_at: Option<Option<DateTime<Utc>>>,
 }

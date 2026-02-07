@@ -168,7 +168,7 @@ pub async fn invite_member(
     create_invitation(
         organization_id,
         request.email,
-        role.as_str().to_string(),
+        role,
         session.user_id,
     )
     .await?;

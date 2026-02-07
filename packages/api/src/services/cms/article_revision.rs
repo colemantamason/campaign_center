@@ -3,7 +3,6 @@ use crate::models::{Article, ArticleRevision, ArticleUpdate};
 use crate::postgres::get_postgres_connection;
 use crate::redis::invalidate_redis_cached_article;
 use crate::schema::{article_revisions, articles};
-use chrono::Utc;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 
@@ -51,7 +50,6 @@ pub async fn restore_revision(revision_id: i32) -> Result<Article, AppError> {
         excerpt: Some(revision.excerpt),
         content: Some(revision.content),
         status: Some(crate::enums::ArticleStatus::Draft.as_str().to_string()),
-        updated_at: Some(Utc::now()),
         ..Default::default()
     };
 

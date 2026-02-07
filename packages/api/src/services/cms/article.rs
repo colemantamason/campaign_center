@@ -140,7 +140,6 @@ pub async fn update_article(
         cover_image_url: cover_image_url.map(Some),
         category_id: category_id.map(Some),
         scheduled_publish_at: scheduled_publish_at.map(Some),
-        updated_at: Some(Utc::now()),
         ..Default::default()
     };
 
@@ -215,7 +214,6 @@ pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Artic
                     } else {
                         None
                     },
-                    updated_at: Some(now),
                     ..Default::default()
                 };
 
@@ -361,10 +359,7 @@ pub async fn auto_save_article(
     let connection = &mut get_postgres_connection().await?;
 
     diesel::update(articles::table.find(article_id))
-        .set((
-            articles::content.eq(&content),
-            articles::updated_at.eq(Utc::now()),
-        ))
+        .set(articles::content.eq(&content))
         .get_result::<Article>(connection)
         .await
         .map_err(postgres_error)

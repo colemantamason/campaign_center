@@ -60,8 +60,8 @@ impl NewUser {
 pub struct UserUpdate {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
-    pub phone_number: Option<String>,
-    pub avatar_url: Option<String>,
+    pub phone_number: Option<Option<String>>,
+    pub avatar_url: Option<Option<String>>,
     pub timezone: Option<String>,
     pub email_verified_at: Option<DateTime<Utc>>,
     pub last_login_at: Option<DateTime<Utc>>,

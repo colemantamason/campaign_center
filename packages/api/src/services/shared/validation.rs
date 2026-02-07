@@ -60,6 +60,17 @@ pub fn validate_optional_string(
     Ok(())
 }
 
+pub fn validate_nested_optional_string(
+    field: &str,
+    value: &Option<Option<String>>,
+    max_length: usize,
+) -> Result<(), AppError> {
+    if let Some(Some(ref v)) = value {
+        validate_max_length(field, v, max_length)?;
+    }
+    Ok(())
+}
+
 pub fn validate_slug(field: &str, value: &str, max_length: usize) -> Result<(), AppError> {
     validate_max_length(field, value, max_length)?;
 
