@@ -1,6 +1,6 @@
 use crate::http::AuthSession;
 use crate::interfaces::{
-    ListMediaRequest, MediaAssetResponse, MediaListResponse, UploadMediaRequest,
+    ListMediaRequest, MediaAssetResponse, MediaListResponse, PaginationParams, UploadMediaRequest,
 };
 #[cfg(feature = "server")]
 use crate::minio::get_minio_media_url;
@@ -29,12 +29,10 @@ pub async fn upload_media(
         vec![], // placeholder — real upload to be wired with multipart
         request.alt_text,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     let url = get_minio_media_url(&asset.storage_key)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(MediaAssetResponse {
         id: asset.id,
@@ -52,13 +50,10 @@ pub async fn upload_media(
 pub async fn list_media(request: ListMediaRequest) -> Result<MediaListResponse, ServerFnError> {
     let _session = auth.require_staff()?;
 
-    let page = request.page.unwrap_or(1).max(1);
-
-    let per_page = request.per_page.unwrap_or(20).clamp(1, 100);
+    let (page, per_page) = PaginationParams::resolve(request.page, request.per_page);
 
     let (assets, total) = list_media_service(page, per_page)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let url_futures: Vec<_> = assets
         .iter()
@@ -66,8 +61,7 @@ pub async fn list_media(request: ListMediaRequest) -> Result<MediaListResponse, 
         .collect();
 
     let urls = try_join_all(url_futures)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let responses: Vec<MediaAssetResponse> = assets
         .into_iter()
@@ -97,8 +91,7 @@ pub async fn delete_media(asset_id: i32) -> Result<(), ServerFnError> {
     let _session = auth.require_staff()?;
 
     delete_media_service(asset_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }

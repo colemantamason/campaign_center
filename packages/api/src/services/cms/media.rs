@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::minio::{minio_delete_media, minio_upload_media};
 use crate::models::{MediaAsset, NewMediaAsset};
 use crate::postgres::get_postgres_connection;
@@ -36,21 +36,30 @@ pub async fn upload_media(
         original_filename,
         mime_type,
         file_size_bytes,
-        storage_key,
+        storage_key.clone(),
     );
 
     if let Some(alt) = alt_text {
         new_asset = new_asset.set_alt_text(alt);
     }
 
-    diesel::insert_into(media_assets::table)
+    let result = diesel::insert_into(media_assets::table)
         .values(&new_asset)
         .get_result::<MediaAsset>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error);
+
+    if result.is_err() {
+        if let Err(delete_error) = minio_delete_media(&storage_key).await {
+            tracing::error!(
+                "Failed to clean up orphaned MinIO object '{}' after DB insert failure: {}",
+                storage_key,
+                delete_error
+            );
+        }
+    }
+
+    result
 }
 
 pub async fn list_media(page: i64, per_page: i64) -> Result<(Vec<MediaAsset>, i64), AppError> {
@@ -60,10 +69,7 @@ pub async fn list_media(page: i64, per_page: i64) -> Result<(Vec<MediaAsset>, i6
         .count()
         .get_result(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     let offset = (page - 1) * per_page;
 
@@ -73,10 +79,7 @@ pub async fn list_media(page: i64, per_page: i64) -> Result<(Vec<MediaAsset>, i6
         .offset(offset)
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok((assets, total))
 }
@@ -89,18 +92,12 @@ pub async fn delete_media(asset_id: i32) -> Result<(), AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Media asset"))?;
     diesel::delete(media_assets::table.find(asset_id))
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     let storage_key = asset.storage_key;
     let mut last_error = None;

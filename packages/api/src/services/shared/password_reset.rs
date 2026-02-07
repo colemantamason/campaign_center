@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::models::{NewPasswordResetToken, PasswordResetToken};
 use crate::postgres::get_postgres_connection;
 use crate::schema::{password_reset_tokens, users};
@@ -27,10 +27,7 @@ pub async fn request_password_reset(email: &str) -> Result<Option<Uuid>, AppErro
     .set(password_reset_tokens::used_at.eq(Some(Utc::now())))
     .execute(connection)
     .await
-    .map_err(|error| AppError::ExternalServiceError {
-        service: "Postgres".to_string(),
-        message: error.to_string(),
-    })?;
+    .map_err(postgres_error)?;
 
     let new_token = NewPasswordResetToken::new(user.id);
 
@@ -40,10 +37,7 @@ pub async fn request_password_reset(email: &str) -> Result<Option<Uuid>, AppErro
         .values(&new_token)
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(Some(token_uuid))
 }
@@ -58,10 +52,7 @@ pub async fn reset_password(token: Uuid, new_password: &str) -> Result<(), AppEr
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::validation("token", "Invalid or expired reset token"))?;
 
     if !reset_token.is_valid() {
@@ -77,22 +68,22 @@ pub async fn reset_password(token: Uuid, new_password: &str) -> Result<(), AppEr
         .set(users::password_hash.eq(new_hash))
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     diesel::update(password_reset_tokens::table.find(reset_token.id))
         .set(password_reset_tokens::used_at.eq(Some(Utc::now())))
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     // invalidate all sessions after password reset
-    delete_all_user_sessions(reset_token.user_id).await.ok();
+    if let Err(error) = delete_all_user_sessions(reset_token.user_id, None).await {
+        tracing::warn!(
+            "failed to invalidate sessions after password reset for user {}: {}",
+            reset_token.user_id,
+            error
+        );
+    }
 
     Ok(())
 }
@@ -105,10 +96,7 @@ pub async fn validate_reset_token(token: Uuid) -> Result<bool, AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(reset_token.map(|t| t.is_valid()).unwrap_or(false))
 }
@@ -126,10 +114,7 @@ pub async fn cleanup_expired_reset_tokens() -> Result<i32, AppError> {
     )
     .execute(connection)
     .await
-    .map_err(|error| AppError::ExternalServiceError {
-        service: "Postgres".to_string(),
-        message: error.to_string(),
-    })?;
+    .map_err(postgres_error)?;
 
     if count > 0 {
         tracing::info!("Cleaned up {} expired/used password reset tokens", count);

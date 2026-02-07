@@ -12,8 +12,7 @@ pub async fn create_tag(request: CreateTagRequest) -> Result<TagResponse, Server
     let _session = auth.require_staff()?;
 
     let tag = create_tag_service(request.name, request.slug)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(build_tag_response(tag))
 }
@@ -27,8 +26,7 @@ pub async fn search_tags(
     let limit = request.limit.unwrap_or(20).clamp(1, 100);
 
     let tags = search_tags_service(request.query, limit)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(tags.into_iter().map(build_tag_response).collect())
 }
@@ -38,8 +36,7 @@ pub async fn delete_tag(tag_id: i32) -> Result<(), ServerFnError> {
     let _session = auth.require_staff()?;
 
     delete_tag_service(tag_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }

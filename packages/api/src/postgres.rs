@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use diesel_async::{
     pooled_connection::{
         deadpool::{Object, Pool},
@@ -39,10 +39,5 @@ pub async fn get_postgres_connection() -> Result<Object<AsyncPgConnection>, AppE
         .get()
         .ok_or_else(|| AppError::ConfigError("Postgres pool not initialized".to_string()))?;
 
-    pool.get()
-        .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+    pool.get().await.map_err(postgres_error)
 }

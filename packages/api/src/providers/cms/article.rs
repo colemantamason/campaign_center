@@ -1,7 +1,7 @@
 use crate::http::AuthSession;
 use crate::interfaces::{
     ArticleListResponse, ArticleResponse, ArticleRevisionResponse, CreateArticleRequest,
-    ListArticlesRequest, UpdateArticleRequest,
+    ListArticlesRequest, PaginationParams, UpdateArticleRequest,
 };
 #[cfg(feature = "server")]
 use crate::services::cms::{
@@ -33,8 +33,7 @@ pub async fn create_article(
         request.category_id,
         request.tag_ids,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     build_article_response(article).await
 }
@@ -44,7 +43,13 @@ pub async fn update_article(
     article_id: i32,
     request: UpdateArticleRequest,
 ) -> Result<ArticleResponse, ServerFnError> {
-    let _session = auth.require_staff()?;
+    let session = auth.require_staff()?;
+
+    let existing = get_article_service(article_id)
+        .await?;
+    if existing.author_id != session.user_id {
+        return Err(ServerFnError::new("You can only edit your own articles"));
+    }
 
     let article = update_article_service(
         article_id,
@@ -57,8 +62,7 @@ pub async fn update_article(
         request.tag_ids,
         request.scheduled_publish_at,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     build_article_response(article).await
 }
@@ -67,9 +71,14 @@ pub async fn update_article(
 pub async fn publish_article(article_id: i32) -> Result<ArticleResponse, ServerFnError> {
     let session = auth.require_staff()?;
 
+    let existing = get_article_service(article_id)
+        .await?;
+    if existing.author_id != session.user_id {
+        return Err(ServerFnError::new("You can only publish your own articles"));
+    }
+
     let article = publish_article_service(article_id, session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     build_article_response(article).await
 }
@@ -79,8 +88,7 @@ pub async fn get_article(article_id: i32) -> Result<ArticleResponse, ServerFnErr
     let _session = auth.require_staff()?;
 
     let article = get_article_service(article_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     build_article_response(article).await
 }
@@ -91,8 +99,7 @@ pub async fn list_articles(
 ) -> Result<ArticleListResponse, ServerFnError> {
     let _session = auth.require_staff()?;
 
-    let page = request.page.unwrap_or(1).max(1);
-    let per_page = request.per_page.unwrap_or(20).clamp(1, 100);
+    let (page, per_page) = PaginationParams::resolve(request.page, request.per_page);
 
     let (articles, total) = list_articles_service(
         request.article_type,
@@ -101,12 +108,10 @@ pub async fn list_articles(
         page,
         per_page,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     let responses = batch_build_article_responses(articles)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(ArticleListResponse {
         articles: responses,
@@ -118,22 +123,32 @@ pub async fn list_articles(
 
 #[post("/api/cms/articles/delete", auth: AuthSession)]
 pub async fn delete_article(article_id: i32) -> Result<(), ServerFnError> {
-    let _session = auth.require_staff()?;
+    let session = auth.require_staff()?;
+
+    let existing = get_article_service(article_id)
+        .await?;
+    if existing.author_id != session.user_id {
+        return Err(ServerFnError::new("You can only delete your own articles"));
+    }
 
     delete_article_service(article_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }
 
 #[post("/api/cms/articles/auto-save", auth: AuthSession)]
 pub async fn auto_save(article_id: i32, content: serde_json::Value) -> Result<(), ServerFnError> {
-    let _session = auth.require_staff()?;
+    let session = auth.require_staff()?;
+
+    let existing = get_article_service(article_id)
+        .await?;
+    if existing.author_id != session.user_id {
+        return Err(ServerFnError::new("You can only edit your own articles"));
+    }
 
     auto_save_article(article_id, content)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }
@@ -145,8 +160,7 @@ pub async fn list_article_revisions(
     let _session = auth.require_staff()?;
 
     let revisions = list_revisions(article_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     if revisions.is_empty() {
         return Ok(vec![]);
@@ -160,8 +174,7 @@ pub async fn list_article_revisions(
         .collect();
 
     let authors = batch_get_author_infos(&publisher_ids)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let mut responses = Vec::with_capacity(revisions.len());
 
@@ -187,11 +200,20 @@ pub async fn list_article_revisions(
 
 #[post("/api/cms/articles/revisions/restore", auth: AuthSession)]
 pub async fn restore_revision(revision_id: i32) -> Result<ArticleResponse, ServerFnError> {
-    let _session = auth.require_staff()?;
+    let session = auth.require_staff()?;
+
+    let revision = crate::services::cms::article_revision::get_revision(revision_id)
+        .await?;
+    let existing = get_article_service(revision.article_id)
+        .await?;
+    if existing.author_id != session.user_id {
+        return Err(ServerFnError::new(
+            "You can only restore revisions of your own articles",
+        ));
+    }
 
     let article = crate::services::cms::article_revision::restore_revision(revision_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     build_article_response(article).await
 }
@@ -201,22 +223,19 @@ async fn build_article_response(
     article: crate::models::Article,
 ) -> Result<ArticleResponse, ServerFnError> {
     let author = get_article_author_info(article.author_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let category = if let Some(cat_id) = article.category_id {
         Some(
             get_article_category_info(cat_id)
-                .await
-                .map_err(|error| ServerFnError::new(error.to_string()))?,
+                .await?,
         )
     } else {
         None
     };
 
     let tags = get_article_tag_infos(article.id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let article_type = article.get_article_type();
     let status = article.get_status();

@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::models::{ArticleTag, ArticleTagLink, NewArticleTag};
 use crate::postgres::get_postgres_connection;
 use crate::schema::{article_tags, articles_tags};
@@ -22,10 +22,7 @@ pub async fn create_tag(name: String, slug: Option<String>) -> Result<ArticleTag
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if existing.is_some() {
         return Err(AppError::already_exists("Tag with this slug"));
@@ -37,10 +34,7 @@ pub async fn create_tag(name: String, slug: Option<String>) -> Result<ArticleTag
         .values(&new_tag)
         .get_result::<ArticleTag>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn search_tags(query: String, limit: i64) -> Result<Vec<ArticleTag>, AppError> {
@@ -60,10 +54,7 @@ pub async fn search_tags(query: String, limit: i64) -> Result<Vec<ArticleTag>, A
         .limit(limit)
         .load::<ArticleTag>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn delete_tag(tag_id: i32) -> Result<(), AppError> {
@@ -75,18 +66,12 @@ pub async fn delete_tag(tag_id: i32) -> Result<(), AppError> {
                 diesel::delete(articles_tags::table.filter(articles_tags::tag_id.eq(tag_id)))
                     .execute(connection)
                     .await
-                    .map_err(|error| AppError::ExternalServiceError {
-                        service: "Postgres".to_string(),
-                        message: error.to_string(),
-                    })?;
+                    .map_err(postgres_error)?;
 
                 let deleted = diesel::delete(article_tags::table.find(tag_id))
                     .execute(connection)
                     .await
-                    .map_err(|error| AppError::ExternalServiceError {
-                        service: "Postgres".to_string(),
-                        message: error.to_string(),
-                    })?;
+                    .map_err(postgres_error)?;
 
                 if deleted == 0 {
                     return Err(AppError::not_found("Tag"));
@@ -112,10 +97,7 @@ pub async fn sync_article_tags(article_id: i32, tag_ids: &[i32]) -> Result<(), A
                 )
                 .execute(connection)
                 .await
-                .map_err(|error| AppError::ExternalServiceError {
-                    service: "Postgres".to_string(),
-                    message: error.to_string(),
-                })?;
+                .map_err(postgres_error)?;
 
                 if !tag_ids.is_empty() {
                     let links: Vec<ArticleTagLink> = tag_ids
@@ -127,10 +109,7 @@ pub async fn sync_article_tags(article_id: i32, tag_ids: &[i32]) -> Result<(), A
                         .values(&links)
                         .execute(connection)
                         .await
-                        .map_err(|error| AppError::ExternalServiceError {
-                            service: "Postgres".to_string(),
-                            message: error.to_string(),
-                        })?;
+                        .map_err(postgres_error)?;
                 }
 
                 Ok(())

@@ -1,5 +1,5 @@
 use crate::enums::ArticleType;
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::models::{ArticleCategory, ArticleCategoryUpdate, NewArticleCategory};
 use crate::postgres::get_postgres_connection;
 use crate::schema::article_categories;
@@ -8,7 +8,7 @@ use crate::services::{
     MAX_CATEGORY_NAME_LENGTH, MAX_CATEGORY_SLUG_LENGTH,
 };
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 use slug::slugify;
 
 pub async fn create_category(
@@ -31,10 +31,7 @@ pub async fn create_category(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if existing.is_some() {
         return Err(AppError::already_exists("Category with this slug"));
@@ -53,10 +50,7 @@ pub async fn create_category(
         .values(&new_category)
         .get_result::<ArticleCategory>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn list_categories(article_type: ArticleType) -> Result<Vec<ArticleCategory>, AppError> {
@@ -67,10 +61,7 @@ pub async fn list_categories(article_type: ArticleType) -> Result<Vec<ArticleCat
         .order(article_categories::sort_order.asc())
         .load::<ArticleCategory>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn update_category(
@@ -90,10 +81,7 @@ pub async fn update_category(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Category"))?;
 
     if let Some(ref new_slug) = slug {
@@ -104,10 +92,7 @@ pub async fn update_category(
             .first(connection)
             .await
             .optional()
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
+            .map_err(postgres_error)?;
 
         if duplicate.is_some() {
             return Err(AppError::already_exists("Category with this slug"));
@@ -125,10 +110,7 @@ pub async fn update_category(
         .set(&update)
         .get_result::<ArticleCategory>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn delete_category(category_id: i32) -> Result<(), AppError> {
@@ -137,10 +119,7 @@ pub async fn delete_category(category_id: i32) -> Result<(), AppError> {
     let deleted = diesel::delete(article_categories::table.find(category_id))
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if deleted == 0 {
         return Err(AppError::not_found("Category"));
@@ -149,7 +128,6 @@ pub async fn delete_category(category_id: i32) -> Result<(), AppError> {
     Ok(())
 }
 
-// uses raw SQL because diesel's DSL doesn't support UPDATE ... FROM (VALUES ...) for per-row different values
 pub async fn batch_reorder_categories(order: Vec<(i32, i32)>) -> Result<(), AppError> {
     if order.is_empty() {
         return Ok(());
@@ -157,23 +135,41 @@ pub async fn batch_reorder_categories(order: Vec<(i32, i32)>) -> Result<(), AppE
 
     let connection = &mut get_postgres_connection().await?;
 
-    let values: Vec<String> = order
-        .iter()
-        .map(|(id, sort_order)| format!("({}, {})", id, sort_order))
-        .collect();
+    let category_ids: Vec<i32> = order.iter().map(|(id, _)| *id).collect();
 
-    let query = format!(
-        "UPDATE article_categories AS ac SET sort_order = v.new_order FROM (VALUES {}) AS v(id, new_order) WHERE ac.id = v.id",
-        values.join(", ")
-    );
-
-    diesel::sql_query(query)
-        .execute(connection)
+    let distinct_types: Vec<String> = article_categories::table
+        .filter(article_categories::id.eq_any(&category_ids))
+        .select(article_categories::article_type)
+        .distinct()
+        .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
+
+    if distinct_types.is_empty() {
+        return Err(AppError::not_found("Categories"));
+    }
+
+    if distinct_types.len() > 1 {
+        return Err(AppError::validation(
+            "order",
+            "All categories must belong to the same article type",
+        ));
+    }
+
+    connection
+        .transaction::<_, AppError, _>(|connection| {
+            Box::pin(async move {
+                for (id, sort_order) in &order {
+                    diesel::update(article_categories::table.find(*id))
+                        .set(article_categories::sort_order.eq(*sort_order))
+                        .execute(connection)
+                        .await
+                        .map_err(postgres_error)?;
+                }
+                Ok(())
+            })
+        })
+        .await?;
 
     Ok(())
 }

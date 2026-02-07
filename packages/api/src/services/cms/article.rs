@@ -1,5 +1,5 @@
 use crate::enums::{ArticleStatus, ArticleType};
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::models::{Article, ArticleUpdate, NewArticle, NewArticleRevision};
 use crate::postgres::get_postgres_connection;
 use crate::redis::invalidate_redis_cached_article;
@@ -40,10 +40,7 @@ pub async fn create_article(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if existing.is_some() {
         return Err(AppError::already_exists("Article with this slug"));
@@ -56,10 +53,7 @@ pub async fn create_article(
             .first(connection)
             .await
             .optional()
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?
+            .map_err(postgres_error)?
             .ok_or_else(|| AppError::not_found("Category"))?;
 
         if category_type != article_type.as_str() {
@@ -89,10 +83,7 @@ pub async fn create_article(
         .values(&new_article)
         .get_result(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     // link tags if provided
     if let Some(ids) = tag_ids {
@@ -123,10 +114,7 @@ pub async fn update_article(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Article"))?;
 
     // if slug is changing, check uniqueness
@@ -137,10 +125,7 @@ pub async fn update_article(
             .first(connection)
             .await
             .optional()
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
+            .map_err(postgres_error)?;
 
         if duplicate.is_some() {
             return Err(AppError::already_exists("Article with this slug"));
@@ -163,10 +148,7 @@ pub async fn update_article(
         .set(&update)
         .get_result(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     // sync tags if provided
     if let Some(ids) = tag_ids {
@@ -193,10 +175,7 @@ pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Artic
                     .first(connection)
                     .await
                     .optional()
-                    .map_err(|error| AppError::ExternalServiceError {
-                        service: "Postgres".to_string(),
-                        message: error.to_string(),
-                    })?
+                    .map_err(postgres_error)?
                     .ok_or_else(|| AppError::not_found("Article"))?;
 
                 let max_revision: Option<i32> = article_revisions::table
@@ -204,10 +183,7 @@ pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Artic
                     .select(diesel::dsl::max(article_revisions::revision_number))
                     .first(connection)
                     .await
-                    .map_err(|error| AppError::ExternalServiceError {
-                        service: "Postgres".to_string(),
-                        message: error.to_string(),
-                    })?;
+                    .map_err(postgres_error)?;
 
                 let next_revision = max_revision.unwrap_or(0) + 1;
 
@@ -228,16 +204,17 @@ pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Artic
                     .values(&new_revision)
                     .execute(connection)
                     .await
-                    .map_err(|error| AppError::ExternalServiceError {
-                        service: "Postgres".to_string(),
-                        message: error.to_string(),
-                    })?;
+                    .map_err(postgres_error)?;
 
                 let now = Utc::now();
 
                 let update = ArticleUpdate {
                     status: Some(ArticleStatus::Published.as_str().to_string()),
-                    published_at: Some(Some(now)),
+                    published_at: if article.published_at.is_none() {
+                        Some(Some(now))
+                    } else {
+                        None
+                    },
                     updated_at: Some(now),
                     ..Default::default()
                 };
@@ -246,10 +223,7 @@ pub async fn publish_article(article_id: i32, published_by: i32) -> Result<Artic
                     .set(&update)
                     .get_result(connection)
                     .await
-                    .map_err(|error| AppError::ExternalServiceError {
-                        service: "Postgres".to_string(),
-                        message: error.to_string(),
-                    })?;
+                    .map_err(postgres_error)?;
 
                 Ok(updated)
             })
@@ -271,10 +245,7 @@ pub async fn get_article(article_id: i32) -> Result<Article, AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Article"))
 }
 
@@ -286,10 +257,7 @@ pub async fn get_article_by_slug(slug: &str) -> Result<Article, AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Article"))
 }
 
@@ -326,10 +294,7 @@ pub async fn list_articles(
         .count()
         .get_result(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     let offset = (page - 1) * per_page;
 
@@ -339,10 +304,7 @@ pub async fn list_articles(
         .offset(offset)
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok((articles_list, total))
 }
@@ -355,10 +317,7 @@ pub async fn delete_article(article_id: i32) -> Result<(), AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Article"))?;
 
     connection
@@ -369,28 +328,19 @@ pub async fn delete_article(article_id: i32) -> Result<(), AppError> {
                 )
                 .execute(connection)
                 .await
-                .map_err(|error| AppError::ExternalServiceError {
-                    service: "Postgres".to_string(),
-                    message: error.to_string(),
-                })?;
+                .map_err(postgres_error)?;
 
                 diesel::delete(
                     article_revisions::table.filter(article_revisions::article_id.eq(article_id)),
                 )
                 .execute(connection)
                 .await
-                .map_err(|error| AppError::ExternalServiceError {
-                    service: "Postgres".to_string(),
-                    message: error.to_string(),
-                })?;
+                .map_err(postgres_error)?;
 
                 diesel::delete(articles::table.find(article_id))
                     .execute(connection)
                     .await
-                    .map_err(|error| AppError::ExternalServiceError {
-                        service: "Postgres".to_string(),
-                        message: error.to_string(),
-                    })?;
+                    .map_err(postgres_error)?;
 
                 Ok(())
             })
@@ -411,13 +361,13 @@ pub async fn auto_save_article(
     let connection = &mut get_postgres_connection().await?;
 
     diesel::update(articles::table.find(article_id))
-        .set(articles::content.eq(&content))
+        .set((
+            articles::content.eq(&content),
+            articles::updated_at.eq(Utc::now()),
+        ))
         .get_result::<Article>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn get_article_author_info(
@@ -430,10 +380,7 @@ pub async fn get_article_author_info(
         .select((users::first_name, users::last_name, users::avatar_url))
         .first(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(crate::interfaces::ArticleAuthorInfo {
         id: author_id,
@@ -453,10 +400,7 @@ pub async fn get_article_category_info(
         .select((article_categories::name, article_categories::slug))
         .first(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(crate::interfaces::ArticleCategoryInfo {
         id: category_id,
@@ -475,10 +419,7 @@ pub async fn get_article_tag_infos(
         .select(articles_tags::tag_id)
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if tag_ids.is_empty() {
         return Ok(vec![]);
@@ -489,10 +430,7 @@ pub async fn get_article_tag_infos(
         .select((article_tags::id, article_tags::name, article_tags::slug))
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(tags
         .into_iter()
@@ -519,10 +457,7 @@ pub async fn batch_get_author_infos(
         ))
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(rows
         .into_iter()
@@ -558,10 +493,7 @@ pub async fn batch_get_category_infos(
         ))
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(rows
         .into_iter()
@@ -588,10 +520,7 @@ pub async fn batch_get_tag_infos(
         .select((articles_tags::article_id, articles_tags::tag_id))
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if links.is_empty() {
         return Ok(HashMap::new());
@@ -609,10 +538,7 @@ pub async fn batch_get_tag_infos(
         .select((article_tags::id, article_tags::name, article_tags::slug))
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     let tag_map: HashMap<i32, crate::interfaces::ArticleTagInfo> = tags
         .into_iter()

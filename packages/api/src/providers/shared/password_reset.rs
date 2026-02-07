@@ -17,8 +17,7 @@ pub async fn request_password_reset(
     request: RequestPasswordResetRequest,
 ) -> Result<RequestPasswordResetResponse, ServerFnError> {
     let result = request_password_reset_service(&request.email)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     // TODO: if result is Some(token), send the reset email with the token link via AWS SES.
     // For now, log the token in development for testing.
@@ -42,8 +41,7 @@ pub async fn reset_password(
         .map_err(|_| ServerFnError::new("Invalid token format"))?;
 
     reset_password_service(token, &request.new_password)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(ResetPasswordResponse { success: true })
 }
@@ -56,8 +54,7 @@ pub async fn validate_reset_token(
         .map_err(|_| ServerFnError::new("Invalid token format"))?;
 
     let valid = validate_reset_token_service(token)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(ValidateResetTokenResponse { valid })
 }

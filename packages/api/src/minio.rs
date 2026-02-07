@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::error::{minio_error, AppError};
 use aws_config::Region;
 use aws_credential_types::Credentials;
 use aws_sdk_s3::{
@@ -69,10 +69,7 @@ pub async fn minio_upload_object(
         .content_type(content_type)
         .send()
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "MinIO".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(minio_error)?;
 
     Ok(key.to_string())
 }
@@ -86,10 +83,7 @@ pub async fn minio_delete_object(bucket: &str, key: &str) -> Result<(), AppError
         .key(key)
         .send()
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "MinIO".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(minio_error)?;
 
     Ok(())
 }
@@ -112,10 +106,7 @@ pub async fn get_minio_presigned_url(
         .key(key)
         .presigned(presigning_config)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "MinIO".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(minio_error)?;
 
     // replace the internal minio endpoint with the public-facing URL
     let url = presigned.uri().to_string();

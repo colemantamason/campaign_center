@@ -1,5 +1,5 @@
 use crate::enums::{InvitationStatus, MemberRole, OrganizationType, SubscriptionType};
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::models::{
     NewInvitation, NewOrganization, NewOrganizationMember, Organization, OrganizationMember,
     OrganizationMemberUpdate, OrganizationUpdate,
@@ -7,7 +7,7 @@ use crate::models::{
 use crate::postgres::get_postgres_connection;
 use crate::schema::{invitations, organization_members, organizations, users};
 use crate::services::{
-    validate_optional_slug, validate_optional_string, validate_required_string,
+    validate_email, validate_optional_slug, validate_optional_string, validate_required_string,
     MAX_ORGANIZATION_NAME_LENGTH, MAX_ORGANIZATION_SLUG_LENGTH,
 };
 use diesel::prelude::*;
@@ -57,10 +57,7 @@ pub async fn create_organization(
         .values(&new_organization)
         .get_result(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     let owner_member = NewOrganizationMember::new(organization.id, user_id, MemberRole::Owner);
 
@@ -68,10 +65,7 @@ pub async fn create_organization(
         .values(&owner_member)
         .get_result(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok((organization, membership))
 }
@@ -90,10 +84,7 @@ async fn ensure_unique_slug(
             .get_result::<i64>(connection)
             .await
             .map(|count| count > 0)
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
+            .map_err(postgres_error)?;
 
         if !exists {
             return Ok(slug);
@@ -118,10 +109,7 @@ pub async fn get_organization_by_id(org_id: i32) -> Result<Organization, AppErro
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Organization"))
 }
 
@@ -133,10 +121,7 @@ pub async fn get_organization_by_slug(slug: &str) -> Result<Option<Organization>
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn update_organization(
@@ -194,10 +179,7 @@ pub async fn update_organization(
         .set(&update)
         .get_result::<Organization>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn get_membership(
@@ -212,10 +194,7 @@ pub async fn get_membership(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn list_user_organizations(
@@ -233,10 +212,7 @@ pub async fn list_user_organizations(
         ))
         .load::<(Organization, OrganizationMember)>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn list_organization_members(
@@ -249,10 +225,7 @@ pub async fn list_organization_members(
         .order(organization_members::joined_at.asc())
         .load::<OrganizationMember>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn get_member_by_id(member_id: i32) -> Result<OrganizationMember, AppError> {
@@ -263,10 +236,7 @@ pub async fn get_member_by_id(member_id: i32) -> Result<OrganizationMember, AppE
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Member"))
 }
 
@@ -301,10 +271,7 @@ pub async fn add_member(
         .values(&new_member)
         .get_result::<OrganizationMember>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn update_member_role(
@@ -325,10 +292,7 @@ pub async fn update_member_role(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Member"))?;
 
     if current.get_role() == MemberRole::Owner {
@@ -345,10 +309,7 @@ pub async fn update_member_role(
         })
         .get_result::<OrganizationMember>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn remove_member(member_id: i32) -> Result<(), AppError> {
@@ -359,10 +320,7 @@ pub async fn remove_member(member_id: i32) -> Result<(), AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Member"))?;
 
     if member.get_role() == MemberRole::Owner {
@@ -375,10 +333,7 @@ pub async fn remove_member(member_id: i32) -> Result<(), AppError> {
     diesel::delete(organization_members::table.find(member_id))
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(())
 }
@@ -392,10 +347,7 @@ pub async fn count_members(organization_id: i32) -> Result<i32, AppError> {
         .get_result::<i64>(connection)
         .await
         .map(|count| count as i32)
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn batch_count_members(
@@ -416,10 +368,7 @@ pub async fn batch_count_members(
         ))
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(counts
         .into_iter()
@@ -444,10 +393,7 @@ pub async fn get_members_with_user_info(
         ))
         .load::<(OrganizationMember, String, String, String)>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn create_invitation(
@@ -456,6 +402,8 @@ pub async fn create_invitation(
     role: String,
     invited_by: i32,
 ) -> Result<(), AppError> {
+    validate_email(&email)?;
+
     let connection = &mut get_postgres_connection().await?;
 
     let existing = invitations::table
@@ -465,10 +413,7 @@ pub async fn create_invitation(
         .first::<crate::models::Invitation>(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if let Some(invite) = existing {
         if !invite.is_expired() {
@@ -480,10 +425,7 @@ pub async fn create_invitation(
         diesel::delete(invitations::table.find(invite.id))
             .execute(connection)
             .await
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
+            .map_err(postgres_error)?;
     }
 
     let user_with_email = users::table
@@ -492,10 +434,7 @@ pub async fn create_invitation(
         .first::<i32>(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if let Some(user_id) = user_with_email {
         let already_member = organization_members::table
@@ -504,10 +443,7 @@ pub async fn create_invitation(
             .first::<OrganizationMember>(connection)
             .await
             .optional()
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
+            .map_err(postgres_error)?;
 
         if already_member.is_some() {
             return Err(AppError::already_exists(
@@ -522,10 +458,7 @@ pub async fn create_invitation(
         .values(&invitation)
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: format!("Failed to create invitation: {}", error),
-        })?;
+        .map_err(postgres_error)?;
 
     Ok(())
 }

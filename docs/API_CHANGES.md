@@ -1,8 +1,8 @@
 # API Changes
 
-> **Last Updated**: 6 February 2026
+> **Last Updated**: 6 February 2026 (audit v2, Phase 1 complete)
 
-Tracks implementation of the support chat as well as assorted API issues and audit findings. Each item is marked with its completion status.
+Tracks API issues, audit findings, and improvement plans. Each item is marked with its completion status.
 
 ## Status Legend
 
@@ -56,69 +56,127 @@ Tracks implementation of the support chat as well as assorted API issues and aud
 
 ---
 
-## Recently Completed
-
-| Item | Details |
-|------|---------|
-| ✅ **Input length validation** | Centralized validation module (`services/shared/validation.rs`) with `validate_required_string`, `validate_optional_string`, `validate_slug`, `validate_optional_slug`, and `validate_max_length`. Constants match DB column limits. Applied to: article create/update, category create/update, tag create, organization create, user registration, media upload. |
-| ✅ **Password reset flow** | Full implementation: model (`models/password_reset_token.rs`), service (`services/shared/password_reset.rs`), interfaces (`interfaces/shared/password_reset.rs`), and providers (`providers/shared/password_reset.rs`). Endpoints: `request-password-reset`, `reset-password`, `validate-reset-token`. Invalidates existing tokens on new request. Email sending still TODO (logged in dev). |
-| ✅ **Media file validation** | `validate_media_file()` in validation module. Checks: file size > 0, max 50 MB, allowlisted MIME types (JPEG, PNG, GIF, WebP, SVG, AVIF, PDF, MP4, WebM), dangerous extension blocklist. |
-| ✅ **Security: `is_staff` removed from RegisterRequest** | Users can no longer self-register as staff. `is_staff` is hardcoded to `false` during registration. Staff promotion must be done via admin operation. |
-| ✅ **Session invalidation on credential change** | `change_password` and `reset_password` now call `delete_all_user_sessions()` to invalidate all sessions after a credential change. |
-| ✅ **Invitation role validation** | `invite_member` provider now validates the role string against `MemberRole::from_str()` and prevents inviting as `Owner`. |
-| ✅ **Organization avatar_url fix** | `get_current_user` now returns the actual `organization.avatar_url` instead of hardcoded `None`. |
-| ✅ **`publish_article` wrapped in transaction** | The revision insert + status update are now atomic. |
-| ✅ **`sync_article_tags` wrapped in transaction** | The delete + insert for tag associations are now atomic. |
-| ✅ **Org member operations used full list scan** | `remove_organization_member` and `update_organization_member_role` now use a direct `get_member_by_id()` service instead of loading all members. Provider also validates `organization_id` ownership. |
-| ✅ **Sequential MinIO presigned URL generation** | `list_media` now uses `futures::try_join_all()` to generate presigned URLs concurrently instead of one at a time. |
-| ✅ **Event shift no time validation** | `NewEventShift::new()` now returns `Result<Self, AppError>` and validates `end_time > start_time`. |
-| ✅ **`update_organization` input validation** | `update_organization` service now validates all string field lengths against DB column limits before writing. Also rejects empty name. |
-
----
-
 ## Known Issues & Future Improvements
 
-### Media Upload Placeholder
-
-The `upload_media` provider currently passes empty bytes — actual file upload needs to be wired via Dioxus multipart upload support or a presigned URL flow where the client uploads directly to MinIO. The `validate_media_file` function validates the declared metadata, but actual uploaded data is currently a 0-byte placeholder.
-
-### Deferred Items (to be addressed as features are built)
-
-| Item | Severity | Notes |
-|------|----------|-------|
-| **TOCTOU slug uniqueness** | Low | Slug check-then-insert is not atomic for articles, tags, categories, and orgs. DB unique constraints catch duplicates, but error messages fall back to generic `UniqueViolation`. Consider catching `UniqueViolation` and returning friendly errors. |
-| **`SESSION_COOKIE_DOMAIN` placeholder** | Medium | Hardcoded to `.domain.com` — must be replaced before production deployment. Has existing TODO. |
-| **No rate limiting** | Medium | Auth endpoints (`register`, `login`, `change_password`, `request-password-reset`) have no brute-force protection. Already on roadmap (Phase 2). |
-| **No CSRF protection** | Medium | Cookie-based sessions use `SameSite=Lax` but no CSRF token validation. Already on roadmap (Phase 2). |
-| **No scheduled article publishing** | Low | `scheduled_publish_at` field exists but nothing checks/triggers it. Needs a background worker. |
-| **No email sending** | Medium | Invitations and password reset tokens are created but no emails are dispatched. Requires AWS SES integration. Password reset tokens are logged in development. |
-| **Unused `get_article_by_slug` service** | Low | Defined in `services/cms/article.rs` but not called by any provider. Remove or wire up when needed. |
-| **No pagination on `get_organization_members`** | Low | Returns all members with no limit. Add `page`/`per_page` parameters. |
-| **Periodic cleanup not scheduled** | Medium | `cleanup_expired_sessions()` and `cleanup_expired_reset_tokens()` exist but are never called. Need a background worker or startup task. |
-| **Hardcoded timezone defaults** | Low | New users and organizations default to `"America/New_York"`. Has existing TODOs. |
-| **Hardcoded subscription defaults** | Low | New organizations always get `Events` subscription. Has existing TODO. |
-| **`batch_reorder_categories` uses raw SQL string interpolation** | Medium | `batch_reorder_categories` builds a raw SQL query via `format!()`. While inputs are typed as `i32`, this bypasses Diesel's parameterized query protection. Refactor to use parameterized updates in a loop within a transaction. |
-| **`batch_reorder_categories` has no scope check** | Low | The raw SQL update applies to any category IDs passed. No validation that all IDs belong to the same `article_type` (blog vs. support). |
-| **CMS article mutations lack ownership check** | Medium | All CMS article mutations (`update`, `publish`, `delete`, `auto_save`) only check `require_staff()`. Any staff user can modify any other staff user's articles. Consider adding an ownership or editor role check. |
-| **`restore_revision` does not invalidate Redis cache** | Medium | Restoring a revision sets status to `Draft` but doesn't clear the Redis cache for the slug. If the article was previously published, stale content is served until 24h TTL expires. |
-| **`auto_save_article` does not update `updated_at`** | Low | Only sets `articles::content` but never updates `articles::updated_at`, so the "last modified" timestamp becomes stale after auto-saves. |
-| **`publish_article` always overwrites `published_at`** | Low | Re-publishing an edited article sets `published_at` to now, losing the original publication date. Should only set `published_at` if it is currently `None`. |
-| **Orphaned MinIO files on DB insert failure** | Medium | `upload_media` uploads to MinIO first, then inserts the DB record. If the DB insert fails, the MinIO object is orphaned. Add a compensating delete in the error path. |
-| **`create_invitation` does not validate email format** | Medium | The `email` parameter is stored without calling `validate_email()`. The function exists in `auth.rs` but is not invoked for invitations. |
-| **Redis session update is not atomic (read-modify-write race)** | Medium | `update_redis_cached_session_active_organization_membership_id` reads, modifies, and writes back. A concurrent sliding session extension could overwrite the change. Also, parameter is named `organization_id` but receives a `membership_id`. |
-| **`delete_all_user_sessions` uses sequential Redis invalidation** | Low | Each session token's Redis cache is invalidated in a serial loop. For users with many sessions, this creates N sequential round-trips. Use a Redis pipeline or multi-key `DEL`. |
-| **`validate_media_file` trusts client-provided MIME type** | Medium | MIME type check relies on the client-provided string. A malicious user could upload an executable with `mime_type: "image/png"`. After real upload is wired, verify MIME via file magic bytes. Also add `.html`, `.js`, `.htm` to dangerous extensions. |
-| **`change_password` invalidates the caller's own session** | Low | `delete_all_user_sessions()` invalidates all sessions including the current one. Consider excluding the current session token so the user isn't logged out. Also `.ok()` swallows session deletion errors. |
-| **Tag filter loads all article IDs into memory** | Low | When filtering public articles by tag, all matching `article_id`s are loaded into a `Vec<i32>` then passed to `eq_any()`. Use a subquery or JOIN instead for large datasets. |
+Issues are grouped by category and ordered by priority within each group. Tackle **Code Duplication** first — the helper functions created there will simplify many of the fixes in later categories.
 
 ---
 
-## Implementation Order (remaining)
+### A. Code Duplication — Helper Functions
+
+These are the highest-value refactors. Each one eliminates a pattern that is repeated 10–40+ times across the codebase.
+
+| # | Item | Occurrences | Plan |
+|---|------|-------------|------|
+| A1 | **Repetitive Postgres `.map_err` boilerplate** | ~40+ | ✅ Created `postgres_error`, `redis_error`, `minio_error` helpers in `error.rs`. Applied across all service files, `postgres.rs`, `redis.rs`, and `minio.rs`. |
+| A2 | **Repetitive `ServerFnError::new(error.to_string())` in providers** | ~30+ | ✅ Updated all providers to use `?` directly, leveraging the existing `impl From<AppError> for ServerFnError` which serializes errors as JSON. Clients now receive structured error types instead of display strings. |
+| A3 | **Article ownership check duplicated in 5 CMS providers** | 5 | `update_article`, `publish_article`, `delete_article`, `auto_save`, and `restore_revision` all repeat: fetch article → check `author_id != session.user_id` → return error. Extract to a helper: `async fn require_article_ownership(article_id: i32, user_id: i32) -> Result<Article, ServerFnError>`. |
+| A4 | **Membership check + role guard duplicated in 6 org providers** | 6 | `set_active_organization`, `get_organization`, `get_organization_members`, `invite_member`, `remove_organization_member`, `update_organization_member_role` all repeat: call `get_membership` → unwrap or error. Several also check role. Extract `async fn require_membership(org_id, user_id) -> Result<OrganizationMember, ServerFnError>` and `async fn require_membership_with_role(org_id, user_id, min_role) -> Result<OrganizationMember, ServerFnError>`. |
+| A5 | **Pagination defaults repeated in every list provider** | 5+ | ✅ Created `PaginationParams::resolve(page, per_page)` in `interfaces/shared/pagination.rs`. Applied to `list_articles`, `list_published_articles`, and `list_media` providers. |
+| A6 | **Enum `as_str` / `from_str` / `display_name` / `Display` boilerplate** | All 10+ enums | Every enum manually implements the same four items. Consider a declarative macro `define_enum!` that generates all four from a list of `(VariantName, "db_value", "Display Name")` tuples. This would cut ~500 lines of repetitive code and prevent inconsistencies when adding variants. |
+| A7 | **`batch_build_article_responses` duplicated in two places** | 2 | `services/shared/article.rs` has `batch_build_public_article_responses` and `providers/cms/article.rs` has `batch_build_article_responses`. Both collect unique author/category/tag IDs, batch-load, then assemble responses. Extract the shared "collect IDs + batch load" logic into a reusable helper, and have each call site map the loaded data to its specific response type. |
+| A8 | **Single-article `build_article_response` makes N+1 queries** | 1 | `build_article_response` in the CMS article provider makes 3 separate queries (author, category, tags) for a single article. Reuse `batch_build_article_responses` with a single-element vec instead. This path is hit on every create/update/publish/restore response. |
+
+---
+
+### B. Bugs
+
+| # | Item | Severity | Details | Fix |
+|---|------|----------|---------|-----|
+| B1 | **`set_active_organization` parameter named `organization_id` but receives `membership_id`** | Medium | In `services/shared/session.rs`, the parameter `organization_id: Option<i32>` actually stores a membership ID (`set_active_organization_service(session.session_id, Some(membership.id))`). The `SessionUpdate` field is correctly named `active_organization_membership_id`. | ✅ Renamed parameter to `membership_id`. |
+| B2 | **`OrganizationUpdate` can't set nullable fields to `NULL`** | Medium | `OrganizationUpdate` uses `Option<String>` for nullable DB columns (`description`, `avatar_url`, `website_url`, `email`, `phone_number`, address fields). With Diesel's `AsChangeset`, `None` means "don't update" — there's no way to clear a value once set. `ArticleUpdate` correctly uses `Option<Option<String>>` for the same pattern. | Change all nullable-column fields in `OrganizationUpdate` to `Option<Option<String>>`. Apply the same check to `UserUpdate` (`phone_number`, `avatar_url`) and `OrganizationMemberUpdate` (`last_active_at`). |
+| B3 | **`create_organization` not wrapped in a transaction** | Medium | Inserts the organization, then inserts the owner membership in separate queries. If the membership insert fails, an ownerless organization is left in the DB. | Wrap both inserts in a `connection.transaction()` block. |
+| B4 | **`create_invitation` stores email without lowercase normalization** | Low | `create_invitation` validates the email but stores it with original casing. User registration normalizes to lowercase (`email.to_lowercase()`). The existing-member lookup in the same function does use `.to_lowercase()`, so the comparison works — but the stored invitation email casing is inconsistent with the users table. | Add `.to_lowercase()` to the email before storing in the invitation. |
+| B5 | **`reset_password` silently discards session deletion errors** | Low | Uses `delete_all_user_sessions(user_id, None).await.ok()` which swallows errors entirely. `change_password` in contrast logs failures with `tracing::warn!`. | ✅ Replaced `.ok()` with `tracing::warn!` log on error. |
+| B6 | **`delete_article` manually deletes from join tables despite `ON DELETE CASCADE`** | Low | The migration defines `ON DELETE CASCADE` on `articles_tags` and `article_revisions` foreign keys. The `delete_article` service manually deletes from both tables inside a transaction before deleting the article itself. The manual deletion is redundant. | Simplify `delete_article` to delete only from the `articles` table. The cascade will handle join table and revision cleanup. Keep the transaction if additional non-cascaded cleanup is added later. |
+| B7 | **`invitations` unique constraint blocks re-inviting previously accepted users** | Low | The DB has `UNIQUE(organization_id, email)` on invitations. The service only checks for and deletes *pending* expired invitations. If a user was previously invited and accepted, their accepted invitation row still occupies the unique slot — a new invitation for the same email to the same org will hit a `UniqueViolation`. | When creating a new invitation, also delete or archive any *accepted* or *expired* invitations for that email + org before inserting. Or scope the unique constraint to pending status only using a partial unique index. |
+
+---
+
+### C. Consistency Fixes
+
+| # | Item | Details | Fix |
+|---|------|---------|-----|
+| C1 | **Inconsistent `#[derive]` traits on enums** | Some enums derive `Debug` + `Copy` (e.g., `ArticleType`, `ArticleStatus`, `Platform`, `OrganizationType`, `InvitationStatus`) while others omit one or both (e.g., `EventType`, `MemberRole`, `SignupStatus`, `NotificationType`, `EventVisibility`). All are fieldless and can safely derive both. | Add `Copy` and `Debug` to all enums that are missing them. If addressed via A6 (macro), the macro should derive both automatically. |
+| C2 | **Inconsistent membership check style in org providers** | Some providers use `if membership.is_none() { return Err(...); }` (e.g., `get_organization`, `get_organization_members`) while others use `.ok_or_else(\|\| ServerFnError::new(...))?` (e.g., `set_active_organization`, `invite_member`). | Standardize on `.ok_or_else()` chaining (more idiomatic). If A4 is implemented (helper function), this resolves itself. |
+| C3 | **Redundant `updated_at` setting in article services** | The migration defines an `update_articles_updated_at` trigger that sets `updated_at = NOW()` on every update. But `update_article`, `publish_article`, `auto_save_article`, and `restore_revision` also set `updated_at` manually. Other tables (organizations, categories) rely solely on the trigger. | Pick one approach and be consistent. Recommendation: **rely on the DB trigger** for all tables and remove manual `updated_at` setting from Rust code. If manual control is preferred, add `updated_at` fields to `OrganizationUpdate`, `ArticleCategoryUpdate`, etc. for parity. |
+| C4 | **`create_invitation` role not validated at service layer** | The provider (`invite_member`) validates the role string via `MemberRole::from_str()`, but the service function (`create_invitation`) accepts a raw `String` role and stores it without validation. Any direct caller of the service could insert an invalid role. | Change `create_invitation` to accept `MemberRole` instead of `String`, or add `MemberRole::from_str()` validation inside the service. This follows the pattern of other services that accept typed enums. |
+| C5 | **`update_organization` has no provider endpoint** | The service function exists and validates input, but there is no provider/endpoint to expose it. Organizations can be created but not updated via the API. | Add an `update_organization` provider in `providers/web_app/organization.rs` with appropriate auth + membership checks. |
+| C6 | **`OrganizationResponse` omits most organization fields** | Only includes `id`, `name`, `slug`, `description`. Missing: `avatar_url`, `website_url`, `email`, `phone_number`, address fields, `timezone`, `organization_type`, `subscriptions`, `created_at`, `updated_at`. | Add missing fields to `OrganizationResponse`, or create a `DetailedOrganizationResponse` for the single-org endpoint while keeping the slim version for lists. |
+| C7 | **`UserAccountResponse` doesn't include email** | `AuthResponse` includes `email`, but `UserAccountResponse` (from `get_current_user`) does not. If the client needs the email after initial auth (e.g., for a settings page), there's no dedicated endpoint for it. | Add `email` to `UserAccountResponse`. |
+| C8 | **`get_members_with_user_info` returns unnamed tuple** | Returns `Vec<(OrganizationMember, String, String, String)>` — the three strings are `email`, `first_name`, `last_name` but this is not self-documenting. | Create a `MemberWithUserInfo` struct (or return a tuple of named fields) for clarity. |
+| C9 | **MinIO reads `MINIO_ENDPOINT` and `MINIO_PUBLIC_URL` env vars on every presigned URL request** | `get_minio_presigned_url` reads both env vars per call. Other services (Postgres, Redis, MinIO client) cache their config at initialization. | Cache both URLs in `OnceLock` during `initialize_minio_client()` and expose them via getter functions. |
+
+---
+
+### D. Deferred Items (to be addressed as features are built)
+
+| # | Item | Severity | Notes |
+|---|------|----------|-------|
+| D1 | **TOCTOU slug uniqueness** | Low | Slug check-then-insert is not atomic for articles, tags, categories, and orgs. DB unique constraints catch duplicates, but error messages fall back to generic `UniqueViolation`. Consider catching `UniqueViolation` and returning friendly "slug already taken" errors. |
+| D2 | **`SESSION_COOKIE_DOMAIN` placeholder** | Medium | Hardcoded to `.domain.com` — must be replaced before production deployment. Has existing TODO. |
+| D3 | **No rate limiting** | Medium | Auth endpoints (`register`, `login`, `change_password`, `request-password-reset`) have no brute-force protection. Already on roadmap (Phase 2). |
+| D4 | **No CSRF protection** | Medium | Cookie-based sessions use `SameSite=Lax` but no CSRF token validation. Already on roadmap (Phase 2). |
+| D5 | **No scheduled article publishing** | Low | `scheduled_publish_at` field exists but nothing checks/triggers it. Needs a background worker. |
+| D6 | **No email sending** | Medium | Invitations and password reset tokens are created but no emails are dispatched. Requires AWS SES integration. Password reset tokens are logged in development. |
+| D7 | **Unused `get_article_by_slug` service** | Low | Defined in `services/cms/article.rs` but not called by any provider. Remove or wire up when needed. |
+| D8 | **No pagination on `get_organization_members`** | Low | Returns all members with no limit. Add `page`/`per_page` parameters. |
+| D9 | **Periodic cleanup not scheduled** | Medium | `cleanup_expired_sessions()` and `cleanup_expired_reset_tokens()` exist but are never called. Need a background worker or startup task. |
+| D10 | **Hardcoded timezone defaults** | Low | New users and organizations default to `"America/New_York"`. Has existing TODOs. |
+| D11 | **Hardcoded subscription defaults** | Low | New organizations always get `Events` subscription. Has existing TODO. |
+| D12 | **`validate_media_file` trusts client-provided MIME type** | Medium | MIME type check relies on the client-provided string. A malicious user could claim `mime_type: "image/png"` for a non-image. After real upload is wired, verify MIME via file magic bytes. |
+| D13 | **Media upload placeholder** | Medium | The `upload_media` provider currently passes empty bytes — actual file upload needs to be wired via Dioxus multipart upload support or a presigned URL flow where the client uploads directly to MinIO. |
+| D14 | **No failed login attempt logging** | Low | `authenticate_user` doesn't log failed login attempts. Useful for security auditing and future rate limiting integration. Add `tracing::warn!` on `InvalidCredentials` with the email (not the password). |
+
+---
+
+### Implementation Order
+
+**Phase 1 — Helpers & Quick Fixes** ✅ (completed):
+
+1. ✅ **A1: Postgres/Redis/MinIO error helpers** — created `postgres_error`, `redis_error`, `minio_error` in `error.rs`, applied across all services
+2. ✅ **A2: Use `From<AppError>` in providers** — updated all providers to use `?` instead of `.map_err(|e| ServerFnError::new(e.to_string()))`
+3. ✅ **A5: Pagination helper** — created `PaginationParams::resolve()` in `interfaces/shared/pagination.rs`
+4. ✅ **B1: Fix `set_active_organization` parameter name** — renamed to `membership_id`
+5. ✅ **B5: Log `reset_password` session deletion errors** — replaced `.ok()` with `tracing::warn!`
+
+**Phase 2 — Consistency & Correctness**:
+
+6. **B2: Fix `OrganizationUpdate` Option wrapping** — change nullable fields to `Option<Option<T>>`
+7. **B3: Wrap `create_organization` in transaction**
+8. **B4: Normalize invitation email to lowercase**
+9. **C1: Standardize enum derives** — add `Copy` + `Debug` to all enums
+10. **C3: Pick `updated_at` strategy** — either remove manual setting or add it everywhere
+11. **C4: Type `create_invitation` role parameter** — use `MemberRole` instead of `String`
+12. **C9: Cache MinIO env vars at init**
+
+**Phase 3 — Provider-Level Improvements**:
+
+13. **A3: Extract article ownership helper**
+14. **A4: Extract membership check helper**
+15. **A7/A8: Consolidate article response building**
+16. **C2: Standardize membership check style** (resolved by A4)
+17. **C5: Add `update_organization` provider**
+18. **C6: Expand `OrganizationResponse` fields**
+19. **C7: Add `email` to `UserAccountResponse`**
+
+**Phase 4 — Larger Refactors** (optional, lower priority):
+
+20. **A6: Enum macro** — define `define_enum!` macro to generate all enum boilerplate
+21. **C8: Named struct for `get_members_with_user_info`**
+22. **B6: Simplify `delete_article`** — remove redundant manual cascade deletes
+23. **B7: Fix invitation re-invite constraint**
+
+**Deferred** (Phase 2 roadmap / feature-dependent):
+
+24. Items D1–D14 as listed above
+
+---
+
+## Chat Implementation Order (deferred)
 
 1. **Chat enums** (Phase A) — `enums/shared/chat.rs`
 2. **Chat models** (Phase B) — `models/chat_conversation.rs`, `chat_message.rs`, `chat_participant.rs`
 3. **Chat interfaces** (Phase C) — `interfaces/support/chat.rs`
 4. **Chat services** (Phase D) — `services/support/chat.rs`
 5. **Chat providers** (Phase E) — `providers/support/chat.rs`
-6. **Media upload wiring** — Replace placeholder with actual file upload flow
-7. **Email integration** — Wire AWS SES for invitations and password reset emails

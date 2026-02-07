@@ -83,7 +83,30 @@ impl AppError {
     }
 }
 
-// convert AppError to DioxusServerFnError for server functions
+#[cfg(feature = "server")]
+pub fn postgres_error(error: impl std::fmt::Display) -> AppError {
+    AppError::ExternalServiceError {
+        service: "Postgres".to_string(),
+        message: error.to_string(),
+    }
+}
+
+#[cfg(feature = "server")]
+pub fn redis_error(error: impl std::fmt::Display) -> AppError {
+    AppError::ExternalServiceError {
+        service: "Redis".to_string(),
+        message: error.to_string(),
+    }
+}
+
+#[cfg(feature = "server")]
+pub fn minio_error(error: impl std::fmt::Display) -> AppError {
+    AppError::ExternalServiceError {
+        service: "MinIO".to_string(),
+        message: error.to_string(),
+    }
+}
+
 #[cfg(feature = "server")]
 impl From<AppError> for DioxusServerFnError {
     fn from(err: AppError) -> Self {
@@ -92,7 +115,6 @@ impl From<AppError> for DioxusServerFnError {
     }
 }
 
-// convert DieselError to AppError
 #[cfg(feature = "server")]
 impl From<DieselError> for AppError {
     fn from(err: DieselError) -> Self {

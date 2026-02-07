@@ -1,5 +1,5 @@
 use crate::enums::{ArticleStatus, ArticleType};
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::interfaces::{PublicArticleListResponse, PublicArticleResponse};
 use crate::models::Article;
 use crate::postgres::get_postgres_connection;
@@ -27,10 +27,7 @@ pub async fn get_published_article_by_slug(slug: &str) -> Result<PublicArticleRe
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("Article"))?;
 
     let response = batch_build_public_article_responses(&[article])
@@ -66,40 +63,31 @@ pub async fn list_published_articles(
             .first(connection)
             .await
             .optional()
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
+            .map_err(postgres_error)?;
         cat.map(|(id,)| id)
     } else {
         None
     };
 
-    let tag_article_ids = if let Some(ref t_slug) = tag_slug {
+    let tag_id_for_filter = if let Some(ref tag_slug_string) = tag_slug {
         let tag: Option<(i32,)> = article_tags::table
-            .filter(article_tags::slug.eq(t_slug))
+            .filter(article_tags::slug.eq(tag_slug_string))
             .select((article_tags::id,))
             .first(connection)
             .await
             .optional()
-            .map_err(|error| AppError::ExternalServiceError {
-                service: "Postgres".to_string(),
-                message: error.to_string(),
-            })?;
+            .map_err(postgres_error)?;
 
-        if let Some((tag_id,)) = tag {
-            let ids: Vec<i32> = articles_tags::table
-                .filter(articles_tags::tag_id.eq(tag_id))
-                .select(articles_tags::article_id)
-                .load(connection)
-                .await
-                .map_err(|error| AppError::ExternalServiceError {
-                    service: "Postgres".to_string(),
-                    message: error.to_string(),
-                })?;
-            Some(ids)
-        } else {
-            Some(vec![])
+        match tag {
+            Some((tag_id,)) => Some(tag_id),
+            None => {
+                return Ok(PublicArticleListResponse {
+                    articles: vec![],
+                    total: 0,
+                    page,
+                    per_page,
+                });
+            }
         }
     } else {
         None
@@ -120,19 +108,26 @@ pub async fn list_published_articles(
         count_query = count_query.filter(articles::category_id.eq(cat_id));
     }
 
-    if let Some(ref ids) = tag_article_ids {
-        query = query.filter(articles::id.eq_any(ids));
-        count_query = count_query.filter(articles::id.eq_any(ids));
+    // use a subquery instead of loading all IDs into memory
+    if let Some(tag_id) = tag_id_for_filter {
+        let tag_subquery = articles_tags::table
+            .filter(articles_tags::tag_id.eq(tag_id))
+            .select(articles_tags::article_id);
+        query = query.filter(articles::id.eq_any(tag_subquery));
+        count_query = count_query.filter(
+            articles::id.eq_any(
+                articles_tags::table
+                    .filter(articles_tags::tag_id.eq(tag_id))
+                    .select(articles_tags::article_id),
+            ),
+        );
     }
 
     let total: i64 = count_query
         .count()
         .get_result(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     let offset = (page - 1) * per_page;
 
@@ -142,10 +137,7 @@ pub async fn list_published_articles(
         .offset(offset)
         .load(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     let responses = batch_build_public_article_responses(&articles_list).await?;
 

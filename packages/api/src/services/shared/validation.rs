@@ -122,7 +122,7 @@ pub fn validate_media_file(
     let extension = filename.rsplit('.').next().unwrap_or("").to_lowercase();
 
     let dangerous_extensions = [
-        "exe", "bat", "cmd", "sh", "ps1", "msi", "dll", "so", "dylib",
+        "exe", "bat", "cmd", "sh", "ps1", "msi", "dll", "so", "dylib", "html", "htm", "js",
     ];
 
     if dangerous_extensions.contains(&extension.as_str()) {

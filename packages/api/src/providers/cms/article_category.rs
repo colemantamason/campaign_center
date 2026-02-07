@@ -26,8 +26,7 @@ pub async fn create_category(
         request.article_type,
         request.sort_order,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     Ok(build_category_response(category))
 }
@@ -39,8 +38,7 @@ pub async fn list_categories(
     let _session = auth.require_staff()?;
 
     let categories = list_categories_service(article_type)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(categories
         .into_iter()
@@ -62,8 +60,7 @@ pub async fn update_category(
         request.description,
         request.sort_order,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     Ok(build_category_response(category))
 }
@@ -73,8 +70,7 @@ pub async fn delete_category(category_id: i32) -> Result<(), ServerFnError> {
     let _session = auth.require_staff()?;
 
     delete_category_service(category_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }
@@ -84,8 +80,7 @@ pub async fn reorder_categories(request: ReorderCategoriesRequest) -> Result<(),
     let _session = auth.require_staff()?;
 
     batch_reorder_categories_service(request.order)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }

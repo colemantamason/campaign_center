@@ -28,12 +28,10 @@ pub async fn create_organization(
         request.slug,
         session.user_id,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     set_active_organization_service(session.session_id, Some(membership.id))
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     update_redis_cached_session_active_organization_membership_id(
         &session.token,
@@ -55,13 +53,11 @@ pub async fn set_active_organization(organization_id: i32) -> Result<(), ServerF
     let session = auth.require_auth()?;
 
     let membership = get_membership(organization_id, session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?
+        .await?
         .ok_or_else(|| ServerFnError::new("Not a member of this organization"))?;
 
     set_active_organization_service(session.session_id, Some(membership.id))
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     update_redis_cached_session_active_organization_membership_id(
         &session.token,
@@ -78,8 +74,7 @@ pub async fn get_user_organizations() -> Result<Vec<OrganizationResponse>, Serve
     let session = auth.require_auth()?;
 
     let organizations = list_user_organizations(session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(organizations
         .into_iter()
@@ -97,16 +92,14 @@ pub async fn get_organization(organization_id: i32) -> Result<OrganizationRespon
     let session = auth.require_auth()?;
 
     let membership = get_membership(organization_id, session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     if membership.is_none() {
         return Err(ServerFnError::new("Not a member of this organization"));
     }
 
     let organization = get_organization_by_id(organization_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(OrganizationResponse {
         id: organization.id,
@@ -123,16 +116,14 @@ pub async fn get_organization_members(
     let session = auth.require_auth()?;
 
     let membership = get_membership(organization_id, session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     if membership.is_none() {
         return Err(ServerFnError::new("Not a member of this organization"));
     }
 
     let members_with_info = get_members_with_user_info(organization_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(members_with_info
         .into_iter()
@@ -157,8 +148,7 @@ pub async fn invite_member(
     let session = auth.require_auth()?;
 
     let membership = get_membership(organization_id, session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?
+        .await?
         .ok_or_else(|| ServerFnError::new("Not a member of this organization"))?;
 
     let caller_role = membership.get_role();
@@ -181,8 +171,7 @@ pub async fn invite_member(
         role.as_str().to_string(),
         session.user_id,
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     Ok(())
 }
@@ -195,8 +184,7 @@ pub async fn remove_organization_member(
     let session = auth.require_auth()?;
 
     let membership = get_membership(organization_id, session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?
+        .await?
         .ok_or_else(|| ServerFnError::new("Not a member of this organization"))?;
 
     let caller_role = membership.get_role();
@@ -207,16 +195,14 @@ pub async fn remove_organization_member(
     }
 
     let target_member = get_member_by_id(member_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     if target_member.organization_id != organization_id {
         return Err(ServerFnError::new("Member not found in this organization"));
     }
 
     remove_member(target_member.id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }
@@ -230,8 +216,7 @@ pub async fn update_organization_member_role(
     let session = auth.require_auth()?;
 
     let membership = get_membership(organization_id, session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?
+        .await?
         .ok_or_else(|| ServerFnError::new("Not a member of this organization"))?;
 
     if membership.get_role() != MemberRole::Owner {
@@ -239,8 +224,7 @@ pub async fn update_organization_member_role(
     }
 
     let target_member = get_member_by_id(member_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     if target_member.organization_id != organization_id {
         return Err(ServerFnError::new("Member not found in this organization"));
@@ -249,8 +233,7 @@ pub async fn update_organization_member_role(
     let role = MemberRole::from_str(&new_role).ok_or_else(|| ServerFnError::new("Invalid role"))?;
 
     update_member_role(target_member.id, role)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(())
 }

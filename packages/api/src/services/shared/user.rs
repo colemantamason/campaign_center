@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use crate::error::{postgres_error, AppError};
 use crate::models::{NewUser, User, UserUpdate};
 use crate::postgres::get_postgres_connection;
 use crate::schema::users;
@@ -9,6 +9,7 @@ use crate::services::{
 use chrono::Utc;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
+use uuid::Uuid;
 
 pub async fn register_user(
     email: String,
@@ -29,10 +30,7 @@ pub async fn register_user(
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     if existing.is_some() {
         return Err(AppError::already_exists("User with this email"));
@@ -54,10 +52,7 @@ pub async fn register_user(
         .values(&new_user)
         .get_result::<User>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 // hash for "hunter42" used for timing attack mitigation
@@ -72,10 +67,7 @@ pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppE
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
     // timing attack mitigation: even if the user doesn't exist, we verify a hash to normalize response time
     let hash_to_verify = user
@@ -91,10 +83,7 @@ pub async fn authenticate_user(email: &str, password: &str) -> Result<User, AppE
                 .set(users::last_login_at.eq(Some(Utc::now())))
                 .execute(connection)
                 .await
-                .map_err(|error| AppError::ExternalServiceError {
-                    service: "Postgres".to_string(),
-                    message: error.to_string(),
-                })?;
+                .map_err(postgres_error)?;
 
             Ok(valid_user)
         }
@@ -110,10 +99,7 @@ pub async fn get_user_by_id(user_id: i32) -> Result<User, AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?
+        .map_err(postgres_error)?
         .ok_or_else(|| AppError::not_found("User"))
 }
 
@@ -125,10 +111,7 @@ pub async fn get_user_by_email(email: &str) -> Result<Option<User>, AppError> {
         .first(connection)
         .await
         .optional()
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn update_user(user_id: i32, update: UserUpdate) -> Result<User, AppError> {
@@ -138,16 +121,14 @@ pub async fn update_user(user_id: i32, update: UserUpdate) -> Result<User, AppEr
         .set(&update)
         .get_result::<User>(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })
+        .map_err(postgres_error)
 }
 
 pub async fn change_password(
     user_id: i32,
     current_password: &str,
     new_password: &str,
+    current_session_token: Option<Uuid>,
 ) -> Result<(), AppError> {
     let user = get_user_by_id(user_id).await?;
 
@@ -168,13 +149,15 @@ pub async fn change_password(
         .set(users::password_hash.eq(new_hash))
         .execute(connection)
         .await
-        .map_err(|error| AppError::ExternalServiceError {
-            service: "Postgres".to_string(),
-            message: error.to_string(),
-        })?;
+        .map_err(postgres_error)?;
 
-    // invalidate all other sessions after password change
-    delete_all_user_sessions(user_id).await.ok();
+    if let Err(error) = delete_all_user_sessions(user_id, current_session_token).await {
+        tracing::warn!(
+            "failed to invalidate other sessions after password change for user {}: {}",
+            user_id,
+            error
+        );
+    }
 
     Ok(())
 }

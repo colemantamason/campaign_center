@@ -34,12 +34,10 @@ pub async fn register(request: RegisterRequest) -> Result<WithToken<AuthResponse
         request.last_name,
         false, // is_staff can only bet set manually in the database, not through registration
     )
-    .await
-    .map_err(|error| ServerFnError::new(error.to_string()))?;
+    .await?;
 
     let session = create_session(user.id, request.platform, user_agent, ip_address)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let token = session.token.to_string();
 
@@ -76,12 +74,10 @@ pub async fn login(request: LoginRequest) -> Result<WithToken<AuthResponse>, Ser
     let ip_address = extract_client_ip(&headers);
 
     let user = authenticate_user(&request.email, &request.password)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let session = create_session(user.id, request.platform, user_agent, ip_address)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let token = session.token.to_string();
 
@@ -139,17 +135,14 @@ pub async fn get_current_user() -> Result<Option<UserAccountResponse>, ServerFnE
     };
 
     let user = get_user_by_id(session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let organizations = list_user_organizations(session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let org_ids: Vec<i32> = organizations.iter().map(|(org, _)| org.id).collect();
     let member_counts = batch_count_members(&org_ids)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     let mut organization_memberships = HashMap::new();
 
@@ -198,8 +191,7 @@ pub async fn validate_session() -> Result<Option<AuthResponse>, ServerFnError> {
     };
 
     let user = get_user_by_id(session.user_id)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+        .await?;
 
     Ok(Some(AuthResponse {
         user_id: user.id,
@@ -217,9 +209,15 @@ pub async fn change_password(
 ) -> Result<(), ServerFnError> {
     let session = auth.require_auth()?;
 
-    change_password_service(session.user_id, &current_password, &new_password)
-        .await
-        .map_err(|error| ServerFnError::new(error.to_string()))?;
+    let current_token = Uuid::parse_str(&session.token).ok();
+
+    change_password_service(
+        session.user_id,
+        &current_password,
+        &new_password,
+        current_token,
+    )
+    .await?;
 
     Ok(())
 }
